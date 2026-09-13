@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "MQB",
+  "chassis_codes": ["5G", "BA", "AU", "8V", "5F", "5E", "3G", "AD", "BW", "7L", "NS", "KH"],
+  "module_address": "0x09",
+  "tx_header": "70E",
+  "rx_filter": "778",
+  "coding_did": "0x0600",
+  "expected_byte_length": 30,
+  "features": [
+    {
+      "id": "passenger_mirror_dip_reverse",
+      "category": "Mirrors & Convenience",
+      "byte": 4,
+      "bit": 0,
+      "name": "Passenger Mirror Dip on Reverse Gear",
+      "description": "Automatically angles passenger exterior mirror downward when reverse gear is engaged to assist kerb parking.",
+      "prerequisites": "Power folding/memory exterior mirror motor."
+    },
+    {
+      "id": "scandinavian_drl",
+      "category": "Daytime Running Lights",
+      "byte": 12,
+      "bit": 0,
+      "name": "Scandinavian DRL (Rear Tail Lights Active with DRL)",
+      "description": "Keeps rear LED/bulb taillights illuminated together with front Daytime Running Lights during daylight.",
+      "prerequisites": null
+    },
+    {
+      "id": "acoustic_lock_infotainment_menu",
+      "category": "Locking Feedback",
+      "byte": 1,
+      "bit": 2,
+      "name": "Acoustic Lock Confirmation (Infotainment Menu)",
+      "description": "Enables lock/unlock acoustic beep setting inside the MIB / Discover Media vehicle settings menu.",
+      "prerequisites": "Factory alarm siren."
+    },
+    {
+      "id": "drl_off_with_handbrake",
+      "category": "Daytime Running Lights",
+      "byte": 14,
+      "bit": 1,
+      "name": "Deactivate DRL when Electronic Parking Brake (EPB) Set",
+      "description": "Switches off daytime running lights whenever vehicle is stationary with parking brake applied.",
+      "prerequisites": null
+    },
+    {
+      "id": "cornering_lights_via_fogs",
+      "category": "Exterior Lighting",
+      "byte": 12,
+      "bit": 4,
+      "name": "Dynamic Cornering Lights via Fog Lamps",
+      "description": "Fades fog lamp on and off smoothly during cornering maneuvers or indicator usage.",
+      "prerequisites": "Front fog lamps."
+    },
+    {
+      "id": "comfort_turn_signals_5_flashes",
+      "category": "Exterior Lighting",
+      "byte": 17,
+      "bit": 3,
+      "name": "Highway Comfort Turn Signals",
+      "description": "Cycles indicator flash pulses upon soft touch of indicator stalk.",
+      "prerequisites": null
+    },
+    {
+      "id": "teardrop_wipe_front",
+      "category": "Wipers & Washers",
+      "byte": 3,
+      "bit": 4,
+      "name": "Front Windscreen Teardrop Wipe",
+      "description": "Performs one delayed wipe across front screen 5 seconds after screenwash spray.",
+      "prerequisites": null
+    },
+    {
+      "id": "rear_wiper_reverse_sync",
+      "category": "Wipers & Washers",
+      "byte": 14,
+      "bit": 4,
+      "name": "Rear Wiper on Reverse Gear",
+      "description": "Automatically runs rear wiper when selecting reverse gear if front wipers are active.",
+      "prerequisites": "Rear wiper."
+    },
+    {
+      "id": "coming_home_fog_lights",
+      "category": "Exterior Lighting",
+      "byte": 10,
+      "bit": 2,
+      "name": "Coming Home / Leaving Home with Fog Lights",
+      "description": "Uses fog lights instead of xenon/LED low beams for Coming Home lighting to extend bulb life.",
+      "prerequisites": "Front fog lamps."
+    }
+  ]
+}

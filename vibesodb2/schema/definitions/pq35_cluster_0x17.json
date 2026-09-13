@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "PQ35",
+  "chassis_codes": ["1K", "5K", "AJ", "2K", "2C", "1T", "5N", "13", "8P", "1P", "1Z", "3C", "36"],
+  "module_address": "0x17",
+  "tx_header": "714",
+  "rx_filter": "77E",
+  "coding_did": "0x0600",
+  "expected_byte_length": 3,
+  "features": [
+    {
+      "id": "needle_sweep_staging",
+      "category": "Gauges & Display",
+      "byte": 1,
+      "bit": 0,
+      "name": "Gauge Needle Sweep (Staging / Celebration)",
+      "description": "Sweeps speedometer and tachometer needles from 0 to max and back upon turning ignition ON.",
+      "prerequisites": "MFA+ / Highline cluster instrument revision."
+    },
+    {
+      "id": "seatbelt_chime_warning",
+      "category": "Warnings & Chimes",
+      "byte": 1,
+      "bit": 1,
+      "name": "Seatbelt Acoustic Warning Chime",
+      "description": "Audible chime sounding if driver seatbelt is not buckled above 20 km/h.",
+      "prerequisites": null
+    },
+    {
+      "id": "digital_speed_mfa",
+      "category": "Gauges & Display",
+      "byte": 2,
+      "bit": 3,
+      "name": "Large Digital Speed Display in MFA",
+      "description": "Shows large digital speedometer reading on central instrument cluster display.",
+      "prerequisites": "Highline multifunction display."
+    }
+  ]
+}

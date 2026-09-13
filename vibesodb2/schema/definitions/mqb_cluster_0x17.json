@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "MQB",
+  "chassis_codes": ["5G", "BA", "AU", "8V", "5F", "5E", "3G", "AD", "BW", "7L", "NS", "KH"],
+  "module_address": "0x17",
+  "tx_header": "714",
+  "rx_filter": "77E",
+  "coding_did": "0x0600",
+  "expected_byte_length": 3,
+  "features": [
+    {
+      "id": "gauge_staging_needle_sweep",
+      "category": "Gauges & Display",
+      "byte": 1,
+      "bit": 0,
+      "name": "Gauge Needle Sweep (Staging / Celebration)",
+      "description": "Sweeps speedometer and tachometer needles from min to max and back upon ignition activation.",
+      "prerequisites": "Supported instrument cluster revision (Analog & Active Info Display)."
+    },
+    {
+      "id": "lap_timer_active",
+      "category": "Gauges & Display",
+      "byte": 1,
+      "bit": 3,
+      "name": "Lap Timer & Oil Temperature Menu",
+      "description": "Activates the track lap timer and dedicated engine oil temperature telemetry screen in cluster MFA.",
+      "prerequisites": "Color MFA or Virtual Cockpit."
+    },
+    {
+      "id": "refuel_quantity_display",
+      "category": "Gauges & Display",
+      "byte": 2,
+      "bit": 2,
+      "name": "Refuel Volume Display (Quantity to Add)",
+      "description": "Displays the exact liters/gallons needed to fill fuel tank to capacity in 5-liter increments.",
+      "prerequisites": null
+    },
+    {
+      "id": "seatbelt_chime_warning",
+      "category": "Warnings & Chimes",
+      "byte": 1,
+      "bit": 1,
+      "name": "Seatbelt Acoustic Warning Chime",
+      "description": "Sounds audible chime when driver or passenger seatbelts are unbuckled with vehicle in motion.",
+      "prerequisites": null
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "PQ25_T51",
+  "chassis_codes": ["7E", "7F", "7H"],
+  "module_address": "0x08",
+  "tx_header": "746",
+  "rx_filter": "7B0",
+  "coding_did": "0x0600",
+  "expected_byte_length": 4,
+  "features": [
+    {
+      "id": "recirculation_memory",
+      "category": "Air Conditioning",
+      "byte": 0,
+      "bit": 2,
+      "name": "Air Recirculation Memory State",
+      "description": "Retains manual recirculated air setting between ignition cycles.",
+      "prerequisites": null
+    }
+  ]
+}

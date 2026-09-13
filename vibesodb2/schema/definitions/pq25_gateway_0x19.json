@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "PQ25_T51",
+  "chassis_codes": ["7E", "7F", "7H"],
+  "module_address": "0x19",
+  "tx_header": "710",
+  "rx_filter": "77A",
+  "coding_did": "0x0600",
+  "expected_byte_length": 6,
+  "features": [
+    {
+      "id": "trailer_module_installed",
+      "category": "Installation List",
+      "byte": 3,
+      "bit": 2,
+      "name": "Trailer Detection Module (J345)",
+      "description": "Enables CAN communication and lighting coordination for factory or aftermarket towbar module.",
+      "prerequisites": "Physical towbar wiring kit installed."
+    },
+    {
+      "id": "navigation_module_installed",
+      "category": "Installation List",
+      "byte": 2,
+      "bit": 4,
+      "name": "Navigation System (RNS/Discover)",
+      "description": "Registers headunit navigation bus on Gateway installation table.",
+      "prerequisites": null
+    }
+  ]
+}

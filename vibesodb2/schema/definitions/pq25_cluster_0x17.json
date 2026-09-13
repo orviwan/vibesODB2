@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "platform": "PQ25_T51",
+  "chassis_codes": ["7E", "7F", "7H"],
+  "module_address": "0x17",
+  "tx_header": "714",
+  "rx_filter": "77E",
+  "coding_did": "0x0600",
+  "expected_byte_length": 3,
+  "features": [
+    {
+      "id": "needle_sweep_staging",
+      "category": "Gauges & Display",
+      "byte": 1,
+      "bit": 0,
+      "name": "Gauge Needle Sweep (Staging)",
+      "description": "Sweeps speedometer and tachometer needles to maximum position and back upon turning ignition ON.",
+      "prerequisites": "Supported instrument cluster revision (MFA+ / Highline)."
+    },
+    {
+      "id": "seatbelt_chime_warning",
+      "category": "Warnings & Chimes",
+      "byte": 1,
+      "bit": 1,
+      "name": "Seatbelt Warning Acoustic Chime",
+      "description": "Sounds audible chime when driver seatbelt is unbuckled with vehicle in motion.",
+      "prerequisites": null
+    }
+  ]
+}
