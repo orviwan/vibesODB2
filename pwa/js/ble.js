@@ -31,6 +31,10 @@ export class WebBleTransport {
     return typeof navigator !== 'undefined' && !!navigator.bluetooth;
   }
 
+  async connect() {
+    return await this.requestAndConnect();
+  }
+
   async requestAndConnect() {
     if (!WebBleTransport.isSupported()) {
       throw new Error(
@@ -38,22 +42,42 @@ export class WebBleTransport {
       );
     }
 
-    // Filter devices by common prefixes and service UUIDs
-    this.device = await navigator.bluetooth.requestDevice({
-      filters: [
-        { namePrefix: 'vLinker' },
-        { namePrefix: 'OBD' },
-        { namePrefix: 'IOS-Vlink' },
-        { namePrefix: 'Viecar' },
-        { namePrefix: 'Carista' },
-        { namePrefix: 'STN' }
-      ],
-      optionalServices: [
-        BLE_SERVICES.NORDIC_UART,
-        BLE_SERVICES.CUSTOM_OBD_FFF0,
-        BLE_SERVICES.CUSTOM_OBD_18F0
-      ]
-    });
+    const optionalServices = [
+      BLE_SERVICES.NORDIC_UART,
+      BLE_SERVICES.CUSTOM_OBD_FFF0,
+      BLE_SERVICES.CUSTOM_OBD_18F0,
+      '0000fff0-0000-1000-8000-00805f9b34fb',
+      '000018f0-0000-1000-8000-00805f9b34fb',
+      'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+    ];
+
+    try {
+      // First try acceptAllDevices so user can select any paired or nearby adapter
+      this.device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices
+      });
+    } catch (err) {
+      // Fallback to name prefix filtering if browser requires filters
+      if (err.name === 'NotFoundError') {
+        throw err; // User cancelled
+      }
+      this.device = await navigator.bluetooth.requestDevice({
+        filters: [
+          { namePrefix: 'vLinker' },
+          { namePrefix: 'OBD' },
+          { namePrefix: 'IOS-Vlink' },
+          { namePrefix: 'Viecar' },
+          { namePrefix: 'Carista' },
+          { namePrefix: 'STN' },
+          { namePrefix: 'Veepeak' },
+          { namePrefix: 'iCar' },
+          { namePrefix: 'Konnwei' },
+          { namePrefix: 'V-LINK' }
+        ],
+        optionalServices
+      });
+    }
 
     this.device.addEventListener('gattserverdisconnected', () => {
       this.isConnected = false;
@@ -62,21 +86,45 @@ export class WebBleTransport {
 
     this.server = await this.device.gatt.connect();
 
-    // Locate UART Service
-    let service = null;
+    // Locate UART Service and Characteristics
+    let connectedService = null;
+    this.txChar = null;
+    this.rxChar = null;
+
+    // 1. Try Nordic UART Service
     try {
-      service = await this.server.getPrimaryService(BLE_SERVICES.NORDIC_UART);
-      this.txChar = await service.getCharacteristic(BLE_SERVICES.NORDIC_TX);
-      this.rxChar = await service.getCharacteristic(BLE_SERVICES.NORDIC_RX);
+      connectedService = await this.server.getPrimaryService(BLE_SERVICES.NORDIC_UART);
+      this.txChar = await connectedService.getCharacteristic(BLE_SERVICES.NORDIC_TX);
+      this.rxChar = await connectedService.getCharacteristic(BLE_SERVICES.NORDIC_RX);
     } catch (e) {
-      // Try alternate FFF0 service
+      // 2. Try FFF0 custom service
       try {
-        service = await this.server.getPrimaryService(BLE_SERVICES.CUSTOM_OBD_FFF0);
-        this.txChar = await service.getCharacteristic(BLE_SERVICES.CUSTOM_OBD_FFF2);
-        this.rxChar = await service.getCharacteristic(BLE_SERVICES.CUSTOM_OBD_FFF1);
+        connectedService = await this.server.getPrimaryService(BLE_SERVICES.CUSTOM_OBD_FFF0);
+        this.txChar = await connectedService.getCharacteristic(BLE_SERVICES.CUSTOM_OBD_FFF2);
+        this.rxChar = await connectedService.getCharacteristic(BLE_SERVICES.CUSTOM_OBD_FFF1);
       } catch (err2) {
-        throw new Error('Failed to find compatible serial GATT service on the selected Bluetooth device.');
+        // 3. Dynamic service scan for any write/notify pair
+        try {
+          const services = await this.server.getPrimaryServices();
+          for (const s of services) {
+            try {
+              const chars = await s.getCharacteristics();
+              const wChar = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+              const rChar = chars.find(c => c.properties.notify || c.properties.indicate);
+              if (wChar && rChar) {
+                this.txChar = wChar;
+                this.rxChar = rChar;
+                connectedService = s;
+                break;
+              }
+            } catch (errChars) {}
+          }
+        } catch (err3) {}
       }
+    }
+
+    if (!this.txChar || !this.rxChar) {
+      throw new Error('Failed to locate compatible OBD-II serial GATT service on the selected Bluetooth device.');
     }
 
     // Subscribe to RX notifications
