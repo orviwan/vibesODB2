@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 """
 Automated Screenshot Capture Engine for vibesODB2.
-Captures high-resolution screenshots of the Web Virtual Cockpit, Dynamic Feature Coding,
-Interactive Byte Matrix, Safety Audit Guardrail Modal, Zero-Touch Backups,
+Captures high-resolution screenshots of the PWA Virtual Cockpit, Feature Coding,
+Interactive Byte Matrix, Safety Audit Guardrail Modal, Backups,
 and the Terminal Live Telemetry HUD.
 """
 
+import functools
+import http.server
 import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PWA_DIR = PROJECT_ROOT / "pwa"
 OUTPUT_DIR = PROJECT_ROOT / "docs" / "images"
-ARTIFACT_DIR = Path("/home/orviwan/.gemini/antigravity/brain/d04b2567-d539-48b1-8ede-439d9cec76e0")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
-CHROME_BIN = "/usr/local/bin/google-chrome"
-PYTHON_BIN = sys.executable
+CHROME_BIN = shutil.which("google-chrome") or "/usr/local/bin/google-chrome"
 
 
 def capture_url(url: str, output_path: Path, wait_ms: int = 2500, width: int = 1400, height: int = 920):
@@ -45,7 +46,6 @@ def generate_terminal_hud_screenshot(output_path: Path):
 
     console = Console(record=True, width=90)
 
-    # Realistic HUD snapshot
     spd = 84
     mph = spd * 0.621371
     rpm = 3450
@@ -140,52 +140,29 @@ pre {{
 
 
 def main():
-    print("Launching vibesODB2 server for automated screenshot captures...")
-    port = 8129
-    server = subprocess.Popen(
-        [PYTHON_BIN, "-m", "uvicorn", "vibesodb2.web.app:app", "--host", "127.0.0.1", f"--port={port}"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    print("Launching local PWA HTTP server for screenshot capture...")
+    port = 8139
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(PWA_DIR))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
 
     try:
-        time.sleep(2.0)
+        time.sleep(1.0)
         base_url = f"http://127.0.0.1:{port}"
 
-        # 1. Real-Time Telemetry & Virtual Cockpit
-        img_telemetry = OUTPUT_DIR / "vibesodb2_telemetry.png"
-        capture_url(f"{base_url}/#telemetryTab", img_telemetry, wait_ms=4000, width=1400, height=920)
+        # 1. Cockpit
+        img_cockpit = OUTPUT_DIR / "pwa_mobile_cockpit.png"
+        capture_url(f"{base_url}/index.html", img_cockpit, wait_ms=2500, width=420, height=900)
 
-        # 2. Dynamic Feature Coding
-        img_features = OUTPUT_DIR / "vibesodb2_features.png"
-        capture_url(f"{base_url}/#featuresTab", img_features, wait_ms=2500, width=1400, height=920)
-
-        # 3. Interactive Byte Matrix & Bit Inspector
-        img_bytes = OUTPUT_DIR / "vibesodb2_byte_matrix.png"
-        capture_url(f"{base_url}/#byteInspectorTab", img_bytes, wait_ms=2500, width=1400, height=920)
-
-        # 4. Zero-Touch Backups Registry
-        img_backups = OUTPUT_DIR / "vibesodb2_backups.png"
-        capture_url(f"{base_url}/#backupsTab", img_backups, wait_ms=2500, width=1400, height=850)
-
-        # 5. Pre-Write Safety Audit Modal
-        img_safety = OUTPUT_DIR / "vibesodb2_safety_modal.png"
-        capture_url(f"{base_url}/?modal=safety", img_safety, wait_ms=2500, width=1400, height=900)
-
-        # 6. Terminal Cockpit HUD
+        # 2. Terminal Cockpit HUD
         img_hud = OUTPUT_DIR / "vibesodb2_terminal_hud.png"
         generate_terminal_hud_screenshot(img_hud)
 
-        # Copy all generated screenshots to the artifacts directory
-        for img in [img_telemetry, img_features, img_bytes, img_backups, img_safety, img_hud]:
-            if img.exists():
-                shutil.copy2(img, ARTIFACT_DIR / img.name)
-                print(f"✓ Copied to artifacts: {img.name}")
-
-        print("\nAll screenshots generated and verified successfully!")
+        print("\nScreenshots updated successfully!")
 
     finally:
-        server.terminate()
+        server.shutdown()
 
 
 if __name__ == "__main__":

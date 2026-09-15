@@ -1,5 +1,5 @@
 """
-Unit and Integration Tests for OpenTransporter Telemetry Engine and Digital Dashboard.
+Unit and Integration Tests for vibesODB2 Telemetry Engine and Digital Dashboard.
 Verifies Mode 01 PID formulas, UDS DID decoders, Drive Cycle simulator,
 multi-rate scheduler, and FastAPI WebSocket broadcasting.
 """

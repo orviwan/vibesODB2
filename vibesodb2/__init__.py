@@ -1,7 +1,6 @@
 """
-OpenTransporter
-An open-source, modular vehicle configuration and diagnostic engine
-engineered for the Volkswagen Transporter (T5.1 / T6) and related VAG platforms.
+vibesODB2
+The free and open source diagnostics & customization for VAG vehicles.
 """
 
 __version__ = "0.1.0"

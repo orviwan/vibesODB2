@@ -24,7 +24,7 @@ class ModuleAddressConfig:
     description: str
 
 
-# Transporter (T5.1 / T6 / PQ25 / PQ35) Module Addressing Definitions
+# VAG (PQ25 / PQ35 / MQB) Module Addressing Definitions
 MODULE_REGISTRY: Dict[int, ModuleAddressConfig] = {
     0x09: ModuleAddressConfig(
         name="Central Electric (BCM)",

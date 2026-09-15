@@ -1,5 +1,5 @@
 """
-UDS ISO 14229 Client Implementation for VW Transporter (PQ25 / PQ35).
+UDS ISO 14229 Client Implementation for VAG Platforms (PQ25 / PQ35 / MQB).
 Handles Diagnostic Sessions, asynchronous TesterPresent keep-alive,
 DID Read/Write, and DTC diagnostics.
 """

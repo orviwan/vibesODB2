@@ -1,5 +1,5 @@
 """
-Full End-to-End Integration Test for OpenTransporter.
+Full End-to-End Integration Test for vibesODB2.
 Simulates:
 1. BLE/Mock connection
 2. Adapter initialization (ATZ, ATE0, ATCAF1, ATSP6)

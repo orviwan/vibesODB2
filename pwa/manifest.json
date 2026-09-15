@@ -1,7 +1,7 @@
 {
-  "name": "vibesODB2 - VAG Configuration & Diagnostics",
+  "name": "vibesODB2 - The free and open source diagnostics & customization for VAG vehicles",
   "short_name": "vibesODB2",
-  "description": "Open-source VAG vehicle configuration, diagnostic, and real-time telemetry engine",
+  "description": "The free and open source diagnostics & customization for VAG vehicles",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

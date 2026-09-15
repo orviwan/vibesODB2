@@ -1,6 +1,7 @@
 """
 High-fidelity Mock OBD-II Transport simulating a Vgate vLinker MC+ paired with
-a Volkswagen Transporter T5.1 (PQ25) ECU network.
+a VAG ECU network (PQ25 / PQ35 / MQB).
+Enforces realistic timing, AT command responses, OBD-II PIDs, and UDS ISO-TP sessions.
 Enables offline testing, automated unit tests, and UI development without physical hardware.
 """
 
