@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>vibesODB2 • Mobile Telemetry & VAG Long Coding</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="vibesODB2">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">VIBES</div>
+      <h1>vibesODB2</h1>
+    </div>
+    <div class="header-actions">
+      <button id="btn-wake-lock" class="wake-pill" title="Prevent screen from sleeping while driving">Screen Lock: Off</button>
+      <div class="status-pill">
+        <span id="status-dot" class="dot sim"></span>
+        <span id="status-text">Simulator Mode</span>
+      </div>
+      <button id="btn-ble-connect" class="btn-ble">
+        <span>⚡</span> Connect BLE
+      </button>
+    </div>
+  </header>
+
+  <!-- Sticky Tabs Navigation -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="tab-cockpit">Virtual Cockpit</button>
+    <button class="tab-btn" data-tab="tab-coding">Feature Coding</button>
+    <button class="tab-btn" data-tab="tab-matrix">Byte Matrix</button>
+    <button class="tab-btn" data-tab="tab-backups">Backups</button>
+    <button class="tab-btn" data-tab="tab-dtcs">Fault Codes</button>
+  </nav>
+
+  <!-- Tab 1: Virtual Cockpit Telemetry -->
+  <main id="tab-cockpit" class="tab-content active">
+    <!-- Drive Profile & Telemetry Rate Bar -->
+    <div class="profile-bar">
+      <span style="font-size: 0.8rem; color: var(--text-muted); font-weight:600;">SIM DRIVE PROFILE:</span>
+      <button id="profile-city" class="profile-pill active">City Traffic</button>
+      <button id="profile-highway" class="profile-pill">Highway Cruise</button>
+      <button id="profile-spirited" class="profile-pill">Spirited (Boost)</button>
+      <button id="profile-idle" class="profile-pill">Idle / Park</button>
+      <div style="margin-left: auto; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);" id="telemetry-hz">0.0 Hz</div>
+    </div>
+
+    <div class="cockpit-grid">
+      <!-- Radial Tachometer & Speedometer -->
+      <div class="card">
+        <div class="card-title">
+          <span>Engine Tachometer & Speed</span>
+          <span class="gear-badge" id="gauge-gear-val">D1</span>
+        </div>
+        <div class="gauge-container">
+          <svg id="tachometer-svg" class="dial-svg" viewBox="0 0 240 210"></svg>
+          <div class="gauge-readout">
+            <div class="gauge-speed" id="gauge-speed-val">0</div>
+            <button id="gauge-unit-toggle" class="gauge-unit" title="Click to toggle KM/H / MPH">KM/H</button>
+            <div class="gauge-rpm-val" id="gauge-rpm-val">0 RPM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Turbo Boost & Dynamics -->
+      <div class="card">
+        <div class="card-title">
+          <span>Manifold Boost & Throttle</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Manifold Boost</span>
+          <span class="metric-value" id="metric-boost-val" style="color: var(--primary-light);">0.00 bar</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-boost" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+
+        <div class="metric-row" style="margin-top: 1.5rem;">
+          <span class="metric-label">Throttle Position</span>
+          <span class="metric-value" id="metric-throttle-val">0%</span>
+        </div>
+      </div>
+
+      <!-- Thermal & Emission Diagnostics -->
+      <div class="card">
+        <div class="card-title">
+          <span>Thermal & DPF Diagnostics</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Coolant Temperature</span>
+          <span class="metric-value" id="metric-coolant-val">85 °C</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-coolant" class="progress-bar-fill thermal" style="width: 56%;"></div>
+        </div>
+
+        <div class="metric-row" style="margin-top: 1.25rem;">
+          <span class="metric-label">Intake Air Temp (IAT)</span>
+          <span class="metric-value" id="metric-iat-val">24 °C</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Exhaust Gas Temp (EGT)</span>
+          <span class="metric-value" id="metric-egt-val">280 °C</span>
+        </div>
+
+        <div class="metric-row" style="margin-top: 0.5rem;">
+          <span class="metric-label">DPF Soot Load</span>
+          <span class="metric-value" id="metric-soot-val" style="color: var(--warning);">18.4 g</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-soot" class="progress-bar-fill" style="width: 40%; background: linear-gradient(90deg, #10b981, #f59e0b);"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Tab 2: Schema-Driven Feature Coding -->
+  <main id="tab-coding" class="tab-content">
+    <div class="card" style="margin-bottom: 1.25rem;">
+      <div class="card-title">Select Target Vehicle Platform & Module</div>
+      <select id="schema-select" class="select-box"></select>
+    </div>
+
+    <div id="feature-list-container" class="feature-list">
+      <!-- Populated dynamically via schemas.js -->
+    </div>
+  </main>
+
+  <!-- Tab 3: Interactive Byte Matrix -->
+  <main id="tab-matrix" class="tab-content">
+    <div class="card" style="margin-bottom: 1.25rem;">
+      <div class="card-title">
+        <span>30-Byte Coding Buffer</span>
+        <span id="selected-byte-index" style="color: var(--primary-light); font-family: var(--font-mono); font-size: 0.85rem;">Byte 0 (0x68)</span>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+        Click any byte below to inspect and flip its individual 8 bits:
+      </p>
+      <div id="byte-grid-container" class="byte-grid">
+        <!-- Populated dynamically -->
+      </div>
+      
+      <div style="margin-top: 1.25rem;">
+        <span style="font-size: 0.85rem; font-weight:700; color:var(--text-muted);">INDIVIDUAL BIT SWITCHES (0–7):</span>
+        <div id="bit-switches-container" class="bit-switches">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Raw Hexadecimal Payload</div>
+      <input type="text" id="raw-hex-input" class="hex-input" spellcheck="false" autocomplete="off" />
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
+        <button id="btn-reset-hex" class="btn btn-secondary">Reset to Baseline</button>
+        <button id="btn-apply-hex" class="btn btn-primary">Audit & Write Hex</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Tab 4: Backups & Snapshots -->
+  <main id="tab-backups" class="tab-content">
+    <div class="card" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight:700;">Immutable Pre-Write Snapshots</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Stored locally in browser IndexedDB before every UDS flash write.</p>
+      </div>
+      <div style="display:flex; gap:0.5rem;">
+        <button id="btn-export-backups" class="btn btn-primary">Export JSON</button>
+        <button id="btn-import-backups" class="btn btn-secondary">Import JSON</button>
+        <input type="file" id="input-import-backups" accept=".json" style="display:none;" />
+      </div>
+    </div>
+
+    <div id="backups-list-container">
+      <!-- Populated dynamically -->
+    </div>
+  </main>
+
+  <!-- Tab 5: Diagnostic Trouble Codes (DTC) -->
+  <main id="tab-dtcs" class="tab-content">
+    <div class="card" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight:700;">Diagnostic Trouble Codes (ISO 14229 Service 0x19 / 0x14)</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Query confirmed DTCs across ECUs and clear emission fault codes.</p>
+      </div>
+      <div style="display:flex; gap:0.5rem;">
+        <button id="btn-scan-dtcs" class="btn btn-primary">Scan Fault Codes</button>
+        <button id="btn-clear-dtcs" class="btn btn-danger">Clear All DTCs (0x14)</button>
+      </div>
+    </div>
+
+    <div id="dtc-list-container">
+      <!-- Populated dynamically -->
+    </div>
+  </main>
+
+  <!-- 5-Point Safety Pipeline Audit Modal -->
+  <div id="modal-safety-audit" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span>🛡️</span>
+        <span>5-Point Defensive Safety Audit</span>
+      </div>
+      
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+        The vibesODB2 safety pipeline validates hardware interlocks before writing to vehicle EEPROM:
+      </p>
+
+      <div class="check-item">
+        <div class="check-icon" id="check-rpm-icon">✅</div>
+        <div class="check-text">
+          <h5>Engine Running Interlock (PID 010C)</h5>
+          <p id="check-rpm-desc">Engine Speed = 0 RPM (Ignition ON, Engine OFF).</p>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-icon">🛡️</div>
+        <div class="check-text">
+          <h5>Module Blacklist Enforcement</h5>
+          <p>Critical braking (ABS/ESP 0x03), Airbag (0x15), and Power Steering (0x44) are strictly blocked.</p>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-icon">📏</div>
+        <div class="check-text">
+          <h5>Payload Sizing Verification</h5>
+          <p>Writing exact byte count required by ECU schema specification.</p>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-icon">💾</div>
+        <div class="check-text">
+          <h5>Immutable Pre-Write Snapshot</h5>
+          <p>Current ECU state will be automatically saved to local IndexedDB before flashing.</p>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-icon">🔄</div>
+        <div class="check-text">
+          <h5>Atomic Rollback Armed</h5>
+          <p>If ECU returns a Negative Response Code (NRC), previous state is immediately restored.</p>
+        </div>
+      </div>
+
+      <!-- Detailed Byte Diffs -->
+      <div style="margin-top: 1rem;">
+        <h5 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">PLANNED EEPROM BYTE MODIFICATIONS:</h5>
+        <div id="modal-diff-summary"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-modal-cancel" class="btn btn-secondary">Abort</button>
+        <button id="btn-modal-confirm" class="btn btn-primary">Confirm & Write to ECU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main ES Module Script -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

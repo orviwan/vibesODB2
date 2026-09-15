@@ -3,11 +3,32 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform: VAG PQ25 / PQ35 / MQB](https://img.shields.io/badge/Platforms-PQ25%20%7C%20PQ35%20%7C%20MQB-green.svg)](#supported-vag-platforms--chassis-matrix)
+[![GitHub Pages](https://img.shields.io/badge/Live%20PWA-orviwan.github.io%2FvibesODB2-success?logo=github)](https://orviwan.github.io/vibesODB2/)
 [![Built with AI](https://img.shields.io/badge/Built%20with-Agentic%20AI%20(Google%20Antigravity)-purple.svg)](#built-with-ai)
 
 An open-source, modular vehicle configuration and diagnostic engine engineered for the **Volkswagen Transporter (T5.1 / T6 / T6.1)** and broader **VAG platforms (PQ25, PQ35/PQ46, MQB)** across **Volkswagen, Audi, SEAT, and Škoda**.
 
-The project connects directly to off-the-shelf **Bluetooth Low Energy (BLE) OBD-II adapters** to read, modify, and write Unified Diagnostic Services (**UDS ISO 14229**) Long Coding and Adaptations without proprietary, monolithic database files.
+Available as both a **Python CLI / Local Web Suite** and a zero-install **Progressive Web App (PWA)** running directly on mobile and desktop browsers with **Web Bluetooth**.
+
+---
+
+## 📱 Live Progressive Web App (PWA)
+
+🚀 **Launch App:** [**https://orviwan.github.io/vibesODB2/**](https://orviwan.github.io/vibesODB2/)
+
+vibesODB2 runs directly in your mobile browser without compiling or installing an app store binary. Connect directly to your OBD-II dongle using the browser's hardware Bluetooth stack:
+
+| Cockpit Telemetry | Feature Coding | Byte Matrix | Safety Guardrails |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/pwa_mobile_cockpit.png" width="220" /> | <img src="docs/images/pwa_mobile_coding.png" width="220" /> | <img src="docs/images/pwa_mobile_matrix.png" width="220" /> | <img src="docs/images/pwa_mobile_safety_modal.png" width="220" /> |
+
+### Browser & Hardware Support:
+- **Android**: Supported natively in Google Chrome, Microsoft Edge, Brave, and Samsung Internet via `navigator.bluetooth`.
+- **iOS / iPadOS**: Apple Mobile Safari restricts Web Bluetooth. Open **`https://orviwan.github.io/vibesODB2/`** in [**Bluefy – Web BLE Browser**](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) (free on the App Store), which provides full `navigator.bluetooth` standard support.
+- **Laptops / Desktops**: Google Chrome, Edge, and Chromium with Bluetooth 4.0+.
+- **Offline / Vehicle Use**: Fully installable as an offline PWA with standalone home screen launch and offline caching via Service Worker (`sw.js`).
+- **Drive Cycle Simulator**: When disconnected from an adapter, vibesODB2 automatically activates the high-fidelity drive simulator (`City Traffic`, `Highway Cruise`, `Spirited Boost`, `Idle/Park`).
+- **Screen Wake Lock & Haptics**: Uses `navigator.wakeLock` to prevent phone displays from turning off in dash mounts, and provides tactile vibration alerts on redline (>4800 RPM) or thermal peaks.
 
 ---
 
