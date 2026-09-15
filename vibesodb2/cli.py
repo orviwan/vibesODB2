@@ -498,7 +498,16 @@ async def cmd_live(args) -> int:
 
 
 def cmd_web(args) -> int:
+    import logging
     import uvicorn
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logging.getLogger("vibesodb2").setLevel(logging.INFO)
+
     console.print(
         Panel.fit(
             f"[bold cyan]Starting vibesODB2 Web Dashboard on http://{args.host}:{args.port}[/bold cyan]\n"
@@ -517,7 +526,7 @@ def cmd_web(args) -> int:
         os.environ["VIBESODB2_PLATFORM"] = args.platform
         os.environ["OPENTRANSPORTER_PLATFORM"] = args.platform
 
-    uvicorn.run("vibesodb2.web.app:app", host=args.host, port=args.port, reload=False)
+    uvicorn.run("vibesodb2.web.app:app", host=args.host, port=args.port, reload=False, log_level="info")
     return 0
 
 

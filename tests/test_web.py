@@ -114,9 +114,6 @@ def test_web_connect_mock_mode(client):
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "connected"
-    assert data["mock"] is True
-
-
 def test_web_connect_failure_details(client, monkeypatch):
     from vibesodb2.ble.transport import BleNordicUartTransport
 
@@ -128,5 +125,41 @@ def test_web_connect_failure_details(client, monkeypatch):
     assert res.status_code == 400
     data = res.json()
     assert "Connection timed out" in data["detail"]
+
+
+def test_web_disconnect(client):
+    # First ensure connected
+    client.post("/api/connect", json={"mock": True, "mock_rpm": 0})
+    res = client.post("/api/disconnect")
+    assert res.status_code == 200
+    assert res.json()["status"] == "disconnected"
+    status_res = client.get("/api/status")
+    assert status_res.json()["connected"] is False
+
+
+def test_web_connect_concurrency_lock(client):
+    from vibesodb2.web.app import state
+
+    # Simulate an active connection attempt in progress
+    state.is_connecting = True
+    try:
+        res = client.post("/api/connect", json={"mock": True, "mock_rpm": 0})
+        assert res.status_code == 409
+        assert "already in progress" in res.json()["detail"]
+    finally:
+        state.is_connecting = False
+
+
+def test_web_html_controls(client):
+    res = client.get("/")
+    assert res.status_code == 200
+    html = res.text
+    assert "btnModalScan" in html
+    assert "btnStartSimulator" in html
+    assert "modalBusyBox" in html
+    assert "modalErrorBox" in html
+    assert "tabBtnBle" in html
+    assert "tabBtnMock" in html
+    assert "btnHeaderConnect" in html
 
 

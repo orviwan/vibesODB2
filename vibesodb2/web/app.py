@@ -6,12 +6,23 @@ safety audits, backups, DTC management, and VAG platform switching (PQ25, PQ35, 
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+# Configure vibesodb2 root logger to ensure logs are visible in the terminal
+logger = logging.getLogger("vibesodb2.web")
+_root_logger = logging.getLogger("vibesodb2")
+_root_logger.setLevel(logging.INFO)
+if not any(isinstance(h, logging.StreamHandler) for h in _root_logger.handlers):
+    _ch = logging.StreamHandler()
+    _ch.setLevel(logging.INFO)
+    _ch.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s", datefmt="%H:%M:%S")
+    )
+    _root_logger.addHandler(_ch)
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,26 +87,43 @@ class AppState:
         self.cached_coding: Dict[int, bytearray] = {}
         self.vin: str = "WV1ZZZ7EZEH012345"
         self.telemetry_engine: Optional[TelemetryEngine] = None
+        self._connect_lock: Optional[asyncio.Lock] = None
+        self.is_connecting: bool = False
+
+    @property
+    def connect_lock(self) -> asyncio.Lock:
+        if self._connect_lock is None:
+            self._connect_lock = asyncio.Lock()
+        return self._connect_lock
 
     async def get_or_create_adapter(self) -> ELM327Adapter:
         if self.adapter and self.transport and self.transport.is_connected:
             return self.adapter
 
         if self.mock_mode:
+            logger.info("Initializing MockTransport (simulated engine_rpm=%d)...", self.last_rpm)
             self.transport = MockTransport(engine_rpm=self.last_rpm)
         else:
-            self.transport = BleNordicUartTransport(self.ble_mac or "auto")
+            target = self.ble_mac or "auto"
+            logger.info("Initializing BleNordicUartTransport for target: %s", target)
+            self.transport = BleNordicUartTransport(target)
 
         try:
+            logger.info("Connecting transport...")
             await self.transport.connect()
             if hasattr(self.transport, "mac_or_uuid") and self.transport.mac_or_uuid:
                 self.ble_mac = self.transport.mac_or_uuid
+                logger.info("Transport connected to: %s", self.ble_mac)
+
+            logger.info("Initializing ELM327 adapter protocol (ATZ, ATE0, etc.)...")
             self.adapter = ELM327Adapter(self.transport)
             await self.adapter.initialize()
             self.connected = True
             self.voltage = self.adapter.voltage or "12.6V"
+            logger.info("Adapter initialized. Voltage: %s, Device: %s", self.voltage, self.adapter.device_version)
             return self.adapter
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to initialize adapter on %s: %s", self.ble_mac or "auto", e, exc_info=True)
             if self.transport:
                 try:
                     await self.transport.disconnect()
@@ -224,33 +252,52 @@ async def get_platforms():
 
 @app.post("/api/connect")
 async def post_connect(req: ConnectRequest):
-    if state.telemetry_engine:
-        await state.telemetry_engine.stop()
-        state.telemetry_engine = None
+    if state.is_connecting:
+        logger.warning("Duplicate connect request rejected: connection already in progress.")
+        raise HTTPException(
+            status_code=409,
+            detail="A connection attempt is already in progress. Please wait for it to complete.",
+        )
 
-    if state.transport and state.transport.is_connected:
-        await state.transport.disconnect()
-
-    state.mock_mode = req.mock
-    state.ble_mac = req.mac
-    state.last_rpm = req.mock_rpm
-    if req.platform:
-        state.platform = req.platform
-
+    state.is_connecting = True
     try:
-        adapter = await state.get_or_create_adapter()
-        state.connected = True
-        return {
-            "status": "connected",
-            "version": adapter.device_version,
-            "voltage": adapter.voltage,
-            "mock": state.mock_mode,
-            "mac": state.ble_mac,
-            "platform": state.platform,
-        }
+        async with state.connect_lock:
+            logger.info(">>> Connect request received: mock=%s, mac=%s, platform=%s", req.mock, req.mac, req.platform)
+            if state.telemetry_engine:
+                logger.info("Stopping active telemetry engine before reconnect...")
+                await state.telemetry_engine.stop()
+                state.telemetry_engine = None
+
+            if state.transport and state.transport.is_connected:
+                logger.info("Disconnecting previous transport before reconnect...")
+                try:
+                    await state.transport.disconnect()
+                except Exception as de:
+                    logger.warning("Error disconnecting previous transport: %s", de)
+
+            state.mock_mode = req.mock
+            state.ble_mac = req.mac
+            state.last_rpm = req.mock_rpm
+            if req.platform:
+                state.platform = req.platform
+
+            adapter = await state.get_or_create_adapter()
+            state.connected = True
+            logger.info(">>> Successfully connected to %s (%s)", state.ble_mac or "Mock", adapter.device_version)
+            return {
+                "status": "connected",
+                "version": adapter.device_version,
+                "voltage": adapter.voltage,
+                "mock": state.mock_mode,
+                "mac": state.ble_mac,
+                "platform": state.platform,
+            }
+    except HTTPException:
+        raise
     except Exception as e:
         state.connected = False
         msg = str(e)
+        logger.error("Connection attempt failed: %s", msg, exc_info=True)
         if isinstance(e, TimeoutError) or "timeout" in msg.lower() or "not found" in msg.lower():
             detail = (
                 f"Could not connect to {state.ble_mac or 'adapter'}: Connection timed out. "
@@ -259,25 +306,38 @@ async def post_connect(req: ConnectRequest):
         else:
             detail = f"Connection failed: {msg}"
         raise HTTPException(status_code=400, detail=detail)
+    finally:
+        state.is_connecting = False
 
 
 @app.post("/api/disconnect")
 async def post_disconnect():
-    if state.telemetry_engine:
-        await state.telemetry_engine.stop()
-        state.telemetry_engine = None
+    async with state.connect_lock:
+        logger.info(">>> Disconnect request received.")
+        if state.telemetry_engine:
+            await state.telemetry_engine.stop()
+            state.telemetry_engine = None
 
-    if state.transport:
-        await state.transport.disconnect()
-    state.connected = False
-    state.adapter = None
-    return {"status": "disconnected"}
+        if state.transport:
+            try:
+                await state.transport.disconnect()
+            except Exception as e:
+                logger.warning("Error disconnecting transport: %s", e)
+        state.connected = False
+        state.adapter = None
+        state.transport = None
+        logger.info(">>> Disconnected successfully.")
+        return {"status": "disconnected"}
 
 
 @app.get("/api/scan")
 async def get_scan(timeout: float = 4.0, all_devices: bool = False):
+    logger.info("Scanning for BLE OBD adapters (timeout=%.1fs, all_devices=%s)...", timeout, all_devices)
     try:
         adapters = await scan_for_adapters(timeout=timeout, include_all=all_devices)
+        logger.info("Scan finished: found %d devices.", len(adapters))
+        for a in adapters:
+            logger.info("  Found: %s (%s, RSSI=%d dBm, is_obd=%s)", a.name, a.address, a.rssi, a.is_obd)
         return [
             {
                 "name": a.name,
@@ -290,7 +350,8 @@ async def get_scan(timeout: float = 4.0, all_devices: bool = False):
             for a in adapters
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("BLE Scan failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"BLE Scan failed: {e}")
 
 
 @app.get("/api/modules")
