@@ -66,6 +66,24 @@
       </div>
     </div>
 
+    <!-- Automatic Cockpit DTC Fault Codes Alert Panel -->
+    <div id="cockpit-dtc-alert" class="card" style="display:none; margin-bottom: 1.25rem; border-left: 4px solid var(--danger); background: rgba(239, 68, 68, 0.08); padding: 1rem 1.25rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <span style="font-size: 1.6rem;">⚠️</span>
+          <div>
+            <h4 id="cockpit-dtc-title" style="font-size: 0.95rem; font-weight: 700; color: #f87171; margin:0;">Diagnostic Trouble Codes Detected</h4>
+            <p id="cockpit-dtc-desc" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+              Active fault codes found in vehicle memory.
+            </p>
+          </div>
+        </div>
+        <button id="btn-cockpit-view-dtcs" class="btn btn-danger" style="font-size:0.82rem; padding: 6px 14px; font-weight:600;">
+          🔍 Open Fault Codes Diagnostic
+        </button>
+      </div>
+    </div>
+
     <div class="cockpit-grid">
       <!-- Radial Tachometer & Speedometer -->
       <div class="card">
@@ -194,7 +212,13 @@
     </div>
 
     <div class="card" style="margin-bottom: 1.25rem;">
-      <div class="card-title">Select Target Vehicle Platform & Module</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.75rem;">
+        <div class="card-title" style="margin:0;">Select Target Vehicle Platform & Module</div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <button id="btn-open-add-custom" class="btn btn-primary" style="font-size:0.78rem; padding:5px 12px;">➕ Add Custom Setting</button>
+          <button id="btn-export-community-schema" class="btn btn-secondary" style="font-size:0.78rem; padding:5px 12px;" title="Export active schema and custom settings for sharing">📤 Export Schema</button>
+        </div>
+      </div>
       <select id="schema-select" class="select-box"></select>
     </div>
 
@@ -427,6 +451,53 @@
         <button id="btn-feat-confirm-cancel" class="btn btn-secondary">Cancel</button>
         <button id="btn-feat-confirm-proceed" class="btn btn-primary">Proceed to Flash Verification</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Add Custom Setting Modal -->
+  <div id="modal-add-custom-feature" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-title">
+        <span style="font-size: 1.3rem;">➕</span>
+        <h3 style="font-size: 1.05rem;">Add Custom Feature Setting</h3>
+      </div>
+      
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
+        Map a newly discovered bit coordinate on your vehicle to create a custom toggle switch:
+      </p>
+
+      <form id="form-add-custom-feature">
+        <div style="margin-bottom: 0.75rem;">
+          <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">Feature Name *</label>
+          <input type="text" id="custom-feat-name" class="select-box" style="width:100%; box-sizing:border-box;" placeholder="e.g. Acoustic Alarm Chirp on Unlock" required />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom: 0.75rem;">
+          <div>
+            <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">Byte Index (0–29) *</label>
+            <input type="number" id="custom-feat-byte" class="select-box" style="width:100%; box-sizing:border-box;" min="0" max="29" value="0" required />
+          </div>
+          <div>
+            <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">Bit Index (0–7) *</label>
+            <input type="number" id="custom-feat-bit" class="select-box" style="width:100%; box-sizing:border-box;" min="0" max="7" value="0" required />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 0.75rem;">
+          <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">Category</label>
+          <input type="text" id="custom-feat-category" class="select-box" style="width:100%; box-sizing:border-box;" placeholder="e.g. Central Locking, Lighting, Convenience" value="Custom Settings" />
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">Description / Notes</label>
+          <textarea id="custom-feat-desc" class="select-box" style="width:100%; height:60px; box-sizing:border-box; resize:none;" placeholder="Brief notes on what this bit activates..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-custom-feat" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Setting</button>
+        </div>
+      </form>
     </div>
   </div>
 

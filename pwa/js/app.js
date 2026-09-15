@@ -1,6 +1,6 @@
 // vibesODB2 Progressive Web Application Controller
 import { BUNDLED_SCHEMAS, computeByteDiff, hexStringToBytes, bytesToHexString } from './schemas.js';
-import { saveBackup, getBackups, getBackupById, deleteBackup, exportBackupsJson, importBackupsJson } from './storage.js';
+import { saveBackup, getBackups, getBackupById, deleteBackup, exportBackupsJson, importBackupsJson, saveCustomFeature, getCustomFeatures } from './storage.js';
 import { WebBleTransport } from './ble.js';
 import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
@@ -156,6 +156,7 @@ class VibesApp {
 
   async init() {
     this.initPwaServiceWorker();
+    await this.loadCustomFeatures();
     this.setupTabs();
     this.setupBluetooth();
     this.setupWakeLock();
@@ -172,6 +173,26 @@ class VibesApp {
     this.renderTelemetry(this.telemetryEngine.getInitialMetrics());
     this.updateConnectionStatus(false);
     await this.renderBackupsList();
+  }
+
+  async loadCustomFeatures() {
+    try {
+      const customList = await getCustomFeatures();
+      if (Array.isArray(customList)) {
+        customList.forEach(cf => {
+          const key = cf.schemaKey || 'mqb_bcm_0x09';
+          const targetSchema = BUNDLED_SCHEMAS[key];
+          if (targetSchema && targetSchema.features) {
+            const exists = targetSchema.features.some(f => f.id === cf.id || (f.byte === cf.byte && f.bit === cf.bit && f.name === cf.name));
+            if (!exists) {
+              targetSchema.features.push(cf);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error loading custom features from storage:', e);
+    }
   }
 
   // --- Service Worker Registration ---
@@ -203,6 +224,14 @@ class VibesApp {
         }
       });
     });
+
+    const cockpitDtcsBtn = document.getElementById('btn-cockpit-view-dtcs');
+    if (cockpitDtcsBtn) {
+      cockpitDtcsBtn.addEventListener('click', () => {
+        const dtcTabBtn = document.querySelector('.tab-btn[data-tab="tab-dtcs"]');
+        if (dtcTabBtn) dtcTabBtn.click();
+      });
+    }
   }
 
   // --- Unit Toggle (km/h vs mph) ---
@@ -470,6 +499,15 @@ class VibesApp {
       this.renderByteGrid();
       this.renderBitSwitches();
       this.renderFeatureList();
+
+      // 5. Automatic Background Diagnostic Trouble Code (DTC) Scan
+      try {
+        const dtcs = await this.udsClient.readDTCs();
+        this.updateCockpitDtcAlert(dtcs);
+        this.renderDtcsList(dtcs);
+      } catch (dtcErr) {
+        console.warn('Auto DTC check error:', dtcErr);
+      }
     } catch (err) {
       console.warn('Post-connect setup fallback:', err);
       try {
@@ -483,6 +521,27 @@ class VibesApp {
         });
         this.renderBackupsList();
       } catch (e) {}
+    }
+  }
+
+  updateCockpitDtcAlert(dtcs) {
+    const alertCard = document.getElementById('cockpit-dtc-alert');
+    const titleEl = document.getElementById('cockpit-dtc-title');
+    const descEl = document.getElementById('cockpit-dtc-desc');
+    if (!alertCard) return;
+
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    if (isConnected && Array.isArray(dtcs) && dtcs.length > 0) {
+      alertCard.style.display = 'block';
+      if (titleEl) {
+        titleEl.textContent = `⚠️ ${dtcs.length} Diagnostic Trouble Code${dtcs.length > 1 ? 's' : ''} Detected`;
+      }
+      if (descEl) {
+        const codeList = dtcs.map(d => d.code).join(', ');
+        descEl.textContent = `Active fault codes found in vehicle memory: ${codeList}. Tap below to view code diagnostics and clear.`;
+      }
+    } else {
+      alertCard.style.display = 'none';
     }
   }
 
@@ -994,6 +1053,84 @@ class VibesApp {
         this.renderFeatureList();
         this.renderByteGrid();
         this.renderBitSwitches();
+      });
+    }
+
+    // Add Custom Feature Modal Controls
+    const openAddBtn = document.getElementById('btn-open-add-custom');
+    const cancelAddBtn = document.getElementById('btn-cancel-custom-feat');
+    const addModal = document.getElementById('modal-add-custom-feature');
+    const addForm = document.getElementById('form-add-custom-feature');
+
+    if (openAddBtn && addModal) {
+      openAddBtn.addEventListener('click', () => {
+        addModal.classList.add('active');
+        const nameInput = document.getElementById('custom-feat-name');
+        if (nameInput) setTimeout(() => nameInput.focus(), 100);
+      });
+    }
+
+    if (cancelAddBtn && addModal) {
+      cancelAddBtn.addEventListener('click', () => {
+        addModal.classList.remove('active');
+      });
+    }
+
+    if (addForm && addModal) {
+      addForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('custom-feat-name').value.trim();
+        const byte = parseInt(document.getElementById('custom-feat-byte').value, 10);
+        const bit = parseInt(document.getElementById('custom-feat-bit').value, 10);
+        const category = document.getElementById('custom-feat-category').value.trim() || 'Custom Settings';
+        const description = document.getElementById('custom-feat-desc').value.trim();
+
+        if (!name || isNaN(byte) || isNaN(bit) || byte < 0 || byte > 29 || bit < 0 || bit > 7) {
+          alert('Please enter a valid feature name, byte index (0–29), and bit index (0–7).');
+          return;
+        }
+
+        const newFeat = {
+          id: `custom_${Date.now()}`,
+          name,
+          byte,
+          bit,
+          category,
+          description,
+          schemaKey: this.selectedSchemaKey,
+          platform: this.currentSchema?.platform || 'VAG',
+          module_address: this.currentSchema?.module_address || '0x09',
+          isCustom: true
+        };
+
+        await saveCustomFeature(newFeat);
+        if (this.currentSchema && this.currentSchema.features) {
+          this.currentSchema.features.push(newFeat);
+        }
+
+        this.renderFeatureList();
+        this.renderByteGrid();
+        this.renderBitSwitches();
+        this.showToast(`✓ Custom setting "${name}" (Byte ${byte}, Bit ${bit}) saved!`);
+        addModal.classList.remove('active');
+        addForm.reset();
+      });
+    }
+
+    // Export Community Schema JSON
+    const exportSchemaBtn = document.getElementById('btn-export-community-schema');
+    if (exportSchemaBtn) {
+      exportSchemaBtn.addEventListener('click', () => {
+        const schemaData = JSON.stringify(this.currentSchema, null, 2);
+        const blob = new Blob([schemaData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safePlatform = (this.currentSchema.platform || 'vag').toLowerCase();
+        a.href = url;
+        a.download = `vibesodb2_${safePlatform}_${this.selectedSchemaKey}_schema.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast(`Exported schema JSON for ${this.currentSchema.platform || 'VAG'} (${this.currentSchema.features?.length || 0} features)`);
       });
     }
 
@@ -1598,6 +1735,7 @@ class VibesApp {
         try {
           const dtcs = await this.udsClient.readDTCs();
           this.renderDtcsList(dtcs);
+          this.updateCockpitDtcAlert(dtcs);
           this.vibrate([30]);
         } catch (err) {
           alert('Failed to read DTCs: ' + (err.message || err));
@@ -1622,6 +1760,7 @@ class VibesApp {
           try {
             await this.udsClient.clearDTCs();
             this.renderDtcsList([]);
+            this.updateCockpitDtcAlert([]);
             alert('Diagnostic Trouble Codes cleared successfully.');
             this.vibrate([50, 50]);
           } catch (err) {
