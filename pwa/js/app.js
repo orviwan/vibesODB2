@@ -1,6 +1,6 @@
 // vibesODB2 Progressive Web Application Controller
 import { BUNDLED_SCHEMAS, computeByteDiff, hexStringToBytes, bytesToHexString } from './schemas.js';
-import { saveBackup, getBackups, getBackupById, exportBackupsJson, importBackupsJson } from './storage.js';
+import { saveBackup, getBackups, getBackupById, deleteBackup, exportBackupsJson, importBackupsJson } from './storage.js';
 import { WebBleTransport } from './ble.js';
 import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
@@ -237,13 +237,17 @@ class VibesApp {
       closeHelpBtn.addEventListener('click', () => this.closeBleHelpModal());
     }
 
-    const lastDev = WebBleTransport.getLastDevice();
-    if (lastDev && reconnectBtn) {
-      reconnectBtn.style.display = 'inline-flex';
-      reconnectBtn.title = `Reconnect to ${lastDev.name}`;
+    if (reconnectBtn) {
       reconnectBtn.addEventListener('click', async () => {
         await this.handleBleConnect(true);
       });
+      const lastDev = WebBleTransport.getLastDevice();
+      if (lastDev) {
+        reconnectBtn.style.display = 'inline-flex';
+        reconnectBtn.title = `Reconnect to ${lastDev.name}`;
+      } else {
+        reconnectBtn.style.display = 'none';
+      }
     }
 
     this.updateNoticeBanner();
@@ -271,18 +275,17 @@ class VibesApp {
     const noticeEl = document.getElementById('cockpit-ble-notice');
     if (!noticeEl) return;
     const support = WebBleTransport.getSupportInfo();
-    const lastDev = WebBleTransport.getLastDevice();
 
     if (!support.supported && support.isLinux) {
       noticeEl.innerHTML = `
-        <span style="font-size: 1.3rem;">🐧</span>
+        <span style="font-size: 1.4rem;">🐧</span>
         <div style="flex:1;">
-          <h4 style="font-size: 0.92rem; font-weight: 700; color: #f59e0b;">Web Bluetooth Disabled by Default on Linux</h4>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24;">Web Bluetooth Disabled by Default on Linux</h4>
+          <p style="font-size: 0.82rem; color: #cbd5e1; margin-top: 2px;">
             Google Chrome on Linux requires enabling experimental platform features to communicate with BLE adapters.
           </p>
-          <div style="margin-top: 6px;">
-            <button id="btn-show-linux-help" type="button" class="btn btn-secondary" style="padding: 3px 10px; font-size: 0.75rem;">
+          <div style="margin-top: 8px;">
+            <button id="btn-show-linux-help" type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.78rem;">
               🛠️ View Chrome Flag Instructions
             </button>
           </div>
@@ -294,39 +297,12 @@ class VibesApp {
       return;
     }
 
-    if (lastDev) {
-      noticeEl.innerHTML = `
-        <span style="font-size: 1.3rem;">🔄</span>
-        <div style="flex:1;">
-          <h4 style="font-size: 0.92rem; font-weight: 700;">Remembered Adapter: ${lastDev.name}</h4>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-            Tap Reconnect to stream telemetry immediately, or pair a new adapter.
-          </p>
-          <div style="display:flex; gap:0.5rem; margin-top: 8px; flex-wrap:wrap;">
-            <button id="btn-notice-reconnect" type="button" class="btn btn-primary" style="padding: 4px 12px; font-size: 0.8rem;">
-              ⚡ Reconnect to ${lastDev.name}
-            </button>
-            <button id="btn-notice-pair" type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
-              Pair New Adapter
-            </button>
-          </div>
-        </div>
-      `;
-      document.getElementById('btn-notice-reconnect')?.addEventListener('click', () => {
-        this.handleBleConnect(true);
-      });
-      document.getElementById('btn-notice-pair')?.addEventListener('click', () => {
-        this.handleBleConnect(false);
-      });
-      return;
-    }
-
     noticeEl.innerHTML = `
-      <span style="font-size: 1.3rem;">⚡</span>
+      <span style="font-size: 1.4rem;">⚡</span>
       <div>
-        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-          Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter and stream live powertrain telemetry.
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.82rem; color: #cbd5e1; margin-top: 2px;">
+          Tap <strong>Connect BLE</strong> above to pair with your OBD-II adapter and stream live powertrain telemetry.
         </p>
       </div>
     `;
@@ -341,6 +317,8 @@ class VibesApp {
     try {
       let result = null;
       if (useAutoReconnect && WebBleTransport.canAutoReconnect()) {
+        const lastDev = WebBleTransport.getLastDevice();
+        this.showToast(`Reconnecting to ${lastDev?.name || 'saved adapter'}...`);
         result = await this.bleTransport.reconnectLastDevice();
       }
       if (!result) {
@@ -1461,27 +1439,113 @@ class VibesApp {
     container.innerHTML = '';
     backups.slice().reverse().forEach(b => {
       const item = document.createElement('div');
-      item.className = 'card';
-      item.style.marginBottom = '0.75rem';
+      item.className = 'backup-card';
 
       const dateStr = new Date(b.timestamp).toLocaleString();
       const rawHex = b.raw_hex_data || b.baselineHex || '';
       const modAddr = b.module_address || b.targetModule || '0x09';
+      const backupBytes = hexStringToBytes(rawHex);
+      const diffs = computeByteDiff(this.currentBytes, backupBytes);
+
+      let diffBadgeHtml = '';
+      if (diffs.length === 0) {
+        diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(16,185,129,0.15); color:#34d399; font-weight:600; border:1px solid rgba(16,185,129,0.3);">✓ Matches Active Buffer</span>`;
+      } else {
+        diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4);">⚠️ ${diffs.length} Byte${diffs.length > 1 ? 's' : ''} Differs from Active</span>`;
+      }
+
+      let diffRowsHtml = '';
+      if (diffs.length > 0) {
+        diffRowsHtml = `
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Active Buffer</th>
+                <th>Snapshot Backup</th>
+                <th>Bit Alterations</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${diffs.map(d => {
+                const bitNotes = d.bitFlips.map(f => `Bit ${f.bit}: ${f.oldVal ? '1' : '0'} ➔ ${f.newVal ? '1' : '0'}`).join(', ');
+                return `
+                  <tr>
+                    <td style="font-weight:700; color:var(--primary-light);">Byte ${d.byteIndex}</td>
+                    <td style="font-family:var(--font-mono); color:#94a3b8;">0x${d.oldHex}</td>
+                    <td style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">0x${d.newHex}</td>
+                    <td style="color:#fbbf24;">${bitNotes}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      } else {
+        diffRowsHtml = `<p style="font-size:0.8rem; color:#94a3b8; margin:0.35rem 0;">No byte differences detected between this snapshot and your active buffer.</p>`;
+      }
+
       item.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+        <div class="backup-header">
           <div>
-            <h4 style="font-size:0.95rem; font-weight:700;">VIN: ${b.vin} • Module ${modAddr}</h4>
-            <span style="font-size:0.75rem; color:#64748b;">${dateStr} • DID ${b.did}</span>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+              <h4 style="font-size:0.95rem; font-weight:700; margin:0;">${b.featureName || 'ECU Coding Snapshot'}</h4>
+              ${diffBadgeHtml}
+            </div>
+            <div style="font-size:0.75rem; color:#64748b;">
+              VIN: <span style="font-family:var(--font-mono); color:#94a3b8;">${b.vin || this.vin}</span> • Module ${modAddr} • DID ${b.did || '0x0600'} • ${dateStr}
+            </div>
           </div>
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}" ${!isConnected ? 'disabled title="Connect Bluetooth to restore snapshot"' : ''}>Restore</button>
+          <div class="backup-actions">
+            <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-diff-${b.id}">🔍 Diff Explorer</button>
+            <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-download-${b.id}" title="Download JSON file for this backup">💾 Download</button>
+            <button class="btn btn-primary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}" ${!isConnected ? 'disabled title="Connect Bluetooth to restore snapshot"' : ''}>↺ Restore</button>
+            <button class="btn btn-danger" style="font-size:0.75rem; padding:4px 8px;" id="btn-delete-${b.id}" title="Delete this snapshot">🗑️</button>
+          </div>
         </div>
-        <div style="font-family:var(--font-mono); font-size:0.75rem; color:#94a3b8; word-break:break-all; background:#070a12; padding:6px 10px; border-radius:6px;">
+        
+        <div style="font-family:var(--font-mono); font-size:0.73rem; color:#94a3b8; word-break:break-all; background:#070a12; padding:6px 10px; border-radius:6px; margin-bottom:0.5rem;">
           ${rawHex}
+        </div>
+
+        <div class="backup-diff-container" id="diff-panel-${b.id}">
+          <div style="font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Differential Comparison: Active vs Snapshot</span>
+            <span style="font-size:0.72rem; color:#64748b;">Snapshot #${b.id}</span>
+          </div>
+          ${diffRowsHtml}
         </div>
       `;
 
       container.appendChild(item);
 
+      // Diff Toggle
+      const diffBtn = item.querySelector(`#btn-diff-${b.id}`);
+      const diffPanel = item.querySelector(`#diff-panel-${b.id}`);
+      if (diffBtn && diffPanel) {
+        diffBtn.addEventListener('click', () => {
+          diffPanel.classList.toggle('active');
+          diffBtn.classList.toggle('active');
+        });
+      }
+
+      // Download Single Backup
+      const downloadBtn = item.querySelector(`#btn-download-${b.id}`);
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          const jsonStr = JSON.stringify(b, null, 2);
+          const blob = new Blob([jsonStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const safeDate = (b.timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
+          a.href = url;
+          a.download = `vibesodb2_snapshot_${b.vin || 'vehicle'}_${safeDate}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      // Restore
       const restoreBtn = item.querySelector(`#btn-restore-${b.id}`);
       if (restoreBtn) {
         restoreBtn.addEventListener('click', () => {
@@ -1494,10 +1558,23 @@ class VibesApp {
               this.renderFeatureList();
               this.renderByteGrid();
               this.renderBitSwitches();
+              this.renderBackupsList();
               this.vibrate([40, 20, 40]);
             },
             onCancel: () => {}
           });
+        });
+      }
+
+      // Delete
+      const deleteBtn = item.querySelector(`#btn-delete-${b.id}`);
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (confirm(`Are you sure you want to permanently delete snapshot #${b.id} (${b.featureName || dateStr})?`)) {
+            await deleteBackup(b.id);
+            this.showToast(`Snapshot #${b.id} deleted.`);
+            this.renderBackupsList();
+          }
         });
       }
     });

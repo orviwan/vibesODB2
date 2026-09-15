@@ -46,9 +46,19 @@ export class UdsClient {
   }
 
   async setTargetModule(moduleHex) {
-    this.activeModule = moduleHex;
-    const arb = MODULE_ARBITRATION[moduleHex] || { tx: '714', rx: '77E' };
+    let key = (moduleHex || '0x09').toLowerCase().trim();
+    if (!key.startsWith('0x')) key = '0x' + key;
+    this.activeModule = key;
+    const arb = MODULE_ARBITRATION[key] || { tx: '714', rx: '77E' };
     await this.transport.setHeader(arb.tx);
+  }
+
+  async setModuleAddress(moduleHex) {
+    return await this.setTargetModule(moduleHex);
+  }
+
+  async setModule(moduleHex) {
+    return await this.setTargetModule(moduleHex);
   }
 
   async sendUdsRequest(payloadBytes) {
