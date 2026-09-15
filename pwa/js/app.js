@@ -1,7 +1,6 @@
 // vibesODB2 Progressive Web Application Controller
 import { BUNDLED_SCHEMAS, computeByteDiff, hexStringToBytes, bytesToHexString } from './schemas.js';
 import { saveBackup, getBackups, getBackupById, exportBackupsJson, importBackupsJson } from './storage.js';
-import { DriveCycleSimulator } from './simulator.js';
 import { WebBleTransport } from './ble.js';
 import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
@@ -24,11 +23,9 @@ class VibesApp {
     this.bleTransport = new WebBleTransport();
     this.udsClient = new UdsClient(this.bleTransport);
     this.safetyPipeline = new SafetyPipeline(this.bleTransport, this.udsClient);
-    this.simulator = new DriveCycleSimulator('city');
 
     this.telemetryEngine = new TelemetryEngine({
       bleTransport: this.bleTransport,
-      simulator: this.simulator,
       onUpdate: (data) => this.renderTelemetry(data),
       onRateUpdate: (hz) => this.renderHz(hz)
     });
@@ -50,12 +47,10 @@ class VibesApp {
     this.setupBackupsTab();
     this.setupDtcsTab();
     this.setupUnitToggle();
-    this.setupSimulatorProfiles();
 
-    // Start Telemetry in Simulator mode initially
-    this.telemetryEngine.setSimulationMode(true);
-    this.telemetryEngine.start();
-    this.updateConnectionStatus(false, true);
+    // Initial state: Disconnected, waiting for BLE
+    this.renderTelemetry(this.telemetryEngine.getInitialMetrics());
+    this.updateConnectionStatus(false);
     await this.renderBackupsList();
   }
 
@@ -102,25 +97,6 @@ class VibesApp {
     }
   }
 
-  // --- Simulator Drive Mode Profiles ---
-  setupSimulatorProfiles() {
-    const profiles = ['city', 'highway', 'spirited', 'idle'];
-    profiles.forEach(p => {
-      const btn = document.getElementById(`profile-${p}`);
-      if (btn) {
-        btn.addEventListener('click', () => {
-          profiles.forEach(other => {
-            const b = document.getElementById(`profile-${other}`);
-            if (b) b.classList.remove('active');
-          });
-          btn.classList.add('active');
-          this.simulator.setProfile(p);
-          this.vibrate([20]);
-        });
-      }
-    });
-  }
-
   // --- Web Bluetooth Connection ---
   setupBluetooth() {
     const bleBtn = document.getElementById('btn-ble-connect');
@@ -130,35 +106,34 @@ class VibesApp {
       if (this.bleTransport.isConnected) {
         // Disconnect
         await this.bleTransport.disconnect();
-        this.updateConnectionStatus(false, true);
-        this.telemetryEngine.setSimulationMode(true);
-        this.telemetryEngine.start();
+        this.telemetryEngine.stop();
+        this.updateConnectionStatus(false);
       } else {
         // Request Web Bluetooth Device
         try {
           bleBtn.textContent = 'Connecting...';
           const success = await this.bleTransport.connect();
           if (success) {
-            this.updateConnectionStatus(true, false);
-            this.telemetryEngine.setSimulationMode(false);
+            this.updateConnectionStatus(true);
             this.telemetryEngine.start();
             this.vibrate([50, 50, 50]);
           } else {
-            this.updateConnectionStatus(false, true);
+            this.updateConnectionStatus(false);
           }
         } catch (err) {
           console.error('BLE connection failed:', err);
           alert('Bluetooth connection cancelled or failed: ' + (err.message || err));
-          this.updateConnectionStatus(false, true);
+          this.updateConnectionStatus(false);
         }
       }
     });
   }
 
-  updateConnectionStatus(connected, simulated) {
+  updateConnectionStatus(connected) {
     const bleBtn = document.getElementById('btn-ble-connect');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
+    const noticeEl = document.getElementById('cockpit-ble-notice');
 
     if (connected) {
       if (bleBtn) {
@@ -171,16 +146,22 @@ class VibesApp {
       if (statusText) {
         statusText.textContent = this.bleTransport.device?.name || 'BLE Connected';
       }
+      if (noticeEl) {
+        noticeEl.style.display = 'none';
+      }
     } else {
       if (bleBtn) {
         bleBtn.classList.remove('connected');
         bleBtn.textContent = 'Connect BLE';
       }
       if (statusDot) {
-        statusDot.className = simulated ? 'dot sim' : 'dot';
+        statusDot.className = 'dot';
       }
       if (statusText) {
-        statusText.textContent = simulated ? 'Simulator Mode' : 'Disconnected';
+        statusText.textContent = 'Disconnected';
+      }
+      if (noticeEl) {
+        noticeEl.style.display = 'block';
       }
     }
   }
@@ -673,17 +654,19 @@ class VibesApp {
             return;
           }
 
-          // Execute UDS Write (or simulate if running without hardware)
-          if (this.bleTransport.isConnected) {
-            await this.udsClient.enterExtendedSession();
-            await this.udsClient.writeDataById(
-              this.currentSchema.coding_did,
-              this.pendingWrite.modifiedBytes
-            );
-          } else {
-            // Simulated UDS Write
-            console.log('[Simulator] UDS 0x2E Write to DID ' + this.currentSchema.coding_did + ' successful.');
+          // Execute UDS Write
+          if (!this.bleTransport.isConnected) {
+            alert('Cannot write to ECU: Bluetooth adapter is not connected. Please connect your OBD-II adapter first.');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirm & Write to ECU';
+            return;
           }
+
+          await this.udsClient.enterExtendedSession();
+          await this.udsClient.writeDataById(
+            this.currentSchema.coding_did,
+            this.pendingWrite.modifiedBytes
+          );
 
           // Complete transaction
           if (this.pendingWrite.onSuccess) {
@@ -843,45 +826,49 @@ class VibesApp {
 
     if (scanBtn) {
       scanBtn.addEventListener('click', async () => {
-        scanBtn.disabled = true;
-        scanBtn.textContent = 'Scanning ECU...';
-        await new Promise(r => setTimeout(r, 600));
-
-        let dtcs = [];
-        if (this.bleTransport.isConnected) {
-          dtcs = await this.udsClient.readDTCs();
-        } else {
-          // Realistic simulator DTCs for VAG Transporter
-          dtcs = [
-            { code: 'P0299', rawHex: '0299', statusHex: '2F', description: 'Turbocharger/Supercharger "A" Underboost Condition' },
-            { code: 'P0401', rawHex: '0401', statusHex: '28', description: 'Exhaust Gas Recirculation (EGR) Flow Insufficient Detected' }
-          ];
+        if (!this.bleTransport.isConnected) {
+          alert('Cannot scan DTCs: Bluetooth OBD-II adapter is not connected. Please connect your adapter first.');
+          return;
         }
 
-        this.renderDtcsList(dtcs);
-        scanBtn.disabled = false;
-        scanBtn.textContent = 'Scan Diagnostic Codes';
-        this.vibrate([30]);
+        scanBtn.disabled = true;
+        scanBtn.textContent = 'Scanning ECU...';
+
+        try {
+          const dtcs = await this.udsClient.readDTCs();
+          this.renderDtcsList(dtcs);
+          this.vibrate([30]);
+        } catch (err) {
+          alert('Failed to read DTCs: ' + (err.message || err));
+        } finally {
+          scanBtn.disabled = false;
+          scanBtn.textContent = 'Scan Diagnostic Codes';
+        }
       });
     }
 
     if (clearBtn) {
       clearBtn.addEventListener('click', async () => {
+        if (!this.bleTransport.isConnected) {
+          alert('Cannot clear DTCs: Bluetooth OBD-II adapter is not connected. Please connect your adapter first.');
+          return;
+        }
+
         if (confirm('Clear all stored and pending DTCs across ECUs? This will reset emission readiness monitors.')) {
           clearBtn.disabled = true;
           clearBtn.textContent = 'Clearing...';
 
-          if (this.bleTransport.isConnected) {
+          try {
             await this.udsClient.clearDTCs();
-          } else {
-            console.log('[Simulator] DTCs cleared via Service 0x14.');
+            this.renderDtcsList([]);
+            alert('Diagnostic Trouble Codes cleared successfully.');
+            this.vibrate([50, 50]);
+          } catch (err) {
+            alert('Failed to clear DTCs: ' + (err.message || err));
+          } finally {
+            clearBtn.disabled = false;
+            clearBtn.textContent = 'Clear All DTCs (Service 0x14)';
           }
-
-          this.renderDtcsList([]);
-          clearBtn.disabled = false;
-          clearBtn.textContent = 'Clear All DTCs (Service 0x14)';
-          alert('Diagnostic Trouble Codes cleared successfully.');
-          this.vibrate([50, 50]);
         }
       });
     }

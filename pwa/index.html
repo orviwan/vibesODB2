@@ -29,8 +29,8 @@
     <div class="header-actions">
       <button id="btn-wake-lock" class="wake-pill" title="Prevent screen from sleeping while driving">Screen Lock: Off</button>
       <div class="status-pill">
-        <span id="status-dot" class="dot sim"></span>
-        <span id="status-text">Simulator Mode</span>
+        <span id="status-dot" class="dot"></span>
+        <span id="status-text">Disconnected</span>
       </div>
       <button id="btn-ble-connect" class="btn-ble">
         <span>⚡</span> Connect BLE
@@ -49,14 +49,15 @@
 
   <!-- Tab 1: Virtual Cockpit Telemetry -->
   <main id="tab-cockpit" class="tab-content active">
-    <!-- Drive Profile & Telemetry Rate Bar -->
-    <div class="profile-bar">
-      <span style="font-size: 0.8rem; color: var(--text-muted); font-weight:600;">SIM DRIVE PROFILE:</span>
-      <button id="profile-city" class="profile-pill active">City Traffic</button>
-      <button id="profile-highway" class="profile-pill">Highway Cruise</button>
-      <button id="profile-spirited" class="profile-pill">Spirited (Boost)</button>
-      <button id="profile-idle" class="profile-pill">Idle / Park</button>
-      <div style="margin-left: auto; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);" id="telemetry-hz">0.0 Hz</div>
+    <!-- Bluetooth Connection Notice Banner -->
+    <div id="cockpit-ble-notice" class="ble-notice-banner">
+      <span style="font-size: 1.3rem;">⚡</span>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter and stream live powertrain telemetry.
+        </p>
+      </div>
     </div>
 
     <div class="cockpit-grid">
@@ -64,7 +65,10 @@
       <div class="card">
         <div class="card-title">
           <span>Engine Tachometer & Speed</span>
-          <span class="gear-badge" id="gauge-gear-val">D1</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);" id="telemetry-hz">0.0 Hz</span>
+            <span class="gear-badge" id="gauge-gear-val">--</span>
+          </div>
         </div>
         <div class="gauge-container">
           <svg id="tachometer-svg" class="dial-svg" viewBox="0 0 240 210"></svg>

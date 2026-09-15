@@ -523,6 +523,17 @@ input:checked + .slider:before {
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
+.ble-notice-banner {
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
 .profile-bar {
   display: flex;
   gap: 0.5rem;

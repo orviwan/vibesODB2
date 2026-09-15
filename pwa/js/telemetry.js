@@ -1,15 +1,12 @@
-// vibesODB2 Telemetry Engine (Fast / Slow loops and Simulator bridge)
+// vibesODB2 Real-Time Telemetry Engine (Fast / Slow OBD-II Polling Loops)
 
 export class TelemetryEngine {
-  constructor({ bleTransport, simulator, onUpdate, onRateUpdate }) {
+  constructor({ bleTransport, onUpdate, onRateUpdate }) {
     this.transport = bleTransport;
-    this.simulator = simulator;
     this.onUpdate = onUpdate || (() => {});
     this.onRateUpdate = onRateUpdate || (() => {});
 
     this.isRunning = false;
-    this.isSimulation = true;
-    this.simTimer = null;
     this.bleLoopActive = false;
 
     this.packetCount = 0;
@@ -17,59 +14,41 @@ export class TelemetryEngine {
     this.lastRateCalc = Date.now();
     this.currentHz = 0;
 
-    this.latestMetrics = {
+    this.latestMetrics = this.getInitialMetrics();
+  }
+
+  getInitialMetrics() {
+    return {
       vehicle_speed_kmh: 0,
       engine_rpm: 0,
-      coolant_temp_c: 85,
+      coolant_temp_c: 0,
       intake_manifold_pressure_kpa: 101,
       boost_pressure_bar: 0.0,
       throttle_position_pct: 0,
-      intake_air_temp_c: 20,
-      fuel_rail_pressure_bar: 300,
-      dpf_soot_mass_g: 15.0,
-      exhaust_gas_temp_c: 250,
-      engaged_gear: 'P'
+      intake_air_temp_c: 0,
+      fuel_rail_pressure_bar: 0,
+      dpf_soot_load_g: 0.0,
+      exhaust_gas_temp_c: 0,
+      engaged_gear: '--'
     };
   }
 
-  setSimulationMode(isSim) {
-    const wasRunning = this.isRunning;
-    if (wasRunning) this.stop();
-    this.isSimulation = isSim;
-    if (wasRunning) this.start();
-  }
-
   start() {
+    if (this.isRunning) return;
     this.isRunning = true;
     this.packetCount = 0;
     this.sampleCount = 0;
     this.lastRateCalc = Date.now();
-
-    if (this.isSimulation) {
-      this._startSimLoop();
-    } else {
-      this._startBleLoop();
-    }
+    this._startBleLoop();
   }
 
   stop() {
     this.isRunning = false;
-    if (this.simTimer) {
-      clearInterval(this.simTimer);
-      this.simTimer = null;
-    }
     this.bleLoopActive = false;
-  }
-
-  _startSimLoop() {
-    // 33ms interval = ~30 Hz refresh rate for smooth cockpit needles
-    this.simTimer = setInterval(() => {
-      if (!this.isRunning) return;
-      const data = this.simulator.tick();
-      this.latestMetrics = { ...this.latestMetrics, ...data.metrics };
-      this._recordSample();
-      this.onUpdate(this.latestMetrics);
-    }, 33);
+    this.latestMetrics = this.getInitialMetrics();
+    this.currentHz = 0;
+    this.onRateUpdate({ hz: 0, packetCount: this.packetCount });
+    this.onUpdate(this.latestMetrics);
   }
 
   async _startBleLoop() {
@@ -107,15 +86,16 @@ export class TelemetryEngine {
   }
 
   _parseObdFast(raw) {
+    if (!raw) return;
     const parts = raw.split(/\s+/);
-    // Find 41 0C (RPM)
+    // Find 41 0C (RPM: ((A*256)+B)/4)
     const rpmIdx = parts.indexOf('0C');
     if (rpmIdx > 0 && parts[rpmIdx - 1] === '41' && parts.length > rpmIdx + 2) {
       const a = parseInt(parts[rpmIdx + 1], 16);
       const b = parseInt(parts[rpmIdx + 2], 16);
       this.latestMetrics.engine_rpm = Math.round(((a * 256) + b) / 4.0);
     }
-    // Find 41 0D (Speed)
+    // Find 41 0D (Speed: A km/h)
     const spdIdx = parts.indexOf('0D');
     if (spdIdx > 0 && parts[spdIdx - 1] === '41' && parts.length > spdIdx + 1) {
       this.latestMetrics.vehicle_speed_kmh = parseInt(parts[spdIdx + 1], 16);
@@ -123,8 +103,9 @@ export class TelemetryEngine {
   }
 
   _parseObdSlow(raw) {
+    if (!raw) return;
     const parts = raw.split(/\s+/);
-    // 41 05 (Coolant Temp: A - 40)
+    // 41 05 (Coolant Temp: A - 40 °C)
     const cltIdx = parts.indexOf('05');
     if (cltIdx > 0 && parts[cltIdx - 1] === '41' && parts.length > cltIdx + 1) {
       this.latestMetrics.coolant_temp_c = parseInt(parts[cltIdx + 1], 16) - 40;

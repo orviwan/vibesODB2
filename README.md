@@ -27,7 +27,6 @@ vibesODB2 runs directly in your mobile browser without compiling or installing a
 - **iOS / iPadOS**: Apple Mobile Safari restricts Web Bluetooth. Open **`https://orviwan.github.io/vibesODB2/`** in [**Bluefy – Web BLE Browser**](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) (free on the App Store), which provides full `navigator.bluetooth` standard support.
 - **Laptops / Desktops**: Google Chrome, Edge, and Chromium with Bluetooth 4.0+.
 - **Offline / Vehicle Use**: Fully installable as an offline PWA with standalone home screen launch and offline caching via Service Worker (`sw.js`).
-- **Drive Cycle Simulator**: When disconnected from an adapter, vibesODB2 automatically activates the high-fidelity drive simulator (`City Traffic`, `Highway Cruise`, `Spirited Boost`, `Idle/Park`).
 - **Screen Wake Lock & Haptics**: Uses `navigator.wakeLock` to prevent phone displays from turning off in dash mounts, and provides tactile vibration alerts on redline (>4800 RPM) or thermal peaks.
 
 ---
