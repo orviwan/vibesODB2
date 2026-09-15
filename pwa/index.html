@@ -135,6 +135,49 @@
           <div id="progress-soot" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #10b981, #f59e0b);"></div>
         </div>
       </div>
+
+      <!-- Vehicle Identity & ECU Specs -->
+      <div class="card vehicle-specs-card">
+        <div class="card-title">
+          <span>Vehicle Identity &amp; ECU Specifications</span>
+          <span id="vehicle-detected-badge" class="badge-tag" style="background: rgba(100, 116, 139, 0.2); color: #94a3b8; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px;">Disconnected</span>
+        </div>
+        
+        <div class="specs-grid">
+          <div class="spec-box">
+            <div class="spec-label">Model &amp; Chassis</div>
+            <div class="spec-val highlight" id="info-vehicle-model">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">VIN (Chassis ID)</div>
+            <div class="spec-val mono" id="info-vehicle-vin">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">Chassis Serial Number</div>
+            <div class="spec-val mono" id="info-vehicle-serial">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">Manufacturing Plant</div>
+            <div class="spec-val" id="info-vehicle-plant">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">ECU Spare Part Number</div>
+            <div class="spec-val mono" id="info-ecu-part">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">ECU Hardware Number</div>
+            <div class="spec-val mono" id="info-ecu-hw">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">ECU Software Version</div>
+            <div class="spec-val mono" id="info-ecu-sw">--</div>
+          </div>
+          <div class="spec-box">
+            <div class="spec-label">ECU Serial Number</div>
+            <div class="spec-val mono" id="info-ecu-serial">--</div>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 

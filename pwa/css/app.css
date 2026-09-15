@@ -647,3 +647,53 @@ input:disabled,
   cursor: not-allowed;
   background: #05070d;
 }
+
+/* Vehicle Identity & ECU Specs Card */
+.vehicle-specs-card {
+  grid-column: 1 / -1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.spec-box {
+  background: #070a12;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.spec-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.spec-val {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.spec-val.highlight {
+  color: var(--primary-light);
+  font-weight: 700;
+}
+
+.spec-val.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}

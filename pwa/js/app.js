@@ -6,6 +6,121 @@ import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 
+export function bytesToAscii(bytes) {
+  if (!bytes || bytes.length === 0) return '';
+  let str = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if (b >= 32 && b <= 126) {
+      str += String.fromCharCode(b);
+    }
+  }
+  return str.trim();
+}
+
+export function decodeVin(vin) {
+  if (!vin || vin.length < 17) return null;
+  const clean = vin.toUpperCase().trim();
+
+  // WMI (Positions 1-3)
+  const wmi = clean.substring(0, 3);
+  let make = 'Volkswagen';
+  if (wmi.startsWith('WV1') || wmi.startsWith('WV2') || wmi.startsWith('WV3')) {
+    make = 'Volkswagen Commercial';
+  } else if (wmi.startsWith('WAU') || wmi.startsWith('WA1')) {
+    make = 'Audi';
+  } else if (wmi.startsWith('VSS')) {
+    make = 'SEAT';
+  } else if (wmi.startsWith('TMB')) {
+    make = 'Škoda';
+  } else if (wmi.startsWith('WP0') || wmi.startsWith('WP1')) {
+    make = 'Porsche';
+  }
+
+  // Model / Chassis (Positions 7-8)
+  const chassisCode = clean.substring(6, 8);
+  let model = `${make} Vehicle`;
+  let platform = 'VAG';
+
+  const MODEL_MAP = {
+    'AU': { model: 'Golf Mk7 / 7.5', platform: 'MQB' },
+    '5G': { model: 'Golf Mk7 / 7.5', platform: 'MQB' },
+    'BA': { model: 'Golf Variant Mk7', platform: 'MQB' },
+    'BQ': { model: 'Golf Mk7.5', platform: 'MQB' },
+    '1K': { model: 'Golf Mk5 / Mk6', platform: 'PQ35' },
+    '5K': { model: 'Golf Mk6', platform: 'PQ35' },
+    'AJ': { model: 'Golf Variant Mk6', platform: 'PQ35' },
+    '7E': { model: 'Transporter T5.1 / T6', platform: 'PQ25' },
+    '7F': { model: 'Transporter T5.1 / T6', platform: 'PQ25' },
+    '7H': { model: 'Transporter T5', platform: 'PQ25' },
+    '7J': { model: 'Transporter T5 / T6', platform: 'PQ25' },
+    '7L': { model: 'Transporter T6.1', platform: 'MQB' },
+    '6R': { model: 'Polo Mk5', platform: 'PQ25' },
+    '6C': { model: 'Polo Mk5 Facelift', platform: 'PQ25' },
+    'AW': { model: 'Polo Mk6', platform: 'MQB-A0' },
+    '3C': { model: 'Passat B6 / B7', platform: 'PQ46' },
+    '3G': { model: 'Passat B8', platform: 'MQB' },
+    '8V': { model: 'Audi A3 / S3 Mk3', platform: 'MQB' },
+    '8P': { model: 'Audi A3 Mk2', platform: 'PQ35' },
+    '5F': { model: 'SEAT Leon Mk3', platform: 'MQB' },
+    '1P': { model: 'SEAT Leon Mk2', platform: 'PQ35' },
+    '6J': { model: 'SEAT Ibiza Mk4', platform: 'PQ25' },
+    '6F': { model: 'SEAT Ibiza Mk5', platform: 'MQB-A0' },
+    '5E': { model: 'Škoda Octavia Mk3', platform: 'MQB' },
+    '1Z': { model: 'Škoda Octavia Mk2', platform: 'PQ35' },
+    'NH': { model: 'Škoda Rapid', platform: 'PQ25' },
+    'AD': { model: 'Tiguan Mk2', platform: 'MQB' },
+    '5N': { model: 'Tiguan Mk1', platform: 'PQ35' },
+  };
+
+  if (MODEL_MAP[chassisCode]) {
+    model = `${make} ${MODEL_MAP[chassisCode].model}`;
+    platform = MODEL_MAP[chassisCode].platform;
+  }
+
+  // Model Year (Position 10)
+  const yearChar = clean.charAt(9);
+  const YEAR_MAP = {
+    '9': 2009, 'A': 2010, 'B': 2011, 'C': 2012, 'D': 2013, 'E': 2014,
+    'F': 2015, 'G': 2016, 'H': 2017, 'J': 2018, 'K': 2019, 'L': 2020,
+    'M': 2021, 'N': 2022, 'P': 2023, 'R': 2024, 'S': 2025, 'T': 2026
+  };
+  const year = YEAR_MAP[yearChar] || '';
+
+  // Assembly Plant (Position 11)
+  const plantChar = clean.charAt(10);
+  const PLANT_MAP = {
+    'W': 'Wolfsburg, Germany',
+    'E': 'Emden, Germany',
+    'H': 'Hannover, Germany',
+    'P': 'Mosel / Zwickau, Germany',
+    'B': 'Brussels, Belgium',
+    'M': 'Puebla, Mexico',
+    'A': 'Ingolstadt, Germany',
+    'N': 'Neckarsulm, Germany',
+    '1': 'Győr, Hungary',
+    'K': 'Osnabrück, Germany',
+    'R': 'Martorell, Spain',
+    'X': 'Poznań, Poland',
+    'Y': 'Pamplona, Spain',
+    'D': 'Bratislava, Slovakia'
+  };
+  const plant = PLANT_MAP[plantChar] || `Plant ${plantChar}`;
+
+  // Serial Number (Positions 12-17)
+  const serial = clean.substring(11, 17);
+
+  return {
+    make,
+    model,
+    year,
+    platform,
+    fullModelString: `${year ? year + ' ' : ''}${model} (${platform})`,
+    plant,
+    serial: `#${serial}`
+  };
+}
+
 // --- State Management ---
 class VibesApp {
   constructor() {
@@ -254,10 +369,10 @@ class VibesApp {
   }
 
   async handlePostConnectSetup() {
-    this.showToast("Connected to adapter! Reading vehicle identification...");
+    this.showToast("Connected to adapter! Reading vehicle identification & ECU specs...");
 
     try {
-      // 1. Query VIN via OBD-II Mode 09 PID 02
+      // 1. Query VIN via OBD-II Mode 09 PID 02, with UDS DID 0xF190 fallback
       let vin = null;
       try {
         await this.bleTransport.setHeader('7DF');
@@ -267,6 +382,17 @@ class VibesApp {
         console.warn('Mode 09 VIN query error:', ve);
       }
 
+      if (!vin) {
+        try {
+          await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
+          await this.udsClient.enterExtendedSession();
+          const vinBytes = await this.udsClient.readDataById('F190');
+          vin = this._extractVinFromBytes(vinBytes);
+        } catch (ue) {
+          console.warn('UDS VIN query fallback error:', ue);
+        }
+      }
+
       if (vin) {
         this.vin = vin;
         console.log('Vehicle VIN detected:', vin);
@@ -274,12 +400,66 @@ class VibesApp {
         if (/5G|BA|AU|BQ|8V|5F|5E|3G|AD|BW|7L/i.test(vin)) {
           this.selectedSchemaKey = 'mqb_bcm_0x09';
           this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
-          const sel = document.getElementById('schema-selector');
+          const sel = document.getElementById('schema-select');
           if (sel) sel.value = this.selectedSchemaKey;
         }
       }
 
-      // 2. Read live Long Coding from target module (BCM 0x09, DID 0x0600)
+      // 2. Query ECU Specifications (Part No, Hardware, Software, Serial No) via UDS
+      let ecuPartNo = '--';
+      let ecuHwNo = '--';
+      let ecuSwVer = '--';
+      let ecuSerial = '--';
+
+      try {
+        await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
+        await this.udsClient.enterExtendedSession();
+
+        try {
+          // DID 0xF187: VW Spare Part Number
+          const pBytes = await this.udsClient.readDataById('F187');
+          const pStr = bytesToAscii(pBytes);
+          if (pStr) ecuPartNo = pStr;
+        } catch (e) {}
+
+        try {
+          // DID 0xF191: ECU Hardware Number
+          const hBytes = await this.udsClient.readDataById('F191');
+          const hStr = bytesToAscii(hBytes);
+          if (hStr) ecuHwNo = hStr;
+        } catch (e) {}
+
+        try {
+          // DID 0xF189: ECU Software Version
+          const sBytes = await this.udsClient.readDataById('F189');
+          const sStr = bytesToAscii(sBytes);
+          if (sStr) ecuSwVer = sStr;
+        } catch (e) {}
+
+        try {
+          // DID 0xF18C: ECU Serial Number
+          const snBytes = await this.udsClient.readDataById('F18C');
+          const snStr = bytesToAscii(snBytes);
+          if (snStr && snStr.length >= 4) {
+            ecuSerial = snStr;
+          } else if (snBytes && snBytes.length > 0) {
+            ecuSerial = bytesToHexString(snBytes);
+          }
+        } catch (e) {}
+      } catch (specErr) {
+        console.warn('ECU spec query error:', specErr);
+      }
+
+      // Update Vehicle Specs Card in Cockpit
+      this.updateVehicleSpecsDisplay({
+        vin: this.vin,
+        ecuPartNo,
+        ecuHwNo,
+        ecuSwVer,
+        ecuSerial
+      });
+
+      // 3. Read live Long Coding from target module (BCM 0x09, DID 0x0600)
       let liveCoding = null;
       try {
         await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
@@ -296,7 +476,7 @@ class VibesApp {
         this.baselineHex = bytesToHexString(this.baselineBytes);
       }
 
-      // 3. Automatically capture Baseline Snapshot #1 on first connect
+      // 4. Automatically capture Baseline Snapshot #1 on first connect
       const backup = await saveBackup({
         vin: this.vin,
         moduleAddress: this.currentSchema.module_address || '0x09',
@@ -326,6 +506,77 @@ class VibesApp {
         this.renderBackupsList();
       } catch (e) {}
     }
+  }
+
+  updateVehicleSpecsDisplay(specs) {
+    const decoded = decodeVin(specs.vin);
+
+    const elModel = document.getElementById('info-vehicle-model');
+    const elVin = document.getElementById('info-vehicle-vin');
+    const elSerial = document.getElementById('info-vehicle-serial');
+    const elPlant = document.getElementById('info-vehicle-plant');
+    const elPart = document.getElementById('info-ecu-part');
+    const elHw = document.getElementById('info-ecu-hw');
+    const elSw = document.getElementById('info-ecu-sw');
+    const elEcuSerial = document.getElementById('info-ecu-serial');
+    const elBadge = document.getElementById('vehicle-detected-badge');
+
+    if (elVin) elVin.textContent = specs.vin || '--';
+    if (elPart) elPart.textContent = specs.ecuPartNo || '--';
+    if (elHw) elHw.textContent = specs.ecuHwNo || '--';
+    if (elSw) elSw.textContent = specs.ecuSwVer || '--';
+    if (elEcuSerial) elEcuSerial.textContent = specs.ecuSerial || '--';
+
+    if (decoded) {
+      if (elModel) elModel.textContent = decoded.fullModelString || decoded.model || '--';
+      if (elSerial) elSerial.textContent = decoded.serial || '--';
+      if (elPlant) elPlant.textContent = decoded.plant || '--';
+    } else {
+      if (elModel) elModel.textContent = this.currentSchema?.platform ? `VAG (${this.currentSchema.platform})` : 'Connected VAG Vehicle';
+      if (elSerial) elSerial.textContent = '--';
+      if (elPlant) elPlant.textContent = '--';
+    }
+
+    if (elBadge) {
+      elBadge.textContent = 'Connected • Live UDS';
+      elBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      elBadge.style.color = '#34d399';
+      elBadge.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+    }
+  }
+
+  clearVehicleSpecsDisplay() {
+    const elModel = document.getElementById('info-vehicle-model');
+    const elVin = document.getElementById('info-vehicle-vin');
+    const elSerial = document.getElementById('info-vehicle-serial');
+    const elPlant = document.getElementById('info-vehicle-plant');
+    const elPart = document.getElementById('info-ecu-part');
+    const elHw = document.getElementById('info-ecu-hw');
+    const elSw = document.getElementById('info-ecu-sw');
+    const elEcuSerial = document.getElementById('info-ecu-serial');
+    const elBadge = document.getElementById('vehicle-detected-badge');
+
+    if (elModel) elModel.textContent = '--';
+    if (elVin) elVin.textContent = '--';
+    if (elSerial) elSerial.textContent = '--';
+    if (elPlant) elPlant.textContent = '--';
+    if (elPart) elPart.textContent = '--';
+    if (elHw) elHw.textContent = '--';
+    if (elSw) elSw.textContent = '--';
+    if (elEcuSerial) elEcuSerial.textContent = '--';
+    if (elBadge) {
+      elBadge.textContent = 'Disconnected';
+      elBadge.style.background = 'rgba(100, 116, 139, 0.2)';
+      elBadge.style.color = '#94a3b8';
+      elBadge.style.border = 'none';
+    }
+  }
+
+  _extractVinFromBytes(rawBytes) {
+    if (!rawBytes) return null;
+    const str = bytesToAscii(rawBytes);
+    const match = str.match(/[A-HJ-NPR-Z0-9]{17}/);
+    return match ? match[0] : null;
   }
 
   _extractVinFromResponse(resp) {
@@ -471,8 +722,9 @@ class VibesApp {
       if (resetHexBtn) { resetHexBtn.disabled = true; resetHexBtn.title = 'Connect Bluetooth to reset baseline'; }
       if (rawHexInput) rawHexInput.readOnly = true;
 
-      // Clear cockpit telemetry metrics when disconnected
+      // Clear cockpit telemetry metrics & vehicle specs when disconnected
       this.renderTelemetry({});
+      this.clearVehicleSpecsDisplay();
     }
 
     // Refresh UI components to reflect updated disabled/enabled interactive states
