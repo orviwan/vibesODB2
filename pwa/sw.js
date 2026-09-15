@@ -1,5 +1,5 @@
 // vibesODB2 Service Worker for Offline PWA Support
-const CACHE_NAME = 'vibesodb2-v4';
+const CACHE_NAME = 'vibesodb2-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',

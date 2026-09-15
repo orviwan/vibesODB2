@@ -65,8 +65,41 @@ export class WebBleTransport {
     return 'Web Bluetooth is not supported in this browser. On Android or Desktop, please use Google Chrome or Edge.';
   }
 
+  static getLastDevice() {
+    try {
+      const id = localStorage.getItem('vibesodb2_last_ble_id');
+      const name = localStorage.getItem('vibesodb2_last_ble_name');
+      if (id && name) return { id, name };
+    } catch (e) {}
+    return null;
+  }
+
+  static canAutoReconnect() {
+    return typeof navigator !== 'undefined' &&
+           !!navigator.bluetooth &&
+           typeof navigator.bluetooth.getDevices === 'function' &&
+           !!WebBleTransport.getLastDevice();
+  }
+
   async connect() {
     return await this.requestAndConnect();
+  }
+
+  async reconnectLastDevice() {
+    if (!WebBleTransport.canAutoReconnect()) return null;
+    const last = WebBleTransport.getLastDevice();
+    if (!last || !last.id) return null;
+
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      const matched = devices.find(d => d.id === last.id);
+      if (matched) {
+        return await this.connectDevice(matched);
+      }
+    } catch (err) {
+      console.warn('Silent BLE auto-reconnect failed:', err);
+    }
+    return null;
   }
 
   async requestAndConnect() {
@@ -83,9 +116,10 @@ export class WebBleTransport {
       'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
     ];
 
+    let device = null;
     try {
       // First try acceptAllDevices so user can select any paired or nearby adapter
-      this.device = await navigator.bluetooth.requestDevice({
+      device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices
       });
@@ -94,7 +128,7 @@ export class WebBleTransport {
       if (err.name === 'NotFoundError') {
         throw err; // User cancelled
       }
-      this.device = await navigator.bluetooth.requestDevice({
+      device = await navigator.bluetooth.requestDevice({
         filters: [
           { namePrefix: 'vLinker' },
           { namePrefix: 'OBD' },
@@ -110,6 +144,13 @@ export class WebBleTransport {
         optionalServices
       });
     }
+
+    return await this.connectDevice(device);
+  }
+
+  async connectDevice(device) {
+    if (!device) throw new Error('No Bluetooth device specified.');
+    this.device = device;
 
     this.device.addEventListener('gattserverdisconnected', () => {
       this.isConnected = false;
@@ -169,6 +210,14 @@ export class WebBleTransport {
 
     // Initialize ELM327 / STN protocol
     await this.initAdapter();
+
+    // Persist successful device in localStorage for 1-click / auto-reconnect
+    try {
+      if (this.device.id && this.device.name) {
+        localStorage.setItem('vibesodb2_last_ble_id', this.device.id);
+        localStorage.setItem('vibesodb2_last_ble_name', this.device.name);
+      }
+    } catch (e) {}
 
     return {
       name: this.device.name,

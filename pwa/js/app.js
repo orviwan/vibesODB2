@@ -10,14 +10,18 @@ import { TelemetryEngine } from './telemetry.js';
 class VibesApp {
   constructor() {
     this.unit = 'kmh'; // 'kmh' | 'mph'
-    this.selectedSchemaKey = 'pq25_bcm_0x09';
-    this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
+    this.selectedSchemaKey = 'mqb_bcm_0x09';
+    this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey] || BUNDLED_SCHEMAS['pq25_bcm_0x09'];
     this.selectedByteIndex = 0;
-    this.vin = 'WV2ZZZ7HZCH019482'; // Realistic Transporter T5.1 baseline VIN
+    this.vin = 'WVWZZZ5GZJW123456'; // Default MQB Golf VII baseline VIN
 
-    // Default 30-byte baseline coding for PQ25 BCM 0x09
-    this.baselineHex = '68B80BB8E021340080080000282B84D40880410F60804000000000000000';
-    this.currentBytes = hexStringToBytes(this.baselineHex);
+    // Default 30-byte baseline coding
+    this.baselineHex = '000000000000000000000000000000000000000000000000000000000000';
+    this.baselineBytes = hexStringToBytes(this.baselineHex);
+    this.currentBytes = new Uint8Array(this.baselineBytes);
+    this.hasCapturedBaseline = false;
+    this._pendingFeatConfirm = null;
+    this._toastTimeout = null;
 
     // Hardware & Logic Engines
     this.bleTransport = new WebBleTransport();
@@ -41,6 +45,7 @@ class VibesApp {
     this.setupBluetooth();
     this.setupWakeLock();
     this.setupGauges();
+    this.setupFeatureConfirmationModal();
     this.setupFeatureCoding();
     this.setupByteMatrix();
     this.setupSafetyModal();
@@ -97,17 +102,63 @@ class VibesApp {
     }
   }
 
+  showToast(message, duration = 4500) {
+    const toast = document.getElementById('toast-banner');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.style.display = 'block';
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      toast.style.display = 'none';
+    }, duration);
+  }
+
   // --- Web Bluetooth Connection ---
   setupBluetooth() {
     const bleBtn = document.getElementById('btn-ble-connect');
+    const reconnectBtn = document.getElementById('btn-ble-reconnect');
     const closeHelpBtn = document.getElementById('btn-close-ble-help');
     if (closeHelpBtn) {
       closeHelpBtn.addEventListener('click', () => this.closeBleHelpModal());
     }
 
-    const support = WebBleTransport.getSupportInfo();
+    const lastDev = WebBleTransport.getLastDevice();
+    if (lastDev && reconnectBtn) {
+      reconnectBtn.style.display = 'inline-flex';
+      reconnectBtn.title = `Reconnect to ${lastDev.name}`;
+      reconnectBtn.addEventListener('click', async () => {
+        await this.handleBleConnect(true);
+      });
+    }
+
+    this.updateNoticeBanner();
+
+    if (bleBtn) {
+      bleBtn.addEventListener('click', async () => {
+        if (!WebBleTransport.isSupported()) {
+          this.openBleHelpModal();
+          return;
+        }
+
+        if (this.bleTransport.isConnected) {
+          // Disconnect
+          await this.bleTransport.disconnect();
+          this.telemetryEngine.stop();
+          this.updateConnectionStatus(false);
+        } else {
+          await this.handleBleConnect(false);
+        }
+      });
+    }
+  }
+
+  updateNoticeBanner() {
     const noticeEl = document.getElementById('cockpit-ble-notice');
-    if (!support.supported && support.isLinux && noticeEl) {
+    if (!noticeEl) return;
+    const support = WebBleTransport.getSupportInfo();
+    const lastDev = WebBleTransport.getLastDevice();
+
+    if (!support.supported && support.isLinux) {
       noticeEl.innerHTML = `
         <span style="font-size: 1.3rem;">🐧</span>
         <div style="flex:1;">
@@ -125,42 +176,219 @@ class VibesApp {
       document.getElementById('btn-show-linux-help')?.addEventListener('click', () => {
         this.openBleHelpModal();
       });
+      return;
     }
 
-    if (!bleBtn) return;
+    if (lastDev) {
+      noticeEl.innerHTML = `
+        <span style="font-size: 1.3rem;">🔄</span>
+        <div style="flex:1;">
+          <h4 style="font-size: 0.92rem; font-weight: 700;">Remembered Adapter: ${lastDev.name}</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Tap Reconnect to stream telemetry immediately, or pair a new adapter.
+          </p>
+          <div style="display:flex; gap:0.5rem; margin-top: 8px; flex-wrap:wrap;">
+            <button id="btn-notice-reconnect" type="button" class="btn btn-primary" style="padding: 4px 12px; font-size: 0.8rem;">
+              ⚡ Reconnect to ${lastDev.name}
+            </button>
+            <button id="btn-notice-pair" type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+              Pair New Adapter
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('btn-notice-reconnect')?.addEventListener('click', () => {
+        this.handleBleConnect(true);
+      });
+      document.getElementById('btn-notice-pair')?.addEventListener('click', () => {
+        this.handleBleConnect(false);
+      });
+      return;
+    }
 
-    bleBtn.addEventListener('click', async () => {
-      if (!WebBleTransport.isSupported()) {
-        this.openBleHelpModal();
-        return;
+    noticeEl.innerHTML = `
+      <span style="font-size: 1.3rem;">⚡</span>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter and stream live powertrain telemetry.
+        </p>
+      </div>
+    `;
+  }
+
+  async handleBleConnect(useAutoReconnect = false) {
+    const bleBtn = document.getElementById('btn-ble-connect');
+    const reconnectBtn = document.getElementById('btn-ble-reconnect');
+    if (bleBtn) bleBtn.textContent = 'Connecting...';
+    if (reconnectBtn) reconnectBtn.disabled = true;
+
+    try {
+      let result = null;
+      if (useAutoReconnect && WebBleTransport.canAutoReconnect()) {
+        result = await this.bleTransport.reconnectLastDevice();
+      }
+      if (!result) {
+        result = await this.bleTransport.connect();
       }
 
-      if (this.bleTransport.isConnected) {
-        // Disconnect
-        await this.bleTransport.disconnect();
-        this.telemetryEngine.stop();
-        this.updateConnectionStatus(false);
+      if (result) {
+        this.updateConnectionStatus(true);
+        this.vibrate([50, 50, 50]);
+        // Run vehicle identification and automatic baseline snapshot
+        await this.handlePostConnectSetup();
+        // Start telemetry
+        this.telemetryEngine.start();
       } else {
-        // Request Web Bluetooth Device
-        try {
-          bleBtn.textContent = 'Connecting...';
-          const success = await this.bleTransport.connect();
-          if (success) {
-            this.updateConnectionStatus(true);
-            this.telemetryEngine.start();
-            this.vibrate([50, 50, 50]);
-          } else {
-            this.updateConnectionStatus(false);
-          }
-        } catch (err) {
-          console.error('BLE connection failed:', err);
-          if (err.name !== 'NotFoundError') {
-            alert('Bluetooth connection cancelled or failed:\n\n' + (err.message || err));
-          }
-          this.updateConnectionStatus(false);
+        this.updateConnectionStatus(false);
+      }
+    } catch (err) {
+      console.error('BLE connection error:', err);
+      if (err.name !== 'NotFoundError') {
+        alert('Bluetooth connection cancelled or failed:\n\n' + (err.message || err));
+      }
+      this.updateConnectionStatus(false);
+    } finally {
+      if (reconnectBtn) reconnectBtn.disabled = false;
+    }
+  }
+
+  async handlePostConnectSetup() {
+    this.showToast("Connected to adapter! Reading vehicle identification...");
+
+    try {
+      // 1. Query VIN via OBD-II Mode 09 PID 02
+      let vin = null;
+      try {
+        await this.bleTransport.setHeader('7DF');
+        const vinResp = await this.bleTransport.sendCommand('0902', 2000);
+        vin = this._extractVinFromResponse(vinResp);
+      } catch (ve) {
+        console.warn('Mode 09 VIN query error:', ve);
+      }
+
+      if (vin) {
+        this.vin = vin;
+        console.log('Vehicle VIN detected:', vin);
+        // Automatic platform switching (MQB for Golf 7 / 7.5: 5G, BA, AU, BQ, 8V, etc.)
+        if (/5G|BA|AU|BQ|8V|5F|5E|3G|AD|BW|7L/i.test(vin)) {
+          this.selectedSchemaKey = 'mqb_bcm_0x09';
+          this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
+          const sel = document.getElementById('schema-selector');
+          if (sel) sel.value = this.selectedSchemaKey;
         }
       }
-    });
+
+      // 2. Read live Long Coding from target module (BCM 0x09, DID 0x0600)
+      let liveCoding = null;
+      try {
+        await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
+        await this.udsClient.enterExtendedSession();
+        const readDid = this.currentSchema.coding_did || '0600';
+        liveCoding = await this.udsClient.readDataById(readDid);
+      } catch (ce) {
+        console.warn('UDS Long Coding read error:', ce);
+      }
+
+      if (liveCoding && liveCoding.length >= 10) {
+        this.baselineBytes = new Uint8Array(liveCoding);
+        this.currentBytes = new Uint8Array(liveCoding);
+        this.baselineHex = bytesToHexString(this.baselineBytes);
+      }
+
+      // 3. Automatically capture Baseline Snapshot #1 on first connect
+      const backup = await saveBackup({
+        vin: this.vin,
+        moduleAddress: this.currentSchema.module_address || '0x09',
+        did: this.currentSchema.coding_did || '0x0600',
+        featureName: 'Initial Connect Baseline Snapshot (Auto-Protected)',
+        rawHexData: bytesToHexString(this.baselineBytes),
+        timestamp: new Date().toISOString()
+      });
+
+      this.hasCapturedBaseline = true;
+      this.showToast(`🛡️ Baseline Snapshot #${backup.id} automatically captured! Factory coding safely stored.`);
+      this.renderBackupsList();
+      this.renderByteGrid();
+      this.renderBitSwitches();
+      this.renderFeatureList();
+    } catch (err) {
+      console.warn('Post-connect setup fallback:', err);
+      try {
+        const backup = await saveBackup({
+          vin: this.vin,
+          moduleAddress: this.currentSchema.module_address || '0x09',
+          did: this.currentSchema.coding_did || '0x0600',
+          featureName: 'Initial Connect Baseline Snapshot (Fallback)',
+          rawHexData: bytesToHexString(this.baselineBytes),
+          timestamp: new Date().toISOString()
+        });
+        this.renderBackupsList();
+      } catch (e) {}
+    }
+  }
+
+  _extractVinFromResponse(resp) {
+    if (!resp) return null;
+    const clean = resp.replace(/>/g, ' ').toUpperCase();
+    const parts = clean.split(/\s+/).filter(p => /^[0-9A-F]{2}$/.test(p));
+    let ascii = '';
+    for (const hex of parts) {
+      const byte = parseInt(hex, 16);
+      if (byte >= 32 && byte <= 126) {
+        ascii += String.fromCharCode(byte);
+      }
+    }
+    const vinMatch = ascii.match(/[A-HJ-NPR-Z0-9]{17}/);
+    return vinMatch ? vinMatch[0] : null;
+  }
+
+  setupFeatureConfirmationModal() {
+    const cancelBtn = document.getElementById('btn-feat-confirm-cancel');
+    const proceedBtn = document.getElementById('btn-feat-confirm-proceed');
+    const modal = document.getElementById('modal-feature-confirm');
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (this._pendingFeatConfirm?.onCancel) {
+          this._pendingFeatConfirm.onCancel();
+        }
+        this._pendingFeatConfirm = null;
+        modal.classList.remove('active');
+      });
+    }
+
+    if (proceedBtn) {
+      proceedBtn.addEventListener('click', () => {
+        const pending = this._pendingFeatConfirm;
+        this._pendingFeatConfirm = null;
+        modal.classList.remove('active');
+        if (pending?.onProceed) {
+          pending.onProceed();
+        }
+      });
+    }
+  }
+
+  confirmFeatureToggle({ feature, targetState, origState, onProceed, onCancel }) {
+    const modal = document.getElementById('modal-feature-confirm');
+    if (!modal) {
+      // Fallback to native window.confirm if modal element not found
+      const origText = origState ? 'Enabled (ON)' : 'Disabled (OFF)';
+      const newText = targetState ? 'Enabled (ON)' : 'Disabled (OFF)';
+      const ok = window.confirm(`Are you sure you want to change "${feature.name}"?\n\nOriginal State: ${origText}\nNew State: ${newText}`);
+      if (ok) onProceed(); else onCancel();
+      return;
+    }
+
+    this._pendingFeatConfirm = { onProceed, onCancel };
+
+    document.getElementById('confirm-feat-name').textContent = feature.name;
+    document.getElementById('confirm-feat-orig').textContent = origState ? 'Enabled (ON)' : 'Disabled (OFF)';
+    document.getElementById('confirm-feat-new').textContent = targetState ? 'Enabled (ON)' : 'Disabled (OFF)';
+    document.getElementById('confirm-feat-loc').textContent = `Byte ${feature.byte}, Bit ${feature.bit} (Module ${this.currentSchema.module_address || '0x09'})`;
+
+    modal.classList.add('active');
   }
 
   openBleHelpModal() {
@@ -175,6 +403,7 @@ class VibesApp {
 
   updateConnectionStatus(connected) {
     const bleBtn = document.getElementById('btn-ble-connect');
+    const reconnectBtn = document.getElementById('btn-ble-reconnect');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const noticeEl = document.getElementById('cockpit-ble-notice');
@@ -183,6 +412,9 @@ class VibesApp {
       if (bleBtn) {
         bleBtn.classList.add('connected');
         bleBtn.textContent = 'Disconnect BLE';
+      }
+      if (reconnectBtn) {
+        reconnectBtn.style.display = 'none';
       }
       if (statusDot) {
         statusDot.className = 'dot connected';
@@ -198,6 +430,10 @@ class VibesApp {
         bleBtn.classList.remove('connected');
         bleBtn.textContent = 'Connect BLE';
       }
+      const lastDev = WebBleTransport.getLastDevice();
+      if (reconnectBtn && lastDev) {
+        reconnectBtn.style.display = 'inline-flex';
+      }
       if (statusDot) {
         statusDot.className = 'dot';
       }
@@ -206,6 +442,7 @@ class VibesApp {
       }
       if (noticeEl) {
         noticeEl.style.display = 'block';
+        this.updateNoticeBanner();
       }
     }
   }
@@ -512,19 +749,64 @@ class VibesApp {
 
     features.forEach(feat => {
       const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
+      const wasOriginalEnabled = (this.baselineBytes[feat.byte] & (1 << feat.bit)) !== 0;
+      const isModified = (isEnabled !== wasOriginalEnabled);
 
       const item = document.createElement('div');
-      item.className = 'feature-item';
+      item.className = `feature-item ${isModified ? 'feature-item-modified' : ''}`;
+      if (isModified) {
+        item.style.borderLeft = '3px solid var(--warning)';
+        item.style.background = 'rgba(245, 158, 11, 0.05)';
+      }
 
       const info = document.createElement('div');
       info.className = 'feature-info';
+
+      let stateBadgeHtml = '';
+      if (isModified) {
+        stateBadgeHtml = `
+          <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; padding:2px 6px; border-radius:4px; background:rgba(245, 158, 11, 0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4); margin-left:6px;">
+            ⚠️ Modified (Was: ${wasOriginalEnabled ? 'ON' : 'OFF'} ➔ Now: ${isEnabled ? 'ON' : 'OFF'})
+          </span>
+        `;
+      } else {
+        stateBadgeHtml = `
+          <span style="display:inline-flex; align-items:center; font-size:0.7rem; padding:1px 5px; border-radius:3px; background:rgba(100, 116, 139, 0.2); color:#94a3b8; margin-left:6px;">
+            Original: ${wasOriginalEnabled ? 'ON' : 'OFF'}
+          </span>
+        `;
+      }
+
       info.innerHTML = `
-        <h4>${feat.name}</h4>
-        <p>${feat.description || ''}</p>
-        <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
-          [Byte ${feat.byte}, Bit ${feat.bit}] ${feat.prerequisites ? '• ' + feat.prerequisites : ''}
-        </span>
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+          <h4 style="margin:0;">${feat.name}</h4>
+          ${stateBadgeHtml}
+        </div>
+        <p style="margin:4px 0 2px 0;">${feat.description || ''}</p>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
+            [Byte ${feat.byte}, Bit ${feat.bit}] ${feat.prerequisites ? '• ' + feat.prerequisites : ''}
+          </span>
+          ${isModified ? `<button type="button" class="btn-revert-feature" style="background:none; border:none; color:#38bdf8; font-size:0.72rem; cursor:pointer; text-decoration:underline; padding:0;">↺ Revert to Original (${wasOriginalEnabled ? 'ON' : 'OFF'})</button>` : ''}
+        </div>
       `;
+
+      if (isModified) {
+        const revertBtn = info.querySelector('.btn-revert-feature');
+        if (revertBtn) {
+          revertBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (wasOriginalEnabled) {
+              this.currentBytes[feat.byte] |= (1 << feat.bit);
+            } else {
+              this.currentBytes[feat.byte] &= ~(1 << feat.bit);
+            }
+            this.renderFeatureList();
+            this.renderByteGrid();
+            this.renderBitSwitches();
+          });
+        }
+      }
 
       const toggleLabel = document.createElement('label');
       toggleLabel.className = 'toggle-switch';
@@ -537,26 +819,40 @@ class VibesApp {
       slider.className = 'slider';
 
       checkbox.addEventListener('change', () => {
-        // Clone current bytes
-        const modifiedBytes = new Uint8Array(this.currentBytes);
-        if (checkbox.checked) {
-          modifiedBytes[feat.byte] |= (1 << feat.bit);
-        } else {
-          modifiedBytes[feat.byte] &= ~(1 << feat.bit);
-        }
+        const targetState = checkbox.checked;
+        const origState = wasOriginalEnabled;
 
-        // Request Pre-Write Safety Audit Modal
-        this.promptSafetyAudit({
-          featureName: feat.name,
-          modifiedBytes,
-          onSuccess: () => {
-            this.currentBytes = modifiedBytes;
-            this.renderByteGrid();
-            this.renderBitSwitches();
-            this.vibrate([40, 20, 40]);
+        this.confirmFeatureToggle({
+          feature: feat,
+          targetState,
+          origState,
+          onProceed: () => {
+            // Clone current bytes
+            const modifiedBytes = new Uint8Array(this.currentBytes);
+            if (targetState) {
+              modifiedBytes[feat.byte] |= (1 << feat.bit);
+            } else {
+              modifiedBytes[feat.byte] &= ~(1 << feat.bit);
+            }
+
+            // Request Pre-Write Safety Audit Modal
+            this.promptSafetyAudit({
+              featureName: feat.name,
+              modifiedBytes,
+              onSuccess: () => {
+                this.currentBytes = modifiedBytes;
+                this.renderFeatureList();
+                this.renderByteGrid();
+                this.renderBitSwitches();
+                this.vibrate([40, 20, 40]);
+              },
+              onCancel: () => {
+                checkbox.checked = !targetState; // Revert
+              }
+            });
           },
           onCancel: () => {
-            checkbox.checked = !checkbox.checked; // revert
+            checkbox.checked = !targetState; // Revert switch
           }
         });
       });

@@ -32,6 +32,9 @@
         <span id="status-dot" class="dot"></span>
         <span id="status-text">Disconnected</span>
       </div>
+      <button id="btn-ble-reconnect" class="btn-ble" style="display:none; background: rgba(16,185,129,0.15); border: 1px solid var(--success); color: #34d399;">
+        <span>🔄</span> Reconnect
+      </button>
       <button id="btn-ble-connect" class="btn-ble">
         <span>⚡</span> Connect BLE
       </button>
@@ -319,6 +322,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Feature Toggle Confirmation Modal -->
+  <div id="modal-feature-confirm" class="modal-overlay">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-title">
+        <span style="font-size: 1.3rem;">⚠️</span>
+        <h3 style="font-size: 1.05rem;">Confirm Feature Modification</h3>
+      </div>
+      <div style="margin: 1rem 0; font-size: 0.88rem; line-height: 1.5;">
+        <p id="confirm-feat-name" style="font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem; font-size: 0.95rem;"></p>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; font-size: 0.82rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-muted);">Original Factory State:</span>
+            <strong id="confirm-feat-orig" style="color: #94a3b8;"></strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-muted);">New Target State:</span>
+            <strong id="confirm-feat-new" style="color: var(--success);"></strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color: var(--text-muted);">Target Module & Bit:</span>
+            <span id="confirm-feat-loc" style="font-family: var(--font-mono); color: var(--primary-light);"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-feat-confirm-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="btn-feat-confirm-proceed" class="btn btn-primary">Proceed to Flash Verification</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Banner -->
+  <div id="toast-banner" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#0f172a; border:1px solid #0284c7; color:#38bdf8; padding:10px 18px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); z-index:9999; font-size:0.85rem; font-weight:600; text-align:center; max-width:90%;"></div>
 
   <!-- Main ES Module Script -->
   <script type="module" src="js/app.js"></script>

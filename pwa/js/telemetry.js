@@ -53,70 +53,157 @@ export class TelemetryEngine {
 
   async _startBleLoop() {
     this.bleLoopActive = true;
-    let slowCounter = 0;
+    let loopCycle = 0;
 
-    while (this.isRunning && this.bleLoopActive && this.transport.isConnected) {
+    // Set OBD-II Functional Broadcast header (7DF) ONCE upon starting loop
+    try {
+      if (this.transport && this.transport.isConnected) {
+        await this.transport.setHeader('7DF');
+      }
+    } catch (e) {
+      console.warn('Could not set 7DF header:', e);
+    }
+
+    while (this.isRunning && this.bleLoopActive && this.transport && this.transport.isConnected) {
       const startTime = performance.now();
       try {
-        // Fast loop: Mode 01 PID 0C (RPM) & 0D (Speed)
-        await this.transport.setHeader('7DF');
-        const resFast = await this.transport.sendCommand('01 0C 0D', 1500);
-        this._parseObdFast(resFast);
+        loopCycle++;
 
-        // Periodic slow loop (every ~10 fast iterations)
-        slowCounter++;
-        if (slowCounter >= 10) {
-          slowCounter = 0;
-          // Coolant (05) and Boost/MAP (0B)
-          const resSlow = await this.transport.sendCommand('01 05 0B', 1500);
-          this._parseObdSlow(resSlow);
+        // 1. FAST TIER (Every cycle: RPM and Speed)
+        // Querying individually ensures maximum compatibility across all VAG / MQB ECUs
+        const resRpm = await this.transport.sendCommand('010C', 800);
+        this.parsePidResponse(resRpm);
+
+        const resSpd = await this.transport.sendCommand('010D', 800);
+        this.parsePidResponse(resSpd);
+
+        // Estimate current engaged gear from RPM and Speed
+        if (this.latestMetrics.engine_rpm !== null && this.latestMetrics.vehicle_speed_kmh !== null) {
+          this.latestMetrics.engaged_gear = this._calculateGear(
+            this.latestMetrics.engine_rpm,
+            this.latestMetrics.vehicle_speed_kmh
+          );
+        }
+
+        // 2. MEDIUM TIER (Every 4 cycles: Boost/MAP & Throttle)
+        if (loopCycle % 4 === 0) {
+          const resMap = await this.transport.sendCommand('010B', 800);
+          this.parsePidResponse(resMap);
+
+          const resTh = await this.transport.sendCommand('0111', 800);
+          this.parsePidResponse(resTh);
+        }
+
+        // 3. SLOW TIER (Every 10 cycles: Coolant, IAT, Fuel Rail)
+        if (loopCycle % 10 === 0) {
+          const resClt = await this.transport.sendCommand('0105', 1000);
+          this.parsePidResponse(resClt);
+
+          const resIat = await this.transport.sendCommand('010F', 1000);
+          this.parsePidResponse(resIat);
+
+          const resFuel = await this.transport.sendCommand('0123', 1000);
+          this.parsePidResponse(resFuel);
         }
 
         this._recordSample();
         this.onUpdate(this.latestMetrics);
       } catch (err) {
-        // Small backoff on frame drop
-        await new Promise((r) => setTimeout(r, 50));
+        // Small backoff on frame drop / timeout
+        await new Promise((r) => setTimeout(r, 40));
       }
 
       const elapsed = performance.now() - startTime;
-      const waitTime = Math.max(10, 30 - elapsed);
+      const waitTime = Math.max(10, 40 - elapsed);
       await new Promise((r) => setTimeout(r, waitTime));
     }
   }
 
-  _parseObdFast(raw) {
+  /**
+   * Universal Mode 01 PID Response Parser.
+   * Accurately parses standard OBD-II frames, whether single or multi-PID,
+   * with or without CAN frame headers (e.g. "41 0C 0A 1B", "7E8 04 41 0D 32").
+   */
+  parsePidResponse(raw) {
     if (!raw) return;
-    const parts = raw.split(/\s+/);
-    // Find 41 0C (RPM: ((A*256)+B)/4)
-    const rpmIdx = parts.indexOf('0C');
-    if (rpmIdx > 0 && parts[rpmIdx - 1] === '41' && parts.length > rpmIdx + 2) {
-      const a = parseInt(parts[rpmIdx + 1], 16);
-      const b = parseInt(parts[rpmIdx + 2], 16);
-      this.latestMetrics.engine_rpm = Math.round(((a * 256) + b) / 4.0);
-    }
-    // Find 41 0D (Speed: A km/h)
-    const spdIdx = parts.indexOf('0D');
-    if (spdIdx > 0 && parts[spdIdx - 1] === '41' && parts.length > spdIdx + 1) {
-      this.latestMetrics.vehicle_speed_kmh = parseInt(parts[spdIdx + 1], 16);
+    const clean = raw.replace(/>/g, ' ').toUpperCase().trim();
+    const parts = clean.split(/\s+/).filter(Boolean);
+
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === '41' && i + 2 < parts.length) {
+        let cursor = i + 1;
+        while (cursor < parts.length && parts[cursor] !== '41') {
+          const pid = parts[cursor];
+          if (pid === '0C' && cursor + 2 < parts.length) {
+            // RPM: ((A * 256) + B) / 4.0
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              this.latestMetrics.engine_rpm = Math.round(((a * 256) + b) / 4.0);
+            }
+            cursor += 3;
+          } else if (pid === '0D' && cursor + 1 < parts.length) {
+            // Speed: A km/h
+            const spd = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(spd)) {
+              this.latestMetrics.vehicle_speed_kmh = spd;
+            }
+            cursor += 2;
+          } else if (pid === '05' && cursor + 1 < parts.length) {
+            // Coolant Temp: A - 40 °C
+            const clt = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(clt)) {
+              this.latestMetrics.coolant_temp_c = clt - 40;
+            }
+            cursor += 2;
+          } else if (pid === '0B' && cursor + 1 < parts.length) {
+            // MAP: A kPa -> Gauge Boost (relative to 101.3 kPa atm)
+            const map = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(map)) {
+              this.latestMetrics.intake_manifold_pressure_kpa = map;
+              this.latestMetrics.boost_pressure_bar = Math.max(0, Number(((map - 101.3) / 100.0).toFixed(2)));
+            }
+            cursor += 2;
+          } else if (pid === '0F' && cursor + 1 < parts.length) {
+            // Intake Air Temp: A - 40 °C
+            const iat = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(iat)) {
+              this.latestMetrics.intake_air_temp_c = iat - 40;
+            }
+            cursor += 2;
+          } else if (pid === '11' && cursor + 1 < parts.length) {
+            // Throttle Position: (A * 100) / 255 %
+            const th = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(th)) {
+              this.latestMetrics.throttle_position_pct = Number(((th * 100) / 255.0).toFixed(1));
+            }
+            cursor += 2;
+          } else if (pid === '23' && cursor + 2 < parts.length) {
+            // Fuel Rail Pressure: ((A * 256) + B) * 10 kPa
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              this.latestMetrics.fuel_rail_pressure_bar = Number((((a * 256) + b) * 10 / 100.0).toFixed(1));
+            }
+            cursor += 3;
+          } else {
+            cursor++;
+          }
+        }
+      }
     }
   }
 
-  _parseObdSlow(raw) {
-    if (!raw) return;
-    const parts = raw.split(/\s+/);
-    // 41 05 (Coolant Temp: A - 40 °C)
-    const cltIdx = parts.indexOf('05');
-    if (cltIdx > 0 && parts[cltIdx - 1] === '41' && parts.length > cltIdx + 1) {
-      this.latestMetrics.coolant_temp_c = parseInt(parts[cltIdx + 1], 16) - 40;
-    }
-    // 41 0B (MAP: A kPa)
-    const mapIdx = parts.indexOf('0B');
-    if (mapIdx > 0 && parts[mapIdx - 1] === '41' && parts.length > mapIdx + 1) {
-      const map = parseInt(parts[mapIdx + 1], 16);
-      this.latestMetrics.intake_manifold_pressure_kpa = map;
-      this.latestMetrics.boost_pressure_bar = Math.max(0, Number(((map - 101.3) / 100.0).toFixed(2)));
-    }
+  _calculateGear(rpm, speed) {
+    if (speed < 4 || rpm < 500) return 'N';
+    const ratio = rpm / speed;
+    if (ratio > 95) return '1';
+    if (ratio > 58) return '2';
+    if (ratio > 40) return '3';
+    if (ratio > 29) return '4';
+    if (ratio > 22) return '5';
+    if (ratio > 17) return '6';
+    return '7';
   }
 
   _recordSample() {

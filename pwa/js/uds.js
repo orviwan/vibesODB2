@@ -153,4 +153,12 @@ export class UdsClient {
     const res = await this.sendUdsRequest(new Uint8Array([0x14, 0xFF, 0xFF, 0xFF]));
     return res.length >= 1 && res[0] === 0x54;
   }
+
+  async readDTCs() {
+    return await this.readDtcs();
+  }
+
+  async clearDTCs() {
+    return await this.clearDtcs();
+  }
 }
