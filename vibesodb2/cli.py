@@ -413,7 +413,7 @@ def cmd_schema(args) -> int:
             module_address=args.module,
             output_path=out_file,
         )
-        console.print(f"[bold green]✓ Exported GitHub PR ready schema ({len(exported_json)} chars) to [cyan]{out_file}[/cyan][/bold green]")
+        console.print(f"[bold green]✓ Exported schema ({len(exported_json)} chars) to [cyan]{out_file}[/cyan] — ready to share with the community![/bold green]")
         return 0
 
 async def cmd_live(args) -> int:

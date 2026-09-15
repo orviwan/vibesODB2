@@ -44,9 +44,9 @@ vibesODB2 runs directly in your mobile browser without compiling or installing a
 > vibesODB2 was designed, architected, and engineered using **Advanced Agentic AI Pair Programming** powered by **Google Antigravity**.
 >
 > Modern automotive scan tools often suffer from vendor lock-in, subscription paywalls, and proprietary diagnostic databases that hinder the Right-to-Repair movement. By applying autonomous coding agents to standard automotive communication protocols (ISO 14229 UDS, ISO 15765-2 ISO-TP, and ELM/STN serial abstraction), vibesODB2 achieves:
-> - **Open Community Schemas**: Transparent, human-readable JSON bitfield mappings decoupled from closed-source proprietary databases.
+> - **Open Community Schemas**: Transparent, human-readable bitfield mappings decoupled from closed-source proprietary databases.
 > - **Defensive Safety Architecture**: 5-point safety pipelines, pre-write snapshots, and atomic rollbacks.
-> - **Extensible Community Ecosystem**: User-defined custom bit overrides and one-click GitHub PR community schema exports.
+> - **Extensible Community Ecosystem**: Add your own custom feature findings and export them with one click to share with the community.
 
 ---
 
@@ -131,7 +131,7 @@ The engine auto-detects the vehicle platform and model directly from the 17-char
 * **Real-Time Telemetry Multi-Tier Loop:** Streams live sensor telemetry while driving (Fast 30–50 Hz loop for Speed, RPM, Boost, Throttle vs Slow 1–2 Hz loop for Coolant, IAT, Fuel Rail, and OEM VAG UDS for DPF soot loading, Turbo EGT, and DSG gear).
 * **Virtual Cockpit Digital Dashboard:** Automotive instrument cluster HUD with SVG tachometer arc, boost meter, thermal gauges, and telemetry diagnostic stats.
 * **Backup Explorer with Differential Comparison:** Automatic pre-write snapshots with visual byte diffing, bit alteration notes, single-snapshot JSON download, and instant one-tap restore.
-* **Open Community JSON Schemas:** Vehicle configuration mappings are decoupled from closed-source databases. Bundled with human-readable definitions for PQ25, PQ35, and MQB, with in-app custom override creation and one-click GitHub PR export.
+* **Open Community JSON Schemas:** Vehicle configuration mappings are decoupled from closed-source databases. Bundled with clear definitions for PQ25, PQ35, and MQB, with easy in-app custom setting creation and one-click export for sharing with the community.
 * **Interactive Byte Matrix & Bit Inspector:** Low-level 30-byte array inspection with individual bit toggles and real-time hex calculation.
 * **Comprehensive Fault Management:** Reads active and confirmed Diagnostic Trouble Codes (DTCs) across modules via UDS Service `0x19`, with one-tap clearing via Service `0x14`.
 * **Hardware-Accelerated ISO-TP:** Supports STN/ELM-extended chipsets (`ATCAF1`) to prevent buffer overruns during multi-frame operations, with fallback software reassembly.
@@ -212,7 +212,7 @@ vibesodb2 backups --mock --restore 1
 vibesodb2 dtc --mock
 vibesodb2 dtc --mock --clear
 
-# 7. List, add custom settings, and export schemas for GitHub PR
+# 7. List, add custom settings, and export schemas to share with the community
 vibesodb2 schema list
 vibesodb2 schema add --platform MQB --module 0x09 --id custom_horn --byte 2 --bit 5 --name "Alarm Horn Honk" --desc "Beeps horn on lock"
 vibesodb2 schema export --platform MQB --module 0x09 --out community_mqb_bcm.json
@@ -229,13 +229,13 @@ vibesodb2 web
 
 ---
 
-## Contributing Community Schemas
+## 🤝 Sharing Discovered Features with the Community
 
-We welcome contributions of reverse-engineered clean-room vehicle definitions:
-1. Test your bit settings on your vehicle using the **"Add Custom Setting"** feature in the CLI or Web UI.
-2. Verify that the feature functions as expected.
-3. Export the schema using `vibesodb2 schema export` or the Web UI download button.
-4. Submit a Pull Request to the schemas directory.
+If you discover a new feature or bit setting on your car:
+1. Test the setting on your vehicle using the **"Add Custom Setting"** feature in the app or CLI.
+2. Verify that the feature works as expected (e.g. cornering lights or mirror dip).
+3. Click **"Export Schema"** (or run `vibesodb2 schema export`) to save your custom definition file.
+4. Share your exported JSON file on GitHub so other drivers, enthusiasts, and mechanics can benefit!
 
 ---
 
