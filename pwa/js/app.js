@@ -406,7 +406,17 @@ class VibesApp {
     const reconnectBtn = document.getElementById('btn-ble-reconnect');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
-    const noticeEl = document.getElementById('cockpit-ble-notice');
+
+    const cockpitNotice = document.getElementById('cockpit-ble-notice');
+    const codingNotice = document.getElementById('coding-ble-notice');
+    const matrixNotice = document.getElementById('matrix-ble-notice');
+    const dtcsNotice = document.getElementById('dtcs-ble-notice');
+
+    const scanBtn = document.getElementById('btn-scan-dtcs');
+    const clearBtn = document.getElementById('btn-clear-dtcs');
+    const applyHexBtn = document.getElementById('btn-apply-hex');
+    const resetHexBtn = document.getElementById('btn-reset-hex');
+    const rawHexInput = document.getElementById('raw-hex-input');
 
     if (connected) {
       if (bleBtn) {
@@ -422,9 +432,16 @@ class VibesApp {
       if (statusText) {
         statusText.textContent = this.bleTransport.device?.name || 'BLE Connected';
       }
-      if (noticeEl) {
-        noticeEl.style.display = 'none';
-      }
+      if (cockpitNotice) cockpitNotice.style.display = 'none';
+      if (codingNotice) codingNotice.style.display = 'none';
+      if (matrixNotice) matrixNotice.style.display = 'none';
+      if (dtcsNotice) dtcsNotice.style.display = 'none';
+
+      if (scanBtn) { scanBtn.disabled = false; scanBtn.title = 'Scan ECU Fault Codes'; }
+      if (clearBtn) { clearBtn.disabled = false; clearBtn.title = 'Clear All DTCs'; }
+      if (applyHexBtn) { applyHexBtn.disabled = false; applyHexBtn.title = 'Audit & Write Hex'; }
+      if (resetHexBtn) { resetHexBtn.disabled = false; resetHexBtn.title = 'Reset to Baseline'; }
+      if (rawHexInput) rawHexInput.readOnly = false;
     } else {
       if (bleBtn) {
         bleBtn.classList.remove('connected');
@@ -440,11 +457,28 @@ class VibesApp {
       if (statusText) {
         statusText.textContent = 'Disconnected';
       }
-      if (noticeEl) {
-        noticeEl.style.display = 'block';
+      if (cockpitNotice) {
+        cockpitNotice.style.display = 'block';
         this.updateNoticeBanner();
       }
+      if (codingNotice) codingNotice.style.display = 'block';
+      if (matrixNotice) matrixNotice.style.display = 'block';
+      if (dtcsNotice) dtcsNotice.style.display = 'block';
+
+      if (scanBtn) { scanBtn.disabled = true; scanBtn.title = 'Connect Bluetooth to scan DTCs'; }
+      if (clearBtn) { clearBtn.disabled = true; clearBtn.title = 'Connect Bluetooth to clear DTCs'; }
+      if (applyHexBtn) { applyHexBtn.disabled = true; applyHexBtn.title = 'Connect Bluetooth to write hex'; }
+      if (resetHexBtn) { resetHexBtn.disabled = true; resetHexBtn.title = 'Connect Bluetooth to reset baseline'; }
+      if (rawHexInput) rawHexInput.readOnly = true;
+
+      // Clear cockpit telemetry metrics when disconnected
+      this.renderTelemetry({});
     }
+
+    // Refresh UI components to reflect updated disabled/enabled interactive states
+    this.renderFeatureList();
+    this.renderBitSwitches();
+    this.renderBackupsList();
   }
 
   // --- Screen Wake Lock API ---
@@ -791,29 +825,42 @@ class VibesApp {
         </div>
       `;
 
+      const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+
       if (isModified) {
         const revertBtn = info.querySelector('.btn-revert-feature');
         if (revertBtn) {
-          revertBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (wasOriginalEnabled) {
-              this.currentBytes[feat.byte] |= (1 << feat.bit);
-            } else {
-              this.currentBytes[feat.byte] &= ~(1 << feat.bit);
-            }
-            this.renderFeatureList();
-            this.renderByteGrid();
-            this.renderBitSwitches();
-          });
+          if (!isConnected) {
+            revertBtn.disabled = true;
+            revertBtn.style.opacity = '0.38';
+            revertBtn.style.cursor = 'not-allowed';
+            revertBtn.title = 'Connect Bluetooth to revert feature';
+          } else {
+            revertBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (wasOriginalEnabled) {
+                this.currentBytes[feat.byte] |= (1 << feat.bit);
+              } else {
+                this.currentBytes[feat.byte] &= ~(1 << feat.bit);
+              }
+              this.renderFeatureList();
+              this.renderByteGrid();
+              this.renderBitSwitches();
+            });
+          }
         }
       }
 
       const toggleLabel = document.createElement('label');
-      toggleLabel.className = 'toggle-switch';
+      toggleLabel.className = `toggle-switch ${!isConnected ? 'disabled' : ''}`;
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = isEnabled;
+      if (!isConnected) {
+        checkbox.disabled = true;
+        checkbox.title = 'Connect Bluetooth to toggle vehicle coding';
+      }
 
       const slider = document.createElement('span');
       slider.className = 'slider';
@@ -959,10 +1006,16 @@ class VibesApp {
     bitContainer.innerHTML = '';
     const currentVal = this.currentBytes[this.selectedByteIndex];
 
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+
     for (let bit = 7; bit >= 0; bit--) {
       const isBitSet = (currentVal & (1 << bit)) !== 0;
       const btn = document.createElement('button');
-      btn.className = `bit-btn ${isBitSet ? 'active' : ''}`;
+      btn.className = `bit-btn ${isBitSet ? 'active' : ''} ${!isConnected ? 'disabled' : ''}`;
+      if (!isConnected) {
+        btn.disabled = true;
+        btn.title = 'Connect Bluetooth to toggle bits';
+      }
       btn.innerHTML = `<div>Bit ${bit}</div><div style="font-size: 1.1rem; margin-top:2px;">${isBitSet ? '1' : '0'}</div>`;
 
       btn.addEventListener('click', () => {
@@ -1151,6 +1204,8 @@ class VibesApp {
       return;
     }
 
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+
     container.innerHTML = '';
     backups.slice().reverse().forEach(b => {
       const item = document.createElement('div');
@@ -1166,7 +1221,7 @@ class VibesApp {
             <h4 style="font-size:0.95rem; font-weight:700;">VIN: ${b.vin} • Module ${modAddr}</h4>
             <span style="font-size:0.75rem; color:#64748b;">${dateStr} • DID ${b.did}</span>
           </div>
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}">Restore</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}" ${!isConnected ? 'disabled title="Connect Bluetooth to restore snapshot"' : ''}>Restore</button>
         </div>
         <div style="font-family:var(--font-mono); font-size:0.75rem; color:#94a3b8; word-break:break-all; background:#070a12; padding:6px 10px; border-radius:6px;">
           ${rawHex}

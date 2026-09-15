@@ -59,6 +59,25 @@ header {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.brand-headings {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-tagline {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+@media (max-width: 680px) {
+  .brand-tagline {
+    display: none;
+  }
 }
 
 .header-actions {
@@ -599,4 +618,32 @@ input:checked + .slider:before {
 .hex-input:focus {
   border-color: var(--primary-light);
   box-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* Disabled & Offline UI States */
+button:disabled,
+.btn:disabled,
+input:disabled,
+.toggle-switch.disabled {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+  filter: grayscale(0.6);
+}
+
+.toggle-switch.disabled .slider {
+  cursor: not-allowed !important;
+  background-color: #334155 !important;
+}
+
+.bit-switch-chip.disabled {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+  border-color: #1e293b !important;
+}
+
+.hex-input[readonly] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #05070d;
 }

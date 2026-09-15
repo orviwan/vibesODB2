@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>vibesODB2 • Mobile Telemetry & VAG Long Coding</title>
+  <title>vibesODB2 - The free and open source diagnostics &amp; customization for VAG vehicles</title>
   
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
@@ -24,7 +24,10 @@
   <header>
     <div class="brand">
       <div class="logo-badge">VIBES</div>
-      <h1>vibesODB2</h1>
+      <div class="brand-headings">
+        <h1>vibesODB2</h1>
+        <span class="brand-tagline">The free and open source diagnostics &amp; customization for VAG vehicles</span>
+      </div>
     </div>
     <div class="header-actions">
       <button id="btn-wake-lock" class="wake-pill" title="Prevent screen from sleeping while driving">Screen Lock: Off</button>
@@ -137,6 +140,16 @@
 
   <!-- Tab 2: Schema-Driven Feature Coding -->
   <main id="tab-coding" class="tab-content">
+    <div id="coding-ble-notice" class="ble-notice-banner">
+      <span style="font-size: 1.3rem;">⚡</span>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          Connect to your OBD-II adapter to read live vehicle coding and toggle features.
+        </p>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: 1.25rem;">
       <div class="card-title">Select Target Vehicle Platform & Module</div>
       <select id="schema-select" class="select-box"></select>
@@ -149,6 +162,16 @@
 
   <!-- Tab 3: Interactive Byte Matrix -->
   <main id="tab-matrix" class="tab-content">
+    <div id="matrix-ble-notice" class="ble-notice-banner">
+      <span style="font-size: 1.3rem;">⚡</span>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          Connect to your OBD-II adapter to read, inspect, and modify ECU Byte Matrix.
+        </p>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: 1.25rem;">
       <div class="card-title">
         <span>30-Byte Coding Buffer</span>
@@ -171,10 +194,10 @@
 
     <div class="card">
       <div class="card-title">Raw Hexadecimal Payload</div>
-      <input type="text" id="raw-hex-input" class="hex-input" spellcheck="false" autocomplete="off" />
+      <input type="text" id="raw-hex-input" class="hex-input" spellcheck="false" autocomplete="off" readonly />
       <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
-        <button id="btn-reset-hex" class="btn btn-secondary">Reset to Baseline</button>
-        <button id="btn-apply-hex" class="btn btn-primary">Audit & Write Hex</button>
+        <button id="btn-reset-hex" class="btn btn-secondary" disabled title="Connect Bluetooth to reset baseline">Reset to Baseline</button>
+        <button id="btn-apply-hex" class="btn btn-primary" disabled title="Connect Bluetooth to write hex">Audit & Write Hex</button>
       </div>
     </div>
   </main>
@@ -200,14 +223,24 @@
 
   <!-- Tab 5: Diagnostic Trouble Codes (DTC) -->
   <main id="tab-dtcs" class="tab-content">
+    <div id="dtcs-ble-notice" class="ble-notice-banner">
+      <span style="font-size: 1.3rem;">⚡</span>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+          Connect to your OBD-II adapter to scan and clear ECU fault codes.
+        </p>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
       <div>
         <h3 style="font-size: 1.05rem; font-weight:700;">Diagnostic Trouble Codes (ISO 14229 Service 0x19 / 0x14)</h3>
         <p style="font-size: 0.8rem; color: var(--text-muted);">Query confirmed DTCs across ECUs and clear emission fault codes.</p>
       </div>
       <div style="display:flex; gap:0.5rem;">
-        <button id="btn-scan-dtcs" class="btn btn-primary">Scan Fault Codes</button>
-        <button id="btn-clear-dtcs" class="btn btn-danger">Clear All DTCs (0x14)</button>
+        <button id="btn-scan-dtcs" class="btn btn-primary" disabled title="Connect Bluetooth to scan DTCs">Scan Fault Codes</button>
+        <button id="btn-clear-dtcs" class="btn btn-danger" disabled title="Connect Bluetooth to clear DTCs">Clear All DTCs (0x14)</button>
       </div>
     </div>
 

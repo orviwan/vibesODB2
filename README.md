@@ -1,12 +1,16 @@
 # vibesODB2
 
+> [!WARNING]
+> **ALPHA SOFTWARE — HARDWARE & VEHICLE VERIFICATION REQUIRED**
+> vibesODB2 is currently in early **Alpha**. While extensive defensive safety checks, engine-running interlocks, and automated pre-write snapshots are built in, writing to automotive Electronic Control Units (ECUs) carries inherent risks. Real-world testing and validation across different VAG platforms, models, and adapter firmwares are actively ongoing. Always verify existing backups before applying coding changes. Use at your own risk.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform: VAG PQ25 / PQ35 / MQB](https://img.shields.io/badge/Platforms-PQ25%20%7C%20PQ35%20%7C%20MQB-green.svg)](#supported-vag-platforms--chassis-matrix)
 [![GitHub Pages](https://img.shields.io/badge/Live%20PWA-orviwan.github.io%2FvibesODB2-success?logo=github)](https://orviwan.github.io/vibesODB2/)
 [![Built with AI](https://img.shields.io/badge/Built%20with-Agentic%20AI%20(Google%20Antigravity)-purple.svg)](#built-with-ai)
 
-An open-source, modular vehicle configuration and diagnostic engine engineered for the **Volkswagen Transporter (T5.1 / T6 / T6.1)** and broader **VAG platforms (PQ25, PQ35/PQ46, MQB)** across **Volkswagen, Audi, SEAT, and Škoda**.
+An open-source, modular vehicle configuration and diagnostic engine engineered for **VAG platforms (PQ25, PQ35/PQ46, MQB)** across **Volkswagen, Audi, SEAT, and Škoda**.
 
 Available as a zero-install **Progressive Web App (PWA)** running directly on mobile and desktop browsers with **Web Bluetooth**, accompanied by a **Python CLI & Automated Test Suite** for developer scripting and headless diagnostics.
 
@@ -269,8 +273,9 @@ vibesodb2 live --mock
 vibesodb2 live --mock --drive-mode spirited --rate 40
 vibesodb2 live --mac "AA:BB:CC:11:22:33"
 
-# 9. Launch the interactive Web Dashboard
-vibesodb2 web --mock
+# 9. Launch the Progressive Web App
+vibesodb2 web --online
+vibesodb2 web
 ```
 
 ---
@@ -309,13 +314,12 @@ Features included in the PWA:
 - **🏎️ Real-Time Telemetry Cluster**: Sleek automotive instrument cluster updating in real-time over Web Bluetooth:
   - Radial tachometer arc with redline threshold colors.
   - Large digital speedometer with `km/h` vs `mph` toggle.
-  - Glowing DSG gear indicator (`D1`–`D7`, `N`, `P`, `R`).
+  - Glowing DSG / manual gear indicator (`1`–`7`, `N`).
   - Turbo boost pressure gauge (bar & PSI).
   - Thermal diagnostic meters (Coolant, IAT, Turbo EGT).
   - Common rail fuel pressure & DPF soot mass loading meters with status warnings.
   - Telemetry diagnostics HUD (live sampling Hz, round-trip latency in ms, packet count).
-  - Drive cycle profile switcher (`City Commute`, `Highway Cruise`, `Spirited Run`, `Engine Idle`).
-- **Vehicle Platform Switcher & VIN Auto-Detection**: Automatically identifies your van or car (e.g. `🚗 Volkswagen Transporter T5.1 (PQ25)` or `Volkswagen Golf Mk6 (PQ35)`).
+- **Vehicle Platform Switcher & VIN Auto-Detection**: Automatically identifies your vehicle chassis (e.g. `🚗 Volkswagen Golf Mk7 (MQB)` or `Volkswagen Polo Mk5 (PQ25)`).
 - **Real-Time Pre-Flight Monitor**: Displays connection state, battery voltage, and Engine RPM safety interlock.
 - **Dynamic Feature Toggles**: Checkboxes and toggle switches generated dynamically from decoupled community JSON schemas.
 - **Custom Override Manager**: Add your own discovered byte/bit settings directly from the UI and save them to your local database.
