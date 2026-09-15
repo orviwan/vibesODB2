@@ -294,15 +294,19 @@ class VibesApp {
     // 1. Speed
     const speedEl = document.getElementById('gauge-speed-val');
     if (speedEl) {
-      const speedVal = this.unit === 'mph' 
-        ? Math.round(data.vehicle_speed_kmh * 0.621371) 
-        : Math.round(data.vehicle_speed_kmh);
-      speedEl.textContent = speedVal;
+      if (data.vehicle_speed_kmh != null) {
+        const speedVal = this.unit === 'mph' 
+          ? Math.round(data.vehicle_speed_kmh * 0.621371) 
+          : Math.round(data.vehicle_speed_kmh);
+        speedEl.textContent = speedVal;
+      } else {
+        speedEl.textContent = '0';
+      }
     }
 
     // 2. RPM & Arc
     const rpmEl = document.getElementById('gauge-rpm-val');
-    const rpm = Math.max(0, Math.min(6000, data.engine_rpm || 0));
+    const rpm = (data.engine_rpm != null) ? Math.max(0, Math.min(6000, data.engine_rpm)) : 0;
     if (rpmEl) {
       rpmEl.textContent = `${Math.round(rpm)} RPM`;
       if (rpm >= 5000) {
@@ -326,28 +330,39 @@ class VibesApp {
 
     // 3. Gear Badge
     const gearEl = document.getElementById('gauge-gear-val');
-    const currentGear = data.engaged_gear || data.gear;
-    if (gearEl && currentGear) {
-      gearEl.textContent = currentGear;
+    if (gearEl) {
+      gearEl.textContent = data.engaged_gear || data.gear || '--';
     }
 
     // 4. Boost Pressure
     const boostValEl = document.getElementById('metric-boost-val');
     const boostBarEl = document.getElementById('progress-boost');
-    if (boostValEl) boostValEl.textContent = `${(data.boost_pressure_bar || 0).toFixed(2)} bar`;
+    if (boostValEl) {
+      boostValEl.textContent = data.boost_pressure_bar != null 
+        ? `${data.boost_pressure_bar.toFixed(2)} bar` 
+        : '-- bar';
+    }
     if (boostBarEl) {
-      const pct = Math.min(100, Math.max(0, ((data.boost_pressure_bar || 0) / 2.0) * 100));
+      const pct = data.boost_pressure_bar != null 
+        ? Math.min(100, Math.max(0, (data.boost_pressure_bar / 2.0) * 100)) 
+        : 0;
       boostBarEl.style.width = `${pct}%`;
     }
 
     // 5. Coolant Temp
     const coolantValEl = document.getElementById('metric-coolant-val');
     const coolantBarEl = document.getElementById('progress-coolant');
-    if (coolantValEl) coolantValEl.textContent = `${Math.round(data.coolant_temp_c || 85)} °C`;
+    if (coolantValEl) {
+      coolantValEl.textContent = data.coolant_temp_c != null 
+        ? `${Math.round(data.coolant_temp_c)} °C` 
+        : '-- °C';
+    }
     if (coolantBarEl) {
-      const pct = Math.min(100, Math.max(0, (((data.coolant_temp_c || 85) - 40) / 80) * 100));
+      const pct = data.coolant_temp_c != null 
+        ? Math.min(100, Math.max(0, ((data.coolant_temp_c - 40) / 80) * 100)) 
+        : 0;
       coolantBarEl.style.width = `${pct}%`;
-      if ((data.coolant_temp_c || 85) >= 105) {
+      if (data.coolant_temp_c != null && data.coolant_temp_c >= 105) {
         coolantBarEl.style.background = '#ef4444';
       } else {
         coolantBarEl.style.background = '';
@@ -356,25 +371,47 @@ class VibesApp {
 
     // 6. Intake Air Temp (IAT)
     const iatEl = document.getElementById('metric-iat-val');
-    if (iatEl) iatEl.textContent = `${Math.round(data.intake_air_temp_c || 24)} °C`;
+    if (iatEl) {
+      iatEl.textContent = data.intake_air_temp_c != null 
+        ? `${Math.round(data.intake_air_temp_c)} °C` 
+        : '-- °C';
+    }
 
     // 7. Exhaust Gas Temp (EGT)
     const egtEl = document.getElementById('metric-egt-val');
     const egtVal = data.exhaust_gas_temp_c !== undefined ? data.exhaust_gas_temp_c : data.egt_c;
-    if (egtEl) egtEl.textContent = `${Math.round(egtVal || 280)} °C`;
+    if (egtEl) {
+      egtEl.textContent = egtVal != null 
+        ? `${Math.round(egtVal)} °C` 
+        : '-- °C';
+    }
 
     // 8. DPF Soot Load
     const sootValEl = document.getElementById('metric-soot-val');
     const sootBarEl = document.getElementById('progress-soot');
-    if (sootValEl) sootValEl.textContent = `${(data.dpf_soot_load_g || 18.4).toFixed(1)} g`;
+    if (sootValEl) {
+      if (data.dpf_soot_load_g != null) {
+        sootValEl.textContent = `${data.dpf_soot_load_g.toFixed(1)} g`;
+        sootValEl.style.color = 'var(--warning)';
+      } else {
+        sootValEl.textContent = '-- g';
+        sootValEl.style.color = 'var(--text-muted)';
+      }
+    }
     if (sootBarEl) {
-      const pct = Math.min(100, Math.max(0, ((data.dpf_soot_load_g || 18.4) / 45.0) * 100));
+      const pct = data.dpf_soot_load_g != null 
+        ? Math.min(100, Math.max(0, (data.dpf_soot_load_g / 45.0) * 100)) 
+        : 0;
       sootBarEl.style.width = `${pct}%`;
     }
 
     // 9. Throttle Position
     const throttleEl = document.getElementById('metric-throttle-val');
-    if (throttleEl) throttleEl.textContent = `${Math.round(data.throttle_position_pct || 0)}%`;
+    if (throttleEl) {
+      throttleEl.textContent = data.throttle_position_pct != null 
+        ? `${Math.round(data.throttle_position_pct)}%` 
+        : '-- %';
+    }
   }
 
   renderHz(rateData) {

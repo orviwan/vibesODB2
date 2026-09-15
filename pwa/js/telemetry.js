@@ -19,16 +19,16 @@ export class TelemetryEngine {
 
   getInitialMetrics() {
     return {
-      vehicle_speed_kmh: 0,
-      engine_rpm: 0,
-      coolant_temp_c: 0,
-      intake_manifold_pressure_kpa: 101,
-      boost_pressure_bar: 0.0,
-      throttle_position_pct: 0,
-      intake_air_temp_c: 0,
-      fuel_rail_pressure_bar: 0,
-      dpf_soot_load_g: 0.0,
-      exhaust_gas_temp_c: 0,
+      vehicle_speed_kmh: null,
+      engine_rpm: null,
+      coolant_temp_c: null,
+      intake_manifold_pressure_kpa: null,
+      boost_pressure_bar: null,
+      throttle_position_pct: null,
+      intake_air_temp_c: null,
+      fuel_rail_pressure_bar: null,
+      dpf_soot_load_g: null,
+      exhaust_gas_temp_c: null,
       engaged_gear: '--'
     };
   }
