@@ -52,19 +52,25 @@ class SafetyEngine:
     def __init__(self, storage: Optional[StorageManager] = None):
         self.storage = storage or StorageManager()
 
-    def validate_module_allowed(self, module_address: int) -> None:
+    def validate_write_allowed(self, module_address: int) -> None:
         """
-        Guardrail 1: Critical Module Blacklist.
-        Rejects connections/writes to safety-critical controllers.
+        Guardrail 1: Critical Module Coding Write Blacklist.
+        Rejects long-coding write operations (UDS 0x2E) to safety-critical controllers
+        (ABS/ESP 0x03, Airbag 0x15, Power Steering 0x44) to prevent dangerous misconfiguration.
+        Note: DTC reading and clearing (0x19 / 0x14) is permitted for maintenance.
         """
         if module_address in BLACKLISTED_MODULES:
             desc = BLACKLISTED_MODULES[module_address]
             msg = (
-                f"SAFETY INTERLOCK ACTIVATED: Module 0x{module_address:02X} ({desc}) is blacklisted. "
-                "Writing or diagnostic session access to safety-critical controllers is strictly forbidden."
+                f"SAFETY INTERLOCK ACTIVATED: Coding writes to Module 0x{module_address:02X} ({desc}) are blacklisted. "
+                "Writing long-coding configuration to safety-critical controllers is strictly forbidden."
             )
             logger.critical(msg)
             raise BlacklistedModuleError(msg)
+
+    def validate_module_allowed(self, module_address: int) -> None:
+        """Alias for validate_write_allowed for backwards compatibility."""
+        return self.validate_write_allowed(module_address)
 
     async def validate_engine_off(self, adapter: ELM327Adapter, max_rpm_threshold: int = 50) -> int:
         """

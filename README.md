@@ -44,9 +44,9 @@ vibesODB2 runs directly in your mobile browser without compiling or installing a
 > vibesODB2 was designed, architected, and engineered using **Advanced Agentic AI Pair Programming** powered by **Google Antigravity**.
 >
 > Modern automotive scan tools often suffer from vendor lock-in, subscription paywalls, and proprietary diagnostic databases that hinder the Right-to-Repair movement. By applying autonomous coding agents to standard automotive communication protocols (ISO 14229 UDS, ISO 15765-2 ISO-TP, and ELM/STN serial abstraction), vibesODB2 achieves:
-> - **Clean-Room Schemas**: Decoupling vehicle bitfields from proprietary diagnostic labels.
+> - **Open Community Schemas**: Transparent, human-readable JSON bitfield mappings decoupled from closed-source proprietary databases.
 > - **Defensive Safety Architecture**: 5-point safety pipelines, pre-write snapshots, and atomic rollbacks.
-> - **Open Community Ecosystem**: User-defined custom bit overrides and one-click GitHub PR community schema exports.
+> - **Extensible Community Ecosystem**: User-defined custom bit overrides and one-click GitHub PR community schema exports.
 
 ---
 
@@ -131,7 +131,7 @@ The engine auto-detects the vehicle platform and model directly from the 17-char
 * **Real-Time Telemetry Multi-Tier Loop:** Streams live sensor telemetry while driving (Fast 30–50 Hz loop for Speed, RPM, Boost, Throttle vs Slow 1–2 Hz loop for Coolant, IAT, Fuel Rail, and OEM VAG UDS for DPF soot loading, Turbo EGT, and DSG gear).
 * **Virtual Cockpit Digital Dashboard:** Automotive instrument cluster HUD with SVG tachometer arc, boost meter, thermal gauges, and telemetry diagnostic stats.
 * **Backup Explorer with Differential Comparison:** Automatic pre-write snapshots with visual byte diffing, bit alteration notes, single-snapshot JSON download, and instant one-tap restore.
-* **Decoupled Community Schemas:** Vehicle bitfield maps are loaded via modular clean-room JSON schemas with custom override creation and one-click GitHub PR export.
+* **Open Community JSON Schemas:** Vehicle configuration mappings are decoupled from closed-source databases. Bundled with human-readable definitions for PQ25, PQ35, and MQB, with in-app custom override creation and one-click GitHub PR export.
 * **Interactive Byte Matrix & Bit Inspector:** Low-level 30-byte array inspection with individual bit toggles and real-time hex calculation.
 * **Comprehensive Fault Management:** Reads active and confirmed Diagnostic Trouble Codes (DTCs) across modules via UDS Service `0x19`, with one-tap clearing via Service `0x14`.
 * **Hardware-Accelerated ISO-TP:** Supports STN/ELM-extended chipsets (`ATCAF1`) to prevent buffer overruns during multi-frame operations, with fallback software reassembly.
@@ -143,7 +143,7 @@ The engine auto-detects the vehicle platform and model directly from the 17-char
 
 Writing to vehicle controllers carries inherent risk. vibesODB2 enforces five automated pre-flight checks:
 
-1. **Critical Module Blacklist:** Hardcoded blocks prevent connections or writes to safety-critical controllers, including ABS/ESP (`0x03`), Airbag Systems (`0x15`), and Electromechanical Steering (`0x44`).
+1. **Critical Module Coding Write Blacklist:** Hardcoded blocks prevent long-coding write operations (`0x2E`) to safety-critical controllers, including ABS/ESP (`0x03`), Airbag Systems (`0x15`), and Electromechanical Steering (`0x44`) to protect critical life-safety systems from corrupt configurations. Fault code reading and DTC clearing (`0x19` / `0x14`) remain fully supported across all modules for routine maintenance and warning light resets.
 2. **Engine Running Interlock:** The tool queries standard OBD-II PID `010C` (Engine RPM) before every session transition. If RPM $> 0$, write operations are strictly blocked. The vehicle must be in an **Ignition ON / Engine OFF** state.
 3. **Immutable Pre-Write Snapshots:** Captures the existing raw hex configuration immediately before any write payload is dispatched (stored in browser IndexedDB for PWA or SQLite for CLI).
 4. **Strict Payload Sizing:** If a target module returns a 30-byte payload upon read, the write engine rejects any modified payload that does not equal 30 bytes. Truncated or over-length writes are blocked client-side.

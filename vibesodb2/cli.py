@@ -323,10 +323,8 @@ async def cmd_backups(args) -> int:
 async def cmd_dtc(args) -> int:
     module_addr = int(args.module, 16)
     transport = get_transport(args.mac, args.mock, args.rpm)
-    safety = SafetyEngine()
 
     try:
-        safety.validate_module_allowed(module_addr)
         await transport.connect()
         adapter = ELM327Adapter(transport)
         await adapter.initialize()
