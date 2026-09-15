@@ -1020,12 +1020,17 @@
     <!-- TAB 6: BLE SCANNER -->
     <section id="scannerTab" class="tab-content">
       <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
           <div>
             <h2 style="font-size: 1.1rem;">BLE Adapter Scanner</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Scan for nearby Vgate vLinker MC+, OBDLink MX+, and NUS dongles.</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Scan for nearby Vgate vLinker MC+, OBDLink MX+, Veepeak, Kiwi, and NUS dongles.</p>
           </div>
-          <button class="btn btn-secondary" id="btnScan" onclick="runBleScan()">📡 Scan for Devices</button>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <label style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
+              <input type="checkbox" id="tabScanAllDevices"> Show all BLE devices
+            </label>
+            <button class="btn btn-secondary" id="btnScan" onclick="runBleScan()">📡 Scan for Devices</button>
+          </div>
         </div>
 
         <table class="data-table">
@@ -1131,7 +1136,7 @@
 
   <!-- MODAL: TRANSPORT CONFIG -->
   <div class="modal-overlay" id="connectModal">
-    <div class="modal">
+    <div class="modal" style="max-width: 520px;">
       <div class="modal-header">
         <h3 style="font-size: 1.1rem;">OBD-II Transport Configuration</h3>
         <button style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;" onclick="closeModal('connectModal')">&times;</button>
@@ -1141,13 +1146,43 @@
           <label style="display:block; font-size: 0.85rem; margin-bottom: 0.4rem;">Mode</label>
           <select id="transportModeSelect" class="select-input" style="width:100%;" onchange="toggleTransportFields()">
             <option value="mock">Simulated Testbench (ECU Mock)</option>
-            <option value="ble">Physical BLE Adapter (NUS GATT)</option>
+            <option value="ble">Physical BLE Adapter (NUS / OBD GATT)</option>
           </select>
         </div>
-        <div id="bleMacContainer" style="display:none; margin-bottom: 1rem;">
-          <label style="display:block; font-size: 0.85rem; margin-bottom: 0.4rem;">Adapter MAC / UUID</label>
-          <input type="text" id="transportMacInput" class="select-input" style="width:100%;" placeholder="e.g. AA:BB:CC:11:22:33">
+
+        <div id="bleSection" style="display:none; margin-bottom: 1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <label style="font-size: 0.85rem; font-weight:600; color:var(--text-main);">Discovered BLE OBD Adapters</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <label style="font-size:0.75rem; color:var(--text-muted); cursor:pointer;">
+                <input type="checkbox" id="modalScanAllDevices"> All BLE
+              </label>
+              <button type="button" class="btn btn-secondary" id="btnModalScan" style="padding:0.25rem 0.6rem; font-size:0.78rem;" onclick="runModalBleScan()">
+                📡 Scan
+              </button>
+            </div>
+          </div>
+
+          <div id="modalDiscoveredList" style="min-height:80px; max-height:200px; overflow-y:auto; background:#080d1a; border:1px solid #1a253c; border-radius:6px; padding:0.5rem; margin-bottom:0.75rem;">
+            <div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.2rem;">
+              Click <strong>📡 Scan</strong> or <strong>Auto-Connect</strong> to discover adapters.
+            </div>
+          </div>
+
+          <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+            <button type="button" class="btn btn-primary" style="flex:1; font-size:0.82rem;" onclick="autoConnectBle()">
+              ⚡ Auto-Connect to Best Adapter
+            </button>
+          </div>
+
+          <details style="font-size:0.8rem; color:var(--text-muted);">
+            <summary style="cursor:pointer; padding:0.2rem 0; user-select:none;">Manual MAC address entry...</summary>
+            <div style="margin-top:0.5rem;">
+              <input type="text" id="transportMacInput" class="select-input" style="width:100%; font-family:var(--font-mono); font-size:0.85rem;" placeholder="e.g. C0:25:E8:59:B4:D5">
+            </div>
+          </details>
         </div>
+
         <div id="mockRpmContainer" style="margin-bottom: 1rem;">
           <label style="display:block; font-size: 0.85rem; margin-bottom: 0.4rem;">Simulated Engine RPM (Safety Testing)</label>
           <input type="number" id="mockRpmInput" class="select-input" style="width:100%;" value="0">
@@ -1155,7 +1190,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('connectModal')">Close</button>
-        <button class="btn btn-primary" onclick="applyTransportSettings()">Save & Connect</button>
+        <button class="btn btn-primary" id="btnApplyTransport" onclick="applyTransportSettings()">Save & Connect</button>
       </div>
     </div>
   </div>
@@ -1427,8 +1462,16 @@
 
     function toggleTransportFields() {
       const mode = document.getElementById('transportModeSelect').value;
-      document.getElementById('bleMacContainer').style.display = mode === 'ble' ? 'block' : 'none';
-      document.getElementById('mockRpmContainer').style.display = mode === 'mock' ? 'block' : 'none';
+      const bleSec = document.getElementById('bleSection');
+      if (bleSec) bleSec.style.display = mode === 'ble' ? 'block' : 'none';
+      const mockSec = document.getElementById('mockRpmContainer');
+      if (mockSec) mockSec.style.display = mode === 'mock' ? 'block' : 'none';
+      if (mode === 'ble') {
+        const list = document.getElementById('modalDiscoveredList');
+        if (list && !list.querySelector('button')) {
+          runModalBleScan();
+        }
+      }
     }
 
     function onPlatformChange() {
@@ -1779,20 +1822,26 @@
 
     async function runBleScan() {
       const tbody = document.getElementById('bleTableBody');
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Scanning for BLE adapters (5s)...</td></tr>';
+      const scanAll = document.getElementById('tabScanAllDevices')?.checked || false;
+      const btn = document.getElementById('btnScan');
+      if (btn) btn.disabled = true;
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Scanning for BLE adapters (4s)...</td></tr>';
       try {
-        const res = await fetch('/api/scan');
+        const res = await fetch(`/api/scan?timeout=4.0&all_devices=${scanAll}`);
         const adapters = await res.json();
         if (!adapters || adapters.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--warning);">No compatible BLE adapters discovered.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--warning);">No BLE adapters discovered. Ensure dongle is powered on.</td></tr>';
           return;
         }
         tbody.innerHTML = adapters.map(a => `
           <tr>
-            <td><strong>${a.name}</strong></td>
+            <td>
+              <strong>${a.name}</strong>
+              ${a.details ? `<div style="font-size:0.72rem; color:var(--text-muted);">${a.details}</div>` : ''}
+            </td>
             <td style="font-family:var(--font-mono);">${a.address}</td>
             <td>${a.rssi} dBm</td>
-            <td>${a.is_recommended ? '<span style="color:var(--success)">Recommended</span>' : 'Compatible'}</td>
+            <td>${a.is_recommended ? '<span style="color:var(--success)">Recommended</span>' : (a.is_obd ? 'Compatible OBD' : '<span style="color:var(--text-muted)">Other BLE</span>')}</td>
             <td>
               <button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="connectToBle('${a.address}')">
                 Connect
@@ -1802,6 +1851,79 @@
         `).join('');
       } catch (e) {
         tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);">Scan failed: ${e}</td></tr>`;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function runModalBleScan() {
+      const listEl = document.getElementById('modalDiscoveredList');
+      const scanAll = document.getElementById('modalScanAllDevices')?.checked || false;
+      const btn = document.getElementById('btnModalScan');
+      if (btn) btn.disabled = true;
+      listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1rem;">📡 Scanning for nearby BLE adapters (4s)...</div>';
+      try {
+        const res = await fetch(`/api/scan?timeout=4.0&all_devices=${scanAll}`);
+        const adapters = await res.json();
+        if (!adapters || adapters.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center; color:var(--warning); font-size:0.8rem; padding:1rem;">No adapters found. Ensure your OBD dongle is plugged into the vehicle port with ignition ON.</div>';
+          return;
+        }
+        listEl.innerHTML = adapters.map(a => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.5rem; border-bottom:1px solid #1a253c; font-size:0.82rem;">
+            <div>
+              <div style="font-weight:600; color:var(--text-main);">
+                ${a.name} ${a.is_recommended ? '<span style="font-size:0.68rem; color:var(--success); background:rgba(16,185,129,0.15); padding:1px 4px; border-radius:3px;">Recommended</span>' : ''}
+              </div>
+              <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">
+                ${a.address} &bull; ${a.rssi} dBm
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="selectAndConnectBle('${a.address}', '${a.name}')">
+              Connect
+            </button>
+          </div>
+        `).join('');
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:var(--danger); font-size:0.8rem; padding:0.5rem;">Scan error: ${e}</div>`;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function selectAndConnectBle(mac, name) {
+      document.getElementById('transportMacInput').value = mac;
+      document.getElementById('transportModeSelect').value = 'ble';
+      await connectToBle(mac);
+      closeModal('connectModal');
+    }
+
+    async function autoConnectBle() {
+      const listEl = document.getElementById('modalDiscoveredList');
+      if (listEl) {
+        listEl.innerHTML = '<div style="text-align:center; color:var(--primary-light); font-size:0.8rem; padding:1rem;">⚡ Auto-discovering and connecting to nearby OBD adapter...</div>';
+      }
+      try {
+        const res = await fetch('/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mock: false, mac: null })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(`Auto-connect failed: ${data.detail}`);
+          if (listEl) listEl.innerHTML = `<div style="color:var(--danger); font-size:0.8rem; padding:0.5rem;">Failed: ${data.detail}</div>`;
+        } else {
+          alert(`Connected to BLE adapter: ${data.mac || 'Connected'}!`);
+          document.getElementById('transportModeSelect').value = 'ble';
+          if (data.mac) document.getElementById('transportMacInput').value = data.mac;
+          closeModal('connectModal');
+          updateStatus();
+          loadModuleCoding();
+        }
+      } catch (e) {
+        alert(`Auto-connect error: ${e}`);
+        if (listEl) listEl.innerHTML = `<div style="color:var(--danger); font-size:0.8rem; padding:0.5rem;">Error: ${e}</div>`;
       }
     }
 
@@ -1815,7 +1937,9 @@
         const data = await res.json();
         if (!res.ok) alert(`Connection failed: ${data.detail}`);
         else {
-          alert(`Connected to BLE adapter ${mac}!`);
+          alert(`Connected to BLE adapter ${mac || data.mac}!`);
+          document.getElementById('transportModeSelect').value = 'ble';
+          if (mac || data.mac) document.getElementById('transportMacInput').value = mac || data.mac;
           updateStatus();
           loadModuleCoding();
         }
@@ -1826,14 +1950,19 @@
 
     async function applyTransportSettings() {
       const mode = document.getElementById('transportModeSelect').value;
-      const mac = document.getElementById('transportMacInput').value;
+      const mac = document.getElementById('transportMacInput').value.trim();
       const rpm = parseInt(document.getElementById('mockRpmInput').value) || 0;
+
+      if (mode === 'ble' && !mac) {
+        // Auto-connect if no MAC specified
+        return await autoConnectBle();
+      }
 
       try {
         const res = await fetch('/api/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mock: mode === 'mock', mac: mac, mock_rpm: rpm })
+          body: JSON.stringify({ mock: mode === 'mock', mac: mac || null, mock_rpm: rpm })
         });
         const data = await res.json();
         if (!res.ok) alert(`Failed: ${data.detail}`);

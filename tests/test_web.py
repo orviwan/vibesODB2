@@ -79,3 +79,40 @@ def test_web_static_html(client):
     assert "vibesODB2" in res.text
     assert "Dynamic Feature Coding" in res.text
     assert "Real-Time Telemetry" in res.text
+    assert "Discovered BLE OBD Adapters" in res.text
+
+
+def test_web_scan_endpoint(client, monkeypatch):
+    from vibesodb2.ble.discovery import DiscoveredAdapter
+
+    async def mock_scan(timeout=4.0, include_all=False):
+        return [
+            DiscoveredAdapter(
+                name="vLinker MC-IOS",
+                address="C0:25:E8:59:B4:D5",
+                rssi=-75,
+                is_recommended=True,
+                details="Services: 1, NUS: True",
+                is_obd=True,
+            )
+        ]
+
+    import sys
+    web_module = sys.modules["vibesodb2.web.app"]
+    monkeypatch.setattr(web_module, "scan_for_adapters", mock_scan)
+    res = client.get("/api/scan?all_devices=true")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "vLinker MC-IOS"
+    assert data[0]["is_recommended"] is True
+    assert data[0]["is_obd"] is True
+
+
+def test_web_connect_mock_mode(client):
+    res = client.post("/api/connect", json={"mock": True, "mock_rpm": 0})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "connected"
+    assert data["mock"] is True
+

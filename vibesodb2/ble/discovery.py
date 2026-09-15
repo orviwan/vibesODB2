@@ -19,10 +19,22 @@ KNOWN_ADAPTER_NAMES = [
     "vlinker",
     "obdlink",
     "ios-vlink",
+    "android-vlink",
     "v-link",
     "veepeak",
     "bimmercode",
     "carista",
+    "kiwi",
+    "vgate",
+    "icar",
+    "obd",
+    "elm327",
+    "viecar",
+    "tonwon",
+    "konnwei",
+    "bafx",
+    "stn",
+    "link",
 ]
 
 
@@ -33,19 +45,23 @@ class DiscoveredAdapter:
     rssi: int
     is_recommended: bool
     details: str = ""
+    is_obd: bool = True
 
 
-async def scan_for_adapters(timeout: float = 5.0) -> List[DiscoveredAdapter]:
+async def scan_for_adapters(
+    timeout: float = 5.0, include_all: bool = False
+) -> List[DiscoveredAdapter]:
     """
     Scan for nearby BLE adapters and filter for known compatible OBD dongles or NUS advertisers.
+    If include_all is True, also includes other detected BLE devices with names.
     """
-    logger.info("Scanning for BLE OBD-II adapters (duration: %.1fs)...", timeout)
+    logger.info("Scanning for BLE OBD-II adapters (duration: %.1fs, include_all: %s)...", timeout, include_all)
     discovered: List[DiscoveredAdapter] = []
 
     devices = await BleakScanner.discover(timeout=timeout, return_adv=True)
 
     for address, (device, adv_data) in devices.items():
-        dev_name = device.name or adv_data.local_name or "Unknown Device"
+        dev_name = device.name or adv_data.local_name or ""
         name_lower = dev_name.lower()
 
         # Check if known OBD adapter name or advertises NUS UUID
@@ -55,17 +71,30 @@ async def scan_for_adapters(timeout: float = 5.0) -> List[DiscoveredAdapter]:
         is_known_adapter = any(keyword in name_lower for keyword in KNOWN_ADAPTER_NAMES)
 
         if is_known_adapter or has_nus:
-            is_rec = "vlinker" in name_lower or "obdlink" in name_lower
+            is_rec = any(k in name_lower for k in ("vlinker", "obdlink", "veepeak", "carista"))
+            discovered.append(
+                DiscoveredAdapter(
+                    name=dev_name or "OBD-II Adapter",
+                    address=device.address,
+                    rssi=adv_data.rssi,
+                    is_recommended=is_rec,
+                    details=f"Services: {len(service_uuids)}, NUS: {has_nus}",
+                    is_obd=True,
+                )
+            )
+        elif include_all and dev_name:
             discovered.append(
                 DiscoveredAdapter(
                     name=dev_name,
                     address=device.address,
                     rssi=adv_data.rssi,
-                    is_recommended=is_rec,
-                    details=f"Services: {len(service_uuids)}, NUS: {has_nus}",
+                    is_recommended=False,
+                    details=f"Services: {len(service_uuids)}, RSSI: {adv_data.rssi} dBm",
+                    is_obd=False,
                 )
             )
 
-    discovered.sort(key=lambda a: (a.is_recommended, a.rssi), reverse=True)
-    logger.info("Found %d compatible BLE adapter(s).", len(discovered))
+    discovered.sort(key=lambda a: (a.is_recommended, a.is_obd, a.rssi), reverse=True)
+    logger.info("Found %d BLE adapter(s).", len(discovered))
     return discovered
+

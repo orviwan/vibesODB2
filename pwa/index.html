@@ -278,6 +278,48 @@
     </div>
   </div>
 
+  <!-- Web Bluetooth / Linux Setup Help Modal -->
+  <div id="modal-ble-help" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-title">
+        <span style="font-size: 1.4rem;">🐧</span>
+        <div>
+          <h3>Web Bluetooth on Linux</h3>
+          <p id="ble-help-subtitle" style="font-size: 0.8rem; color: var(--text-muted);">Enable experimental features in Google Chrome</p>
+        </div>
+      </div>
+
+      <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem;">
+        <p style="margin-bottom: 0.75rem;">On Linux desktop, Chrome requires Web Bluetooth to be enabled via experimental flags:</p>
+
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem;">
+          <strong style="color: var(--text-main); display: block; margin-bottom: 0.3rem;">Option 1: Enable via Chrome Flags (Recommended)</strong>
+          <ol style="margin-left: 1.2rem; margin-bottom: 0.5rem; font-size: 0.82rem;">
+            <li>Copy and open this URL in a new Chrome tab:</li>
+            <div style="display: flex; gap: 0.4rem; margin: 0.3rem 0;">
+              <input type="text" id="chrome-flag-input" readonly value="chrome://flags/#enable-experimental-web-platform-features" class="hex-input" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;">
+              <button type="button" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="navigator.clipboard.writeText('chrome://flags/#enable-experimental-web-platform-features'); alert('Copied flag URL to clipboard!');">Copy</button>
+            </div>
+            <li>Set <strong>"Experimental Web Platform features"</strong> to <strong>Enabled</strong>.</li>
+            <li>Click <strong>Relaunch</strong> at the bottom of Chrome.</li>
+          </ol>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem;">
+          <strong style="color: var(--text-main); display: block; margin-bottom: 0.3rem;">Option 2: Launch via Terminal</strong>
+          <div style="display: flex; gap: 0.4rem; margin-top: 0.3rem;">
+            <input type="text" id="chrome-cli-input" readonly value="google-chrome --enable-experimental-web-platform-features https://orviwan.github.io/vibesODB2/" class="hex-input" style="flex: 1; font-size: 0.72rem; padding: 0.3rem;">
+            <button type="button" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="navigator.clipboard.writeText('google-chrome --enable-experimental-web-platform-features https://orviwan.github.io/vibesODB2/'); alert('Copied command to clipboard!');">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-close-ble-help" class="btn btn-primary" style="width: 100%;">Got It</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Main ES Module Script -->
   <script type="module" src="js/app.js"></script>
 </body>

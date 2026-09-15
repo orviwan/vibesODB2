@@ -100,9 +100,41 @@ class VibesApp {
   // --- Web Bluetooth Connection ---
   setupBluetooth() {
     const bleBtn = document.getElementById('btn-ble-connect');
+    const closeHelpBtn = document.getElementById('btn-close-ble-help');
+    if (closeHelpBtn) {
+      closeHelpBtn.addEventListener('click', () => this.closeBleHelpModal());
+    }
+
+    const support = WebBleTransport.getSupportInfo();
+    const noticeEl = document.getElementById('cockpit-ble-notice');
+    if (!support.supported && support.isLinux && noticeEl) {
+      noticeEl.innerHTML = `
+        <span style="font-size: 1.3rem;">🐧</span>
+        <div style="flex:1;">
+          <h4 style="font-size: 0.92rem; font-weight: 700; color: #f59e0b;">Web Bluetooth Disabled by Default on Linux</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Google Chrome on Linux requires enabling experimental platform features to communicate with BLE adapters.
+          </p>
+          <div style="margin-top: 6px;">
+            <button id="btn-show-linux-help" type="button" class="btn btn-secondary" style="padding: 3px 10px; font-size: 0.75rem;">
+              🛠️ View Chrome Flag Instructions
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('btn-show-linux-help')?.addEventListener('click', () => {
+        this.openBleHelpModal();
+      });
+    }
+
     if (!bleBtn) return;
 
     bleBtn.addEventListener('click', async () => {
+      if (!WebBleTransport.isSupported()) {
+        this.openBleHelpModal();
+        return;
+      }
+
       if (this.bleTransport.isConnected) {
         // Disconnect
         await this.bleTransport.disconnect();
@@ -122,11 +154,23 @@ class VibesApp {
           }
         } catch (err) {
           console.error('BLE connection failed:', err);
-          alert('Bluetooth connection cancelled or failed: ' + (err.message || err));
+          if (err.name !== 'NotFoundError') {
+            alert('Bluetooth connection cancelled or failed:\n\n' + (err.message || err));
+          }
           this.updateConnectionStatus(false);
         }
       }
     });
+  }
+
+  openBleHelpModal() {
+    const modal = document.getElementById('modal-ble-help');
+    if (modal) modal.classList.add('active');
+  }
+
+  closeBleHelpModal() {
+    const modal = document.getElementById('modal-ble-help');
+    if (modal) modal.classList.remove('active');
   }
 
   updateConnectionStatus(connected) {

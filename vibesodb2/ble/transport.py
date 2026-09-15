@@ -11,10 +11,17 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Nordic UART Service (NUS) GATT UUIDs
+# Known BLE OBD-II GATT Services
 NUS_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E".lower()
 NUS_TX_CHAR_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E".lower()  # Write to dongle
 NUS_RX_CHAR_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E".lower()  # Notify from dongle
+
+FFF0_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb".lower()
+FFF1_CHAR_UUID = "0000fff1-0000-1000-8000-00805f9b34fb".lower()
+FFF2_CHAR_UUID = "0000fff2-0000-1000-8000-00805f9b34fb".lower()
+
+FFE0_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb".lower()
+FFE1_CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb".lower()
 
 TARGET_MTU = 256
 
@@ -87,6 +94,15 @@ class BleNordicUartTransport(Transport):
     async def connect(self) -> None:
         from bleak import BleakClient
 
+        if not self.mac_or_uuid or self.mac_or_uuid.lower() == "auto":
+            from vibesodb2.ble.discovery import scan_for_adapters
+            logger.info("No MAC address specified, scanning for BLE OBD-II adapters...")
+            adapters = await scan_for_adapters(timeout=4.0)
+            if not adapters:
+                raise ConnectionError("No compatible BLE OBD-II adapter discovered nearby.")
+            self.mac_or_uuid = adapters[0].address
+            logger.info("Auto-selected adapter: %s (%s)", adapters[0].name, self.mac_or_uuid)
+
         logger.info("Connecting to BLE adapter [%s]...", self.mac_or_uuid)
         self._client = BleakClient(self.mac_or_uuid, timeout=self.timeout)
         await self._client.connect()
@@ -101,30 +117,57 @@ class BleNordicUartTransport(Transport):
         except Exception as e:
             logger.warning("Could not request MTU exchange: %s", e)
 
-        # Discover characteristics
+        # Discover characteristics with robust fallback ladder
         services = self._client.services
-        nus_service = services.get_service(NUS_SERVICE_UUID)
-        if not nus_service:
-            # Fallback scan through services
+        self._tx_char = None
+        self._rx_char = None
+
+        # 1. Try Nordic UART Service (NUS)
+        nus_service = next((s for s in services if s.uuid.lower() == NUS_SERVICE_UUID), None)
+        if nus_service:
+            self._tx_char = next((c for c in nus_service.characteristics if c.uuid.lower() == NUS_TX_CHAR_UUID), None)
+            self._rx_char = next((c for c in nus_service.characteristics if c.uuid.lower() == NUS_RX_CHAR_UUID), None)
+
+        # 2. Try FFF0 custom OBD service
+        if not (self._tx_char and self._rx_char):
+            fff0_service = next((s for s in services if s.uuid.lower() == FFF0_SERVICE_UUID), None)
+            if fff0_service:
+                c1 = next((c for c in fff0_service.characteristics if c.uuid.lower() == FFF1_CHAR_UUID), None)
+                c2 = next((c for c in fff0_service.characteristics if c.uuid.lower() == FFF2_CHAR_UUID), None)
+                if c1 and c2:
+                    if "write" in c2.properties or "write-without-response" in c2.properties:
+                        self._tx_char, self._rx_char = c2, c1
+                    else:
+                        self._tx_char, self._rx_char = c1, c2
+
+        # 3. Try FFE0 (HM-10 / CC2540 serial)
+        if not (self._tx_char and self._rx_char):
+            ffe0_service = next((s for s in services if s.uuid.lower() == FFE0_SERVICE_UUID), None)
+            if ffe0_service:
+                c = next((ch for ch in ffe0_service.characteristics if ch.uuid.lower() == FFE1_CHAR_UUID), None)
+                if c:
+                    self._tx_char = c
+                    self._rx_char = c
+
+        # 4. Dynamic search across all services for any Write + Notify/Indicate pair
+        if not (self._tx_char and self._rx_char):
             for s in services:
-                if s.uuid.lower() == NUS_SERVICE_UUID:
-                    nus_service = s
+                w_char = next((c for c in s.characteristics if "write" in c.properties or "write-without-response" in c.properties), None)
+                r_char = next((c for c in s.characteristics if "notify" in c.properties or "indicate" in c.properties), None)
+                if w_char and r_char:
+                    self._tx_char = w_char
+                    self._rx_char = r_char
+                    logger.info("Found serial GATT pair on service %s (TX: %s, RX: %s)", s.uuid, w_char.uuid, r_char.uuid)
                     break
 
-        if not nus_service:
-            raise ConnectionError(
-                f"Target Nordic UART Service {NUS_SERVICE_UUID} not found on device {self.mac_or_uuid}."
-            )
-
-        self._tx_char = nus_service.get_characteristic(NUS_TX_CHAR_UUID)
-        self._rx_char = nus_service.get_characteristic(NUS_RX_CHAR_UUID)
-
         if not self._tx_char or not self._rx_char:
-            raise ConnectionError("Nordic UART TX/RX characteristics missing from device service table.")
+            raise ConnectionError(
+                f"No compatible serial GATT service/characteristics found on device {self.mac_or_uuid}."
+            )
 
         # Start notifications on RX characteristic
         await self._client.start_notify(self._rx_char, self._handle_rx_notification)
-        logger.info("Connected to BLE adapter [%s] successfully via NUS.", self.mac_or_uuid)
+        logger.info("Connected to BLE adapter [%s] successfully.", self.mac_or_uuid)
 
     def _handle_rx_notification(self, _sender, data: bytearray) -> None:
         """Callback executed when BLE RX characteristic receives bytes."""

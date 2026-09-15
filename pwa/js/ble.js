@@ -31,15 +31,47 @@ export class WebBleTransport {
     return typeof navigator !== 'undefined' && !!navigator.bluetooth;
   }
 
+  static getSupportInfo() {
+    const supported = WebBleTransport.isSupported();
+    const ua = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
+    const isLinux = /Linux/i.test(ua) && !/Android/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isChrome = /Chrome|Chromium|CriOS/i.test(ua) && !/Edg/i.test(ua);
+    const isFirefox = /Firefox|FxiOS/i.test(ua);
+
+    return {
+      supported,
+      isLinux,
+      isAndroid,
+      isIOS,
+      isChrome,
+      isFirefox,
+      ua
+    };
+  }
+
+  static getUnsupportedMessage() {
+    const info = WebBleTransport.getSupportInfo();
+    if (info.isLinux) {
+      if (info.isFirefox) {
+        return 'Firefox on Linux does not support Web Bluetooth. Please open this app in Google Chrome with experimental features enabled:\n\ngoogle-chrome --enable-experimental-web-platform-features https://orviwan.github.io/vibesODB2/';
+      }
+      return 'Web Bluetooth is disabled by default in Chrome on Linux.\n\nTo enable it:\n1. Open chrome://flags/#enable-experimental-web-platform-features\n2. Set "Experimental Web Platform features" to Enabled and relaunch Chrome.\n\nOr launch via terminal:\ngoogle-chrome --enable-experimental-web-platform-features https://orviwan.github.io/vibesODB2/';
+    }
+    if (info.isIOS) {
+      return 'iOS Safari does not support Web Bluetooth. Please open this link in the free "Bluefy - Web BLE Browser" app from the App Store.';
+    }
+    return 'Web Bluetooth is not supported in this browser. On Android or Desktop, please use Google Chrome or Edge.';
+  }
+
   async connect() {
     return await this.requestAndConnect();
   }
 
   async requestAndConnect() {
     if (!WebBleTransport.isSupported()) {
-      throw new Error(
-        'Web Bluetooth is not supported in this browser. On Android or Desktop, use Google Chrome or Edge. On iPhone/iPad, please open this link in the free "Bluefy - Web BLE Browser" app.'
-      );
+      throw new Error(WebBleTransport.getUnsupportedMessage());
     }
 
     const optionalServices = [

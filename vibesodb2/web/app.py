@@ -81,12 +81,14 @@ class AppState:
         if self.adapter and self.transport and self.transport.is_connected:
             return self.adapter
 
-        if self.mock_mode or not self.ble_mac:
+        if self.mock_mode:
             self.transport = MockTransport(engine_rpm=self.last_rpm)
         else:
-            self.transport = BleNordicUartTransport(self.ble_mac)
+            self.transport = BleNordicUartTransport(self.ble_mac or "auto")
 
         await self.transport.connect()
+        if hasattr(self.transport, "mac_or_uuid") and self.transport.mac_or_uuid:
+            self.ble_mac = self.transport.mac_or_uuid
         self.adapter = ELM327Adapter(self.transport)
         await self.adapter.initialize()
         self.connected = True
@@ -232,6 +234,7 @@ async def post_connect(req: ConnectRequest):
             "version": adapter.device_version,
             "voltage": adapter.voltage,
             "mock": state.mock_mode,
+            "mac": state.ble_mac,
             "platform": state.platform,
         }
     except Exception as e:
@@ -253,15 +256,17 @@ async def post_disconnect():
 
 
 @app.get("/api/scan")
-async def get_scan(timeout: float = 4.0):
+async def get_scan(timeout: float = 4.0, all_devices: bool = False):
     try:
-        adapters = await scan_for_adapters(timeout=timeout)
+        adapters = await scan_for_adapters(timeout=timeout, include_all=all_devices)
         return [
             {
                 "name": a.name,
                 "address": a.address,
                 "rssi": a.rssi,
                 "is_recommended": a.is_recommended,
+                "details": a.details,
+                "is_obd": a.is_obd,
             }
             for a in adapters
         ]
