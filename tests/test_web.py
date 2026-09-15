@@ -116,3 +116,17 @@ def test_web_connect_mock_mode(client):
     assert data["status"] == "connected"
     assert data["mock"] is True
 
+
+def test_web_connect_failure_details(client, monkeypatch):
+    from vibesodb2.ble.transport import BleNordicUartTransport
+
+    async def mock_connect_fail(self):
+        raise TimeoutError("Device unreachable")
+
+    monkeypatch.setattr(BleNordicUartTransport, "connect", mock_connect_fail)
+    res = client.post("/api/connect", json={"mock": False, "mac": "AA:BB:CC:DD:EE:FF"})
+    assert res.status_code == 400
+    data = res.json()
+    assert "Connection timed out" in data["detail"]
+
+

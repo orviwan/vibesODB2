@@ -24,7 +24,6 @@ KNOWN_ADAPTER_NAMES = [
     "veepeak",
     "bimmercode",
     "carista",
-    "kiwi",
     "vgate",
     "icar",
     "obd",
@@ -34,8 +33,13 @@ KNOWN_ADAPTER_NAMES = [
     "konnwei",
     "bafx",
     "stn",
-    "link",
+    "plx kiwi",
+    "kiwi 3",
+    "kiwi 4",
+    "kiwi obd",
 ]
+
+SERVICE_18F0_UUID = "000018f0-0000-1000-8000-00805f9b34fb".lower()
 
 
 @dataclass
@@ -64,21 +68,23 @@ async def scan_for_adapters(
         dev_name = device.name or adv_data.local_name or ""
         name_lower = dev_name.lower()
 
-        # Check if known OBD adapter name or advertises NUS UUID
+        # Check if known OBD adapter name or advertises NUS/18F0 UUID
         service_uuids = [u.lower() for u in (adv_data.service_uuids or [])]
         has_nus = NUS_SERVICE_UUID in service_uuids
+        has_18f0 = SERVICE_18F0_UUID in service_uuids
 
         is_known_adapter = any(keyword in name_lower for keyword in KNOWN_ADAPTER_NAMES)
 
-        if is_known_adapter or has_nus:
+        if is_known_adapter or has_nus or has_18f0:
             is_rec = any(k in name_lower for k in ("vlinker", "obdlink", "veepeak", "carista"))
+            signal_quality = "Good" if adv_data.rssi > -75 else ("Fair" if adv_data.rssi > -88 else "Weak signal")
             discovered.append(
                 DiscoveredAdapter(
                     name=dev_name or "OBD-II Adapter",
                     address=device.address,
                     rssi=adv_data.rssi,
                     is_recommended=is_rec,
-                    details=f"Services: {len(service_uuids)}, NUS: {has_nus}",
+                    details=f"{signal_quality} ({adv_data.rssi} dBm)",
                     is_obd=True,
                 )
             )

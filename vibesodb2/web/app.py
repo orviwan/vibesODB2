@@ -86,14 +86,25 @@ class AppState:
         else:
             self.transport = BleNordicUartTransport(self.ble_mac or "auto")
 
-        await self.transport.connect()
-        if hasattr(self.transport, "mac_or_uuid") and self.transport.mac_or_uuid:
-            self.ble_mac = self.transport.mac_or_uuid
-        self.adapter = ELM327Adapter(self.transport)
-        await self.adapter.initialize()
-        self.connected = True
-        self.voltage = self.adapter.voltage or "12.6V"
-        return self.adapter
+        try:
+            await self.transport.connect()
+            if hasattr(self.transport, "mac_or_uuid") and self.transport.mac_or_uuid:
+                self.ble_mac = self.transport.mac_or_uuid
+            self.adapter = ELM327Adapter(self.transport)
+            await self.adapter.initialize()
+            self.connected = True
+            self.voltage = self.adapter.voltage or "12.6V"
+            return self.adapter
+        except Exception:
+            if self.transport:
+                try:
+                    await self.transport.disconnect()
+                except Exception:
+                    pass
+            self.transport = None
+            self.adapter = None
+            self.connected = False
+            raise
 
     async def get_or_create_telemetry_engine(self) -> TelemetryEngine:
         if self.telemetry_engine is not None and self.telemetry_engine.running:
@@ -239,7 +250,15 @@ async def post_connect(req: ConnectRequest):
         }
     except Exception as e:
         state.connected = False
-        raise HTTPException(status_code=500, detail=f"Connection failed: {e}")
+        msg = str(e)
+        if isinstance(e, TimeoutError) or "timeout" in msg.lower() or "not found" in msg.lower():
+            detail = (
+                f"Could not connect to {state.ble_mac or 'adapter'}: Connection timed out. "
+                "Ensure vehicle ignition is ON (OBD-II port powered) and adapter is within Bluetooth range."
+            )
+        else:
+            detail = f"Connection failed: {msg}"
+        raise HTTPException(status_code=400, detail=detail)
 
 
 @app.post("/api/disconnect")
