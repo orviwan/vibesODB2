@@ -6,7 +6,6 @@ multi-rate scheduler, and FastAPI WebSocket broadcasting.
 
 import asyncio
 import pytest
-from fastapi.testclient import TestClient
 
 from vibesodb2.adapter.elm327 import ELM327Adapter
 from vibesodb2.ble.mock_transport import MockTransport
@@ -27,7 +26,6 @@ from vibesodb2.telemetry.metrics import (
     decode_speed,
     decode_throttle_pos,
 )
-from vibesodb2.web.app import app
 
 
 def test_telemetry_metric_catalog():
@@ -172,34 +170,3 @@ async def test_telemetry_engine_loop():
     assert "dpf_soot" in last
     assert "sampling_hz" in last
 
-
-def test_telemetry_rest_endpoints():
-    client = TestClient(app)
-
-    # 1. Latest snapshot
-    res = client.get("/api/telemetry/latest")
-    assert res.status_code == 200
-    data = res.json()
-    assert "speed" in data
-    assert "rpm" in data
-    assert "coolant_temp" in data
-
-    # 2. Change drive cycle profile
-    res_prof = client.post("/api/telemetry/profile", json={"profile": "highway"})
-    assert res_prof.status_code == 200
-    assert res_prof.json()["status"] in ["success", "ignored"]
-
-
-def test_telemetry_websocket():
-    client = TestClient(app)
-    with client.websocket_connect("/ws/telemetry") as ws:
-        # First message is immediate initial snapshot
-        first_data = ws.receive_json()
-        assert "speed" in first_data
-        assert "rpm" in first_data
-        assert "sampling_hz" in first_data
-
-        # Second message is from real-time loop
-        second_data = ws.receive_json()
-        assert "speed" in second_data
-        assert "coolant_temp" in second_data

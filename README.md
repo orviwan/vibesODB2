@@ -8,7 +8,7 @@
 
 An open-source, modular vehicle configuration and diagnostic engine engineered for the **Volkswagen Transporter (T5.1 / T6 / T6.1)** and broader **VAG platforms (PQ25, PQ35/PQ46, MQB)** across **Volkswagen, Audi, SEAT, and Škoda**.
 
-Available as both a **Python CLI / Local Web Suite** and a zero-install **Progressive Web App (PWA)** running directly on mobile and desktop browsers with **Web Bluetooth**.
+Available as a zero-install **Progressive Web App (PWA)** running directly on mobile and desktop browsers with **Web Bluetooth**, accompanied by a **Python CLI & Automated Test Suite** for developer scripting and headless diagnostics.
 
 ---
 
@@ -50,10 +50,9 @@ Traditional scan tools bundle proprietary, copyrighted configuration databases d
 
 ```
 +-------------------------------------------------------------------------+
-|                        Application Layer (UI & CLI)                     |
-|       Dynamic UI generation derived from cached schema definitions      |
-|       - Standalone CLI: `cli/dump_bcm.py`, `vibesodb2` CLI        |
-|       - Interactive Responsive Web Dashboard on http://127.0.0.1:8000   |
+|                        Application Layer (PWA & CLI)                    |
+|       - Progressive Web App (PWA): https://orviwan.github.io/vibesODB2/ |
+|       - Standalone Developer CLI: `vibesodb2` CLI & Python Core         |
 +-------------------------------------------------------------------------+
                                      |
 +-------------------------------------------------------------------------+
@@ -292,17 +291,22 @@ Because OBD-II operates on a request-response protocol over Bluetooth, polling a
 
 ---
 
-## Interactive Web Dashboard
+## Graphical User Interface (PWA)
 
-Launch the browser-based configuration dashboard:
+Launch the Progressive Web App directly in your browser:
 
 ```bash
-vibesodb2 web --mock
-# Open http://127.0.0.1:8000 in your browser
+# Open the official live cloud PWA in your default browser
+vibesodb2 web --online
+
+# Or serve the offline-ready PWA locally on http://127.0.0.1:8000
+vibesodb2 web
 ```
 
-Features included in the Web UI:
-- **🏎️ Real-Time Telemetry Cluster**: Sleek automotive instrument cluster streaming over WebSockets (`/ws/telemetry`):
+Or open directly on mobile / desktop: **[https://orviwan.github.io/vibesODB2/](https://orviwan.github.io/vibesODB2/)**
+
+Features included in the PWA:
+- **🏎️ Real-Time Telemetry Cluster**: Sleek automotive instrument cluster updating in real-time over Web Bluetooth:
   - Radial tachometer arc with redline threshold colors.
   - Large digital speedometer with `km/h` vs `mph` toggle.
   - Glowing DSG gear indicator (`D1`–`D7`, `N`, `P`, `R`).

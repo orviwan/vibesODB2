@@ -498,35 +498,54 @@ async def cmd_live(args) -> int:
 
 
 def cmd_web(args) -> int:
-    import logging
-    import uvicorn
+    import functools
+    import http.server
+    import webbrowser
+    from pathlib import Path
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    logging.getLogger("vibesodb2").setLevel(logging.INFO)
+    pwa_dir = Path(__file__).resolve().parent.parent / "pwa"
+    online_url = "https://orviwan.github.io/vibesODB2/"
 
+    if getattr(args, "online", False) or not pwa_dir.exists():
+        console.print(
+            Panel.fit(
+                f"[bold cyan]Opening official vibesODB2 PWA in browser...[/bold cyan]\n"
+                f"👉 [link={online_url}]{online_url}[/link]",
+                border_style="cyan",
+            )
+        )
+        try:
+            webbrowser.open(online_url)
+        except Exception:
+            pass
+        return 0
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(pwa_dir))
+    server = http.server.ThreadingHTTPServer((args.host, args.port), handler)
+
+    local_url = f"http://{args.host}:{args.port}"
     console.print(
         Panel.fit(
-            f"[bold cyan]Starting vibesODB2 Web Dashboard on http://{args.host}:{args.port}[/bold cyan]\n"
-            f"[dim]Mode: {'Simulated Testbench (--mock)' if args.mock else 'Live Hardware (BLE)'}[/dim]",
-            border_style="cyan",
+            f"[bold green]vibesODB2 PWA Static Server Running[/bold green]\n\n"
+            f"📱 Local PWA: [bold cyan]{local_url}[/bold cyan]\n"
+            f"🌐 Live Cloud: [link={online_url}]{online_url}[/link]\n\n"
+            f"[dim]Serving offline-ready PWA from: {pwa_dir}\nPress Ctrl+C to stop server.[/dim]",
+            border_style="green",
         )
     )
-    import os
-    if args.mock:
-        os.environ["VIBESODB2_MOCK"] = "1"
-        os.environ["OPENTRANSPORTER_MOCK"] = "1"
-    if args.mac:
-        os.environ["VIBESODB2_MAC"] = args.mac
-        os.environ["OPENTRANSPORTER_MAC"] = args.mac
-    if args.platform:
-        os.environ["VIBESODB2_PLATFORM"] = args.platform
-        os.environ["OPENTRANSPORTER_PLATFORM"] = args.platform
 
-    uvicorn.run("vibesodb2.web.app:app", host=args.host, port=args.port, reload=False, log_level="info")
+    if not getattr(args, "no_browser", False):
+        try:
+            webbrowser.open(local_url)
+        except Exception:
+            pass
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopping local PWA server.[/yellow]")
+        server.server_close()
+
     return 0
 
 
@@ -601,9 +620,11 @@ def main():
     p_live.add_argument("--drive-mode", type=str, default="city", choices=["idle", "city", "highway", "spirited"], help="Simulated drive cycle mode")
 
     # web
-    p_web = subparsers.add_parser("web", parents=[common_parser], help="Launch interactive Web Dashboard")
-    p_web.add_argument("--host", type=str, default="127.0.0.1", help="Host interface (default: 127.0.0.1)")
+    p_web = subparsers.add_parser("web", parents=[common_parser], help="Launch vibesODB2 Progressive Web App")
+    p_web.add_argument("--host", type=str, default="127.0.0.1", help="Host interface for local static server (default: 127.0.0.1)")
     p_web.add_argument("--port", type=int, default=8000, help="Port (default: 8000)")
+    p_web.add_argument("--online", action="store_true", help="Launch the official cloud PWA (https://orviwan.github.io/vibesODB2/)")
+    p_web.add_argument("--no-browser", action="store_true", help="Do not automatically launch system browser")
 
     args = parser.parse_args()
 
