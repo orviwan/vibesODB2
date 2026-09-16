@@ -25,7 +25,7 @@
 
 | Live Digital Dashboard | Feature Tweaks (Coding) | Service & Maintenance | Byte Matrix & Inspector |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/images/pwa_mobile_cockpit.png?raw=true&v=17" width="220" /> | <img src="docs/images/pwa_mobile_coding.png?raw=true&v=17" width="220" /> | <img src="docs/images/pwa_mobile_service.png?raw=true&v=17" width="220" /> | <img src="docs/images/pwa_mobile_matrix.png?raw=true&v=17" width="220" /> |
+| <a href="docs/images/pwa_mobile_cockpit.png"><img src="docs/images/pwa_mobile_cockpit.png" width="220" alt="Live Digital Dashboard" /></a> | <a href="docs/images/pwa_mobile_coding.png"><img src="docs/images/pwa_mobile_coding.png" width="220" alt="Feature Tweaks (Coding)" /></a> | <a href="docs/images/pwa_mobile_service.png"><img src="docs/images/pwa_mobile_service.png" width="220" alt="Service & Maintenance" /></a> | <a href="docs/images/pwa_mobile_matrix.png"><img src="docs/images/pwa_mobile_matrix.png" width="220" alt="Byte Matrix & Inspector" /></a> |
 
 ---
 

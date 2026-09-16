@@ -146,7 +146,9 @@ class VibesApp {
     this.baselineBytes = hexStringToBytes(this.baselineHex);
     this.currentBytes = new Uint8Array(this.baselineBytes);
     this.hasCapturedBaseline = false;
-    this.featureFilter = 'all'; // 'all' | 'active' | 'inactive'
+    this.detectedPlatform = null;
+    this.detectedModel = null;
+    this.featureFilter = 'all'; // 'all' | 'active' | 'inactive' | 'unsupported'
     this._pendingFeatConfirm = null;
     this._toastTimeout = null;
 
@@ -531,13 +533,29 @@ class VibesApp {
       if (vin) {
         this.vin = vin;
         console.log('Vehicle VIN detected:', vin);
-        // Automatic platform switching (MQB for Golf 7 / 7.5: 5G, BA, AU, BQ, 8V, etc.)
-        if (/5G|BA|AU|BQ|8V|5F|5E|NE|NX|3G|AD|BW|7L|KH|NS/i.test(vin)) {
-          this.selectedSchemaKey = 'mqb_bcm_0x09';
-          this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
-          const sel = document.getElementById('schema-select');
-          if (sel) sel.value = this.selectedSchemaKey;
+        const decoded = decodeVin(vin);
+        if (decoded) {
+          this.detectedPlatform = decoded.platform;
+          this.detectedModel = decoded.model;
+
+          let targetSchemaKey = null;
+          if (decoded.platform === 'PQ25') {
+            targetSchemaKey = 'pq25_bcm_0x09';
+          } else if (decoded.platform === 'PQ35' || decoded.platform === 'PQ46') {
+            targetSchemaKey = 'pq35_bcm_0x09';
+          } else if (decoded.platform.startsWith('MQB')) {
+            targetSchemaKey = 'mqb_bcm_0x09';
+          }
+
+          if (targetSchemaKey && BUNDLED_SCHEMAS[targetSchemaKey]) {
+            console.log(`Auto-switched schema to ${targetSchemaKey} based on VIN platform (${decoded.platform})`);
+            this.selectedSchemaKey = targetSchemaKey;
+            this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
+            const sel = document.getElementById('schema-select');
+            if (sel) sel.value = this.selectedSchemaKey;
+          }
         }
+        this.checkPlatformCompatibility();
       }
 
       // 2. Query ECU Specifications (Part No, Hardware, Software, Serial No) via UDS
@@ -869,7 +887,64 @@ class VibesApp {
     document.getElementById('confirm-feat-new').textContent = targetState ? 'Enabled (ON)' : 'Disabled (OFF)';
     document.getElementById('confirm-feat-loc').textContent = `Byte ${feature.byte}, Bit ${feature.bit} (Module ${this.currentSchema.module_address || '0x09'})`;
 
+    const prereqBox = document.getElementById('confirm-feat-prereq-box');
+    const prereqText = document.getElementById('confirm-feat-prereq-text');
+    if (prereqBox && prereqText) {
+      if (feature.prerequisites) {
+        prereqBox.style.display = 'block';
+        prereqText.textContent = `${feature.prerequisites} If your car is not equipped with this factory hardware, enabling this option may trigger diagnostic fault codes or have no effect.`;
+      } else {
+        prereqBox.style.display = 'none';
+      }
+    }
+
     this.openModal('modal-feature-confirm');
+  }
+
+  checkPlatformCompatibility() {
+    const banner = document.getElementById('coding-platform-mismatch-banner');
+    const textEl = document.getElementById('coding-platform-mismatch-text');
+    const autoSwitchBtn = document.getElementById('btn-auto-switch-schema');
+    if (!banner || !textEl) return;
+
+    if (!this.detectedPlatform) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    let recommendedSchemaKey = null;
+    if (this.detectedPlatform === 'PQ25') {
+      recommendedSchemaKey = 'pq25_bcm_0x09';
+    } else if (this.detectedPlatform === 'PQ35' || this.detectedPlatform === 'PQ46') {
+      recommendedSchemaKey = 'pq35_bcm_0x09';
+    } else if (this.detectedPlatform.startsWith('MQB')) {
+      recommendedSchemaKey = 'mqb_bcm_0x09';
+    }
+
+    const currentPlatform = this.currentSchema.platform || 'Unknown';
+    const isMismatch = recommendedSchemaKey && (this.selectedSchemaKey !== recommendedSchemaKey) && !this.selectedSchemaKey.startsWith(this.detectedPlatform.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+    if (isMismatch) {
+      const recSchema = BUNDLED_SCHEMAS[recommendedSchemaKey];
+      banner.style.display = 'block';
+      textEl.textContent = `Connected vehicle is a ${this.detectedModel || 'VAG vehicle'} (${this.detectedPlatform}), but active settings are for ${currentPlatform}. Features and byte locations will not match your car.`;
+      if (autoSwitchBtn) {
+        autoSwitchBtn.textContent = `Switch to ${this.detectedPlatform} (${recSchema ? recSchema.platform : recommendedSchemaKey})`;
+        autoSwitchBtn.onclick = () => {
+          this.selectedSchemaKey = recommendedSchemaKey;
+          this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
+          const sel = document.getElementById('schema-select');
+          if (sel) sel.value = this.selectedSchemaKey;
+          this.checkPlatformCompatibility();
+          this.renderFeatureList();
+          this.renderByteGrid();
+          this.renderBitSwitches();
+          this.showToast(`Switched definitions to ${this.currentSchema.platform}`);
+        };
+      }
+    } else {
+      banner.style.display = 'none';
+    }
   }
 
   openBleHelpModal() {
@@ -1487,13 +1562,14 @@ class VibesApp {
       schemaSelect.addEventListener('change', (e) => {
         this.selectedSchemaKey = e.target.value;
         this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
-        // Resize buffer if needed
+        // Resize buffer if needed and vehicle baseline has not been captured yet
         const reqLen = this.currentSchema.expected_byte_length || 30;
-        if (this.currentBytes.length !== reqLen) {
+        if (!this.hasCapturedBaseline && this.currentBytes.length !== reqLen) {
           const newBuf = new Uint8Array(reqLen);
           newBuf.set(this.currentBytes.subarray(0, Math.min(this.currentBytes.length, reqLen)));
           this.currentBytes = newBuf;
         }
+        this.checkPlatformCompatibility();
         this.renderFeatureList();
         this.renderByteGrid();
         this.renderBitSwitches();
@@ -1608,26 +1684,39 @@ class VibesApp {
     const countActiveEl = document.getElementById('count-feat-active');
     const countInactiveEl = document.getElementById('count-feat-inactive');
     const bytesLenEl = document.getElementById('val-coding-bytes-len');
+    const countUnsupportedEl = document.getElementById('count-feat-unsupported');
+    const btnUnsupported = document.getElementById('btn-filter-unsupported');
 
     let activeCount = 0;
     let inactiveCount = 0;
+    let unsupportedCount = 0;
 
     allFeatures.forEach(feat => {
-      const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
-      if (isEnabled) activeCount++;
-      else inactiveCount++;
+      if (feat.byte >= this.currentBytes.length) {
+        unsupportedCount++;
+      } else {
+        const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
+        if (isEnabled) activeCount++;
+        else inactiveCount++;
+      }
     });
 
     if (countAllEl) countAllEl.textContent = allFeatures.length;
     if (countActiveEl) countActiveEl.textContent = activeCount;
     if (countInactiveEl) countInactiveEl.textContent = inactiveCount;
+    if (countUnsupportedEl) countUnsupportedEl.textContent = unsupportedCount;
+    if (btnUnsupported) {
+      btnUnsupported.style.display = unsupportedCount > 0 ? 'inline-block' : 'none';
+    }
     if (bytesLenEl) bytesLenEl.textContent = this.currentBytes.length;
 
     let displayFeatures = allFeatures;
     if (this.featureFilter === 'active') {
-      displayFeatures = allFeatures.filter(f => (this.currentBytes[f.byte] & (1 << f.bit)) !== 0);
+      displayFeatures = allFeatures.filter(f => f.byte < this.currentBytes.length && (this.currentBytes[f.byte] & (1 << f.bit)) !== 0);
     } else if (this.featureFilter === 'inactive') {
-      displayFeatures = allFeatures.filter(f => (this.currentBytes[f.byte] & (1 << f.bit)) === 0);
+      displayFeatures = allFeatures.filter(f => f.byte < this.currentBytes.length && (this.currentBytes[f.byte] & (1 << f.bit)) === 0);
+    } else if (this.featureFilter === 'unsupported') {
+      displayFeatures = allFeatures.filter(f => f.byte >= this.currentBytes.length);
     }
 
     if (displayFeatures.length === 0) {
@@ -1652,13 +1741,18 @@ class VibesApp {
       container.appendChild(catHeader);
 
       grouped[category].forEach(feat => {
-        const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
-        const wasOriginalEnabled = (this.baselineBytes[feat.byte] & (1 << feat.bit)) !== 0;
-        const isModified = (isEnabled !== wasOriginalEnabled);
+        const isOutOfBounds = feat.byte >= this.currentBytes.length;
+        const isEnabled = !isOutOfBounds && ((this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0);
+        const wasOriginalEnabled = !isOutOfBounds && ((this.baselineBytes[feat.byte] & (1 << feat.bit)) !== 0);
+        const isModified = !isOutOfBounds && (isEnabled !== wasOriginalEnabled);
 
         const item = document.createElement('div');
-        item.className = `feature-item ${isModified ? 'feature-item-modified' : ''}`;
-        if (isModified) {
+        item.className = `feature-item ${isModified ? 'feature-item-modified' : ''} ${isOutOfBounds ? 'feature-item-unsupported' : ''}`;
+        if (isOutOfBounds) {
+          item.style.opacity = '0.62';
+          item.style.borderLeft = '3px solid #64748b';
+          item.style.background = 'rgba(15, 23, 42, 0.35)';
+        } else if (isModified) {
           item.style.borderLeft = '3px solid var(--warning)';
           item.style.background = 'rgba(245, 158, 11, 0.05)';
         } else if (isEnabled) {
@@ -1669,7 +1763,13 @@ class VibesApp {
         info.className = 'feature-info';
 
         let stateBadgeHtml = '';
-        if (isModified) {
+        if (isOutOfBounds) {
+          stateBadgeHtml = `
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; padding:1px 6px; border-radius:4px; background:rgba(239, 68, 68, 0.15); color:#f87171; font-weight:700; border:1px solid rgba(239, 68, 68, 0.3); margin-left:6px;" title="This vehicle's ECU coding buffer has only ${this.currentBytes.length} bytes. Byte ${feat.byte} exceeds controller capacity.">
+              🚫 Unsupported by ECU (Byte ${feat.byte} > Max ${this.currentBytes.length}B)
+            </span>
+          `;
+        } else if (isModified) {
           stateBadgeHtml = `
             <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; padding:2px 6px; border-radius:4px; background:rgba(245, 158, 11, 0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4); margin-left:6px;">
               ⚠️ Modified (Was: ${wasOriginalEnabled ? 'ON' : 'OFF'} ➔ Now: ${isEnabled ? 'ON' : 'OFF'})
@@ -1689,15 +1789,27 @@ class VibesApp {
           `;
         }
 
+        let prereqHtml = '';
+        if (feat.prerequisites) {
+          prereqHtml = `
+            <div style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+              <span style="font-size: 0.69rem; padding: 1px 6px; border-radius: 4px; background: rgba(234, 179, 8, 0.12); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.25); display: inline-flex; align-items: center; gap: 4px;">
+                ⚙️ Requires: ${feat.prerequisites}
+              </span>
+            </div>
+          `;
+        }
+
         info.innerHTML = `
           <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
             <h4 style="margin:0;">${feat.name}</h4>
             ${stateBadgeHtml}
           </div>
           <p style="margin:4px 0 2px 0;">${feat.description || ''}</p>
-          <div style="display:flex; align-items:center; gap:8px;">
+          ${prereqHtml}
+          <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
             <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
-              [Byte ${feat.byte}, Bit ${feat.bit}] ${feat.prerequisites ? '• ' + feat.prerequisites : ''}
+              [Byte ${feat.byte}, Bit ${feat.bit}]
             </span>
             ${isModified ? `<button type="button" class="btn-revert-feature" style="background:none; border:none; color:#38bdf8; font-size:0.72rem; cursor:pointer; text-decoration:underline; padding:0;">↺ Revert to Original (${wasOriginalEnabled ? 'ON' : 'OFF'})</button>` : ''}
           </div>
@@ -1728,55 +1840,59 @@ class VibesApp {
         }
 
         const toggleLabel = document.createElement('label');
-        toggleLabel.className = `toggle-switch ${!isConnected ? 'disabled' : ''}`;
+        toggleLabel.className = `toggle-switch ${(!isConnected || isOutOfBounds) ? 'disabled' : ''}`;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = isEnabled;
-        if (!isConnected) {
+        if (!isConnected || isOutOfBounds) {
           checkbox.disabled = true;
-          checkbox.title = 'Connect Bluetooth to toggle vehicle coding';
+          checkbox.title = isOutOfBounds
+            ? `Feature is located at Byte ${feat.byte}, but vehicle ECU buffer is only ${this.currentBytes.length} bytes long.`
+            : 'Connect Bluetooth to toggle vehicle coding';
         }
 
         const slider = document.createElement('span');
         slider.className = 'slider';
 
-        checkbox.addEventListener('change', () => {
-          const targetState = checkbox.checked;
-          const origState = wasOriginalEnabled;
+        if (!isOutOfBounds) {
+          checkbox.addEventListener('change', () => {
+            const targetState = checkbox.checked;
+            const origState = wasOriginalEnabled;
 
-          this.confirmFeatureToggle({
-            feature: feat,
-            targetState,
-            origState,
-            onProceed: () => {
-              const modifiedBytes = new Uint8Array(this.currentBytes);
-              if (targetState) {
-                modifiedBytes[feat.byte] |= (1 << feat.bit);
-              } else {
-                modifiedBytes[feat.byte] &= ~(1 << feat.bit);
-              }
-
-              this.promptSafetyAudit({
-                featureName: feat.name,
-                modifiedBytes,
-                onSuccess: () => {
-                  this.currentBytes = modifiedBytes;
-                  this.renderFeatureList();
-                  this.renderByteGrid();
-                  this.renderBitSwitches();
-                  this.vibrate([40, 20, 40]);
-                },
-                onCancel: () => {
-                  checkbox.checked = !targetState;
+            this.confirmFeatureToggle({
+              feature: feat,
+              targetState,
+              origState,
+              onProceed: () => {
+                const modifiedBytes = new Uint8Array(this.currentBytes);
+                if (targetState) {
+                  modifiedBytes[feat.byte] |= (1 << feat.bit);
+                } else {
+                  modifiedBytes[feat.byte] &= ~(1 << feat.bit);
                 }
-              });
-            },
-            onCancel: () => {
-              checkbox.checked = !targetState;
-            }
+
+                this.promptSafetyAudit({
+                  featureName: feat.name,
+                  modifiedBytes,
+                  onSuccess: () => {
+                    this.currentBytes = modifiedBytes;
+                    this.renderFeatureList();
+                    this.renderByteGrid();
+                    this.renderBitSwitches();
+                    this.vibrate([40, 20, 40]);
+                  },
+                  onCancel: () => {
+                    checkbox.checked = !targetState;
+                  }
+                });
+              },
+              onCancel: () => {
+                checkbox.checked = !targetState;
+              }
+            });
           });
-        });
+        }
 
         toggleLabel.appendChild(checkbox);
         toggleLabel.appendChild(slider);

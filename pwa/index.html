@@ -265,12 +265,24 @@
       <select id="schema-select" class="select-box"></select>
     </div>
 
+    <!-- Platform Mismatch Warning Banner -->
+    <div id="coding-platform-mismatch-banner" style="display:none; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); color:#fbbf24; font-size:0.82rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+        <div>
+          <strong>⚠️ Platform Mismatch Detected:</strong>
+          <span id="coding-platform-mismatch-text">Connected vehicle appears to be on a different platform.</span>
+        </div>
+        <button id="btn-auto-switch-schema" type="button" class="btn" style="font-size:0.75rem; padding:4px 10px; background:var(--warning); color:#000; font-weight:700; border:none; border-radius:4px; cursor:pointer;">Switch to Detected Platform</button>
+      </div>
+    </div>
+
     <!-- Feature Filter Bar -->
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <div id="feature-filter-tabs" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
         <button type="button" class="btn-filter-feat active" data-filter="all" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: var(--primary); color: #fff; border: 1px solid var(--primary); cursor: pointer;">All Settings (<span id="count-feat-all">0</span>)</button>
         <button type="button" class="btn-filter-feat" data-filter="active" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); cursor: pointer;">🟢 Active / ON (<span id="count-feat-active">0</span>)</button>
         <button type="button" class="btn-filter-feat" data-filter="inactive" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: rgba(100, 116, 139, 0.2); color: #cbd5e1; border: 1px solid var(--border-color); cursor: pointer;">⚪ Disabled / OFF (<span id="count-feat-inactive">0</span>)</button>
+        <button type="button" class="btn-filter-feat" data-filter="unsupported" id="btn-filter-unsupported" style="display: none; font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer;">🚫 Unsupported (<span id="count-feat-unsupported">0</span>)</button>
       </div>
       <div id="feature-summary-pill" style="font-size: 0.75rem; color: #94a3b8; font-family: var(--font-mono);">
         Live Coding: <span id="val-coding-bytes-len">30</span> Bytes Loaded
@@ -730,6 +742,10 @@
             <span style="color: var(--text-muted);">Target Module & Bit:</span>
             <span id="confirm-feat-loc" style="font-family: var(--font-mono); color: var(--primary-light);"></span>
           </div>
+        </div>
+        <div id="confirm-feat-prereq-box" style="display:none; margin-top:0.75rem; padding:0.6rem 0.8rem; border-radius:6px; background:rgba(234, 179, 8, 0.15); border:1px solid rgba(234, 179, 8, 0.35); font-size:0.78rem; color:#facc15;">
+          <strong>⚙️ Hardware Requirement:</strong>
+          <span id="confirm-feat-prereq-text" style="display:block; margin-top:2px; color:#fde047;"></span>
         </div>
       </div>
       <div class="modal-actions">
