@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
 """
-Automated Screenshot Capture Engine for vibesODB2.
-Captures high-resolution screenshots of the PWA Virtual Cockpit, Feature Coding,
-Interactive Byte Matrix, Safety Audit Guardrail Modal, Backups,
-and the Terminal Live Telemetry HUD.
+Automated Screenshot Capture Engine for vibesODB2 via Chrome DevTools Protocol (CDP).
+Captures high-resolution, pixel-perfect screenshots of:
+- Virtual Cockpit
+- Schema-Driven Feature Coding (23 features, categories, active/disabled filters)
+- Interactive Byte Matrix
+- Service & Maintenance Tools (SRI, Battery Registration, EPB, Mileage)
+- Diagnostic Trouble Codes (DTCs) Scanner
+- Safety Audit Guardrail Modal
+- Terminal Live Telemetry HUD
 """
 
+import asyncio
+import base64
 import functools
 import http.server
+import json
 import os
 import shutil
 import subprocess
-import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
-# Paths
+import websockets
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PWA_DIR = PROJECT_ROOT / "pwa"
 OUTPUT_DIR = PROJECT_ROOT / "docs" / "images"
@@ -25,19 +34,180 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CHROME_BIN = shutil.which("google-chrome") or "/usr/local/bin/google-chrome"
 
 
-def capture_url(url: str, output_path: Path, wait_ms: int = 2500, width: int = 1400, height: int = 920):
-    cmd = [
+async def send_cdp(ws, msg_id: int, method: str, params: dict = None):
+    payload = {"id": msg_id, "method": method}
+    if params:
+        payload["params"] = params
+    await ws.send(json.dumps(payload))
+    while True:
+        raw = await ws.recv()
+        data = json.loads(raw)
+        if data.get("id") == msg_id:
+            return data
+
+
+async def capture_cdp_screens(port: int = 8139):
+    cdp_port = 9255
+    chrome_proc = subprocess.Popen([
         CHROME_BIN,
         "--headless=new",
+        f"--remote-debugging-port={cdp_port}",
         "--no-sandbox",
         "--disable-gpu",
-        f"--window-size={width},{height}",
-        f"--virtual-time-budget={wait_ms}",
-        f"--screenshot={output_path}",
-        url,
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"✓ Captured: {output_path.name} ({os.path.getsize(output_path):,} bytes)")
+        "--window-size=430,932"
+    ])
+    await asyncio.sleep(1.5)
+
+    try:
+        req = urllib.request.urlopen(f"http://127.0.0.1:{cdp_port}/json")
+        tabs = json.loads(req.read().decode("utf-8"))
+        page_tab = [t for t in tabs if t.get("type") == "page"][0]
+        ws_url = page_tab["webSocketDebuggerUrl"]
+
+        async with websockets.connect(ws_url) as ws:
+            msg_id = 1
+            await send_cdp(ws, msg_id, "Page.enable")
+            msg_id += 1
+
+            # -------------------------------------------------------------
+            # 1. MOBILE CAPTURES (430 x 932)
+            # -------------------------------------------------------------
+            await send_cdp(ws, msg_id, "Emulation.setDeviceMetricsOverride", {
+                "width": 430,
+                "height": 932,
+                "deviceScaleFactor": 2,
+                "mobile": True
+            })
+            msg_id += 1
+
+            # Navigate to local PWA server
+            await send_cdp(ws, msg_id, "Page.navigate", {"url": f"http://127.0.0.1:{port}/index.html"})
+            msg_id += 1
+            await asyncio.sleep(1.5)
+
+            # A. Cockpit
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-cockpit', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_cockpit = OUTPUT_DIR / "pwa_mobile_cockpit.png"
+            out_cockpit.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_cockpit.name} ({os.path.getsize(out_cockpit):,} bytes)")
+
+            # B. Feature Coding
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-coding', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_coding = OUTPUT_DIR / "pwa_mobile_coding.png"
+            out_coding.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_coding.name} ({os.path.getsize(out_coding):,} bytes)")
+
+            # C. Service & Maintenance
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-service', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_service = OUTPUT_DIR / "pwa_mobile_service.png"
+            out_service.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_service.name} ({os.path.getsize(out_service):,} bytes)")
+
+            # D. Byte Matrix
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-matrix', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_matrix = OUTPUT_DIR / "pwa_mobile_matrix.png"
+            out_matrix.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_matrix.name} ({os.path.getsize(out_matrix):,} bytes)")
+
+            # E. Fault Codes (DTCs)
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-dtcs', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_dtcs = OUTPUT_DIR / "pwa_mobile_dtcs.png"
+            out_dtcs.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_dtcs.name} ({os.path.getsize(out_dtcs):,} bytes)")
+
+            # F. Safety Audit Modal (Mobile)
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.promptSafetyAudit({ featureName: 'Scandinavian DRL', modifiedBytes: new Uint8Array([0x30, 0xA0, 0x05, 0x00, 0x40, 0x80, 0x00, 0x00, 0x00, 0x01, 0x03, 0x04, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) })"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_modal = OUTPUT_DIR / "pwa_mobile_safety_modal.png"
+            out_modal.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_modal.name} ({os.path.getsize(out_modal):,} bytes)")
+
+            # -------------------------------------------------------------
+            # 2. DESKTOP CAPTURES (1300 x 850)
+            # -------------------------------------------------------------
+            await send_cdp(ws, msg_id, "Emulation.setDeviceMetricsOverride", {
+                "width": 1300,
+                "height": 850,
+                "deviceScaleFactor": 1,
+                "mobile": False
+            })
+            msg_id += 1
+
+            # Desktop Cockpit
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-cockpit', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_d_telemetry = OUTPUT_DIR / "vibesodb2_telemetry.png"
+            out_d_telemetry.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_d_telemetry.name} ({os.path.getsize(out_d_telemetry):,} bytes)")
+
+            # Desktop Feature Coding
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-coding', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_d_features = OUTPUT_DIR / "vibesodb2_features.png"
+            out_d_features.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_d_features.name} ({os.path.getsize(out_d_features):,} bytes)")
+
+            # Desktop Byte Matrix
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-matrix', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_d_matrix = OUTPUT_DIR / "vibesodb2_byte_matrix.png"
+            out_d_matrix.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_d_matrix.name} ({os.path.getsize(out_d_matrix):,} bytes)")
+
+            # Desktop Backups
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-backups', false)"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_d_backups = OUTPUT_DIR / "vibesodb2_backups.png"
+            out_d_backups.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_d_backups.name} ({os.path.getsize(out_d_backups):,} bytes)")
+
+            # Desktop Safety Modal
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.promptSafetyAudit({ featureName: 'Scandinavian DRL', modifiedBytes: new Uint8Array([0x30, 0xA0, 0x05, 0x00, 0x40, 0x80, 0x00, 0x00, 0x00, 0x01, 0x03, 0x04, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) })"})
+            msg_id += 1
+            await asyncio.sleep(0.4)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_d_modal = OUTPUT_DIR / "vibesodb2_safety_modal.png"
+            out_d_modal.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_d_modal.name} ({os.path.getsize(out_d_modal):,} bytes)")
+
+    finally:
+        chrome_proc.terminate()
 
 
 def generate_terminal_hud_screenshot(output_path: Path):
@@ -148,42 +318,14 @@ def main():
     server_thread.start()
 
     try:
-        time.sleep(1.0)
-        base_url = f"http://127.0.0.1:{port}"
-
-        # 1. Virtual Cockpit
-        img_cockpit = OUTPUT_DIR / "pwa_mobile_cockpit.png"
-        capture_url(f"{base_url}/index.html#tab-cockpit", img_cockpit, wait_ms=2000, width=430, height=932)
-
-        # 2. Feature Coding (23 Features with categories & filter pills)
-        img_coding = OUTPUT_DIR / "pwa_mobile_coding.png"
-        capture_url(f"{base_url}/index.html#tab-coding", img_coding, wait_ms=2000, width=430, height=932)
-
-        # 3. Interactive Byte Matrix
-        img_matrix = OUTPUT_DIR / "pwa_mobile_matrix.png"
-        capture_url(f"{base_url}/index.html#tab-matrix", img_matrix, wait_ms=2000, width=430, height=932)
-
-        # 4. Service & Maintenance Tools
-        img_service = OUTPUT_DIR / "pwa_mobile_service.png"
-        capture_url(f"{base_url}/index.html#tab-service", img_service, wait_ms=2000, width=430, height=932)
-
-        # 5. Fault Codes Scanner
-        img_dtcs = OUTPUT_DIR / "pwa_mobile_dtcs.png"
-        capture_url(f"{base_url}/index.html#tab-dtcs", img_dtcs, wait_ms=2000, width=430, height=932)
-
-        # 6. Safety Guardrail Audit Modal
-        img_modal = OUTPUT_DIR / "pwa_mobile_safety_modal.png"
-        capture_url(f"{base_url}/index.html#modal-safety", img_modal, wait_ms=2000, width=430, height=932)
-
-        # 7. Terminal Cockpit HUD
-        img_hud = OUTPUT_DIR / "vibesodb2_terminal_hud.png"
-        generate_terminal_hud_screenshot(img_hud)
-
-        print("\nAll screenshots captured and updated successfully!")
-
+        time.sleep(0.8)
+        asyncio.run(capture_cdp_screens(port))
+        generate_terminal_hud_screenshot(OUTPUT_DIR / "vibesodb2_terminal_hud.png")
+        print("\nAll mobile and desktop screenshots successfully captured via CDP!")
     finally:
         server.shutdown()
 
 
 if __name__ == "__main__":
     main()
+
