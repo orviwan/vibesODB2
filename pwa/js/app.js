@@ -172,6 +172,7 @@ class VibesApp {
     this.wakeLock = null;
     this.pendingWrite = null;
     this.lastVibrateTime = 0;
+    this.activeTab = 'tab-cockpit';
   }
 
   async init() {
@@ -228,48 +229,155 @@ class VibesApp {
     }
   }
 
-  // --- Tabs Navigation ---
+  // --- Tabs Navigation & URL History Management ---
+  switchTab(targetTab, updateHistory = true) {
+    if (!targetTab) targetTab = 'tab-cockpit';
+    const targetContent = document.getElementById(targetTab);
+    const targetBtn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+
+    if (!targetContent || !targetBtn) {
+      targetTab = 'tab-cockpit';
+    }
+
+    this.activeTab = targetTab;
+
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+    const activeContent = document.getElementById(targetTab);
+
+    if (activeBtn) activeBtn.classList.add('active');
+    if (activeContent) activeContent.classList.add('active');
+
+    // Close open modals when switching tabs
+    this.closeAllModals(true);
+
+    if (targetTab === 'tab-backups') {
+      this.renderBackupsList();
+    } else if (targetTab === 'tab-coding') {
+      this.renderFeatureList();
+    } else if (targetTab === 'tab-matrix') {
+      this.renderByteGrid();
+      this.renderBitSwitches();
+    }
+
+    if (updateHistory) {
+      const currentHash = window.location.hash.replace('#', '');
+      if (currentHash !== targetTab) {
+        history.pushState({ tab: targetTab }, '', '#' + targetTab);
+      }
+    }
+  }
+
+  openModal(modalId, updateHistory = true) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.add('active');
+
+    if (updateHistory) {
+      const currentHash = window.location.hash.replace('#', '');
+      if (currentHash !== modalId) {
+        history.pushState({ modal: modalId, tab: this.activeTab }, '', '#' + modalId);
+      }
+    }
+  }
+
+  closeModal(modalId, isFromPopstate = false) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.remove('active');
+
+    if (modalId === 'modal-feature-confirm' && this._pendingFeatConfirm?.onCancel) {
+      this._pendingFeatConfirm.onCancel();
+      this._pendingFeatConfirm = null;
+    }
+    if (modalId === 'modal-safety-audit' && this.pendingWrite?.onCancel) {
+      this.pendingWrite.onCancel();
+      this.pendingWrite = null;
+    }
+
+    if (!isFromPopstate) {
+      const currentHash = window.location.hash.replace('#', '');
+      if (currentHash === modalId) {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          history.replaceState({ tab: this.activeTab }, '', '#' + (this.activeTab || 'tab-cockpit'));
+        }
+      }
+    }
+  }
+
+  closeAllModals(isFromPopstate = false) {
+    document.querySelectorAll('.modal-overlay.active').forEach(m => {
+      this.closeModal(m.id, isFromPopstate);
+    });
+  }
+
   setupTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const targetTab = btn.getAttribute('data-tab');
-        tabBtns.forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-        btn.classList.add('active');
-        const content = document.getElementById(targetTab);
-        if (content) content.classList.add('active');
-
-        if (targetTab === 'tab-backups') {
-          this.renderBackupsList();
-        } else if (targetTab === 'tab-coding') {
-          this.renderFeatureList();
-        } else if (targetTab === 'tab-matrix') {
-          this.renderByteGrid();
-          this.renderBitSwitches();
-        }
+        this.switchTab(targetTab, true);
       });
     });
 
     const cockpitDtcsBtn = document.getElementById('btn-cockpit-view-dtcs');
     if (cockpitDtcsBtn) {
       cockpitDtcsBtn.addEventListener('click', () => {
-        const dtcTabBtn = document.querySelector('.tab-btn[data-tab="tab-dtcs"]');
-        if (dtcTabBtn) dtcTabBtn.click();
+        this.switchTab('tab-dtcs', true);
       });
     }
 
-    // Support direct tab / modal opening via URL hash (e.g. #tab-coding, #tab-service, #modal-safety)
-    const hash = window.location.hash.replace('#', '');
-    if (hash) {
-      if (hash.startsWith('modal-')) {
-        const modal = document.getElementById(hash);
-        if (modal) modal.classList.add('active');
-      } else {
-        const matchBtn = document.querySelector(`.tab-btn[data-tab="${hash}"]`);
-        if (matchBtn) setTimeout(() => matchBtn.click(), 50);
+    // Modal backdrop clicks to dismiss
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          this.closeModal(overlay.id);
+        }
+      });
+    });
+
+    // History popstate & back button handling
+    window.addEventListener('popstate', (e) => {
+      // 1. If any modal is currently visible, dismiss it
+      const activeModals = document.querySelectorAll('.modal-overlay.active');
+      if (activeModals.length > 0) {
+        this.closeAllModals(true);
       }
+
+      // 2. Resolve destination from location hash
+      const hash = window.location.hash.replace('#', '');
+      if (hash.startsWith('modal-')) {
+        this.openModal(hash, false);
+      } else if (hash && document.getElementById(hash) && document.querySelector(`.tab-btn[data-tab="${hash}"]`)) {
+        this.switchTab(hash, false);
+      } else {
+        this.switchTab('tab-cockpit', false);
+      }
+    });
+
+    // Prevent accidental navigation / tab closure when Bluetooth connected
+    window.addEventListener('beforeunload', (e) => {
+      if (this.bleTransport && this.bleTransport.isConnected) {
+        e.preventDefault();
+        e.returnValue = 'Bluetooth OBD-II adapter is currently connected. Leaving this page will disconnect vehicle communication.';
+        return e.returnValue;
+      }
+    });
+
+    // Initial page load hash parsing
+    const initialHash = window.location.hash.replace('#', '');
+    if (initialHash.startsWith('modal-')) {
+      this.switchTab('tab-cockpit', false);
+      this.openModal(initialHash, false);
+    } else if (initialHash && document.getElementById(initialHash) && document.querySelector(`.tab-btn[data-tab="${initialHash}"]`)) {
+      this.switchTab(initialHash, false);
+    } else {
+      history.replaceState({ tab: 'tab-cockpit' }, '', '#tab-cockpit');
+      this.switchTab('tab-cockpit', false);
     }
   }
 
@@ -724,15 +832,10 @@ class VibesApp {
   setupFeatureConfirmationModal() {
     const cancelBtn = document.getElementById('btn-feat-confirm-cancel');
     const proceedBtn = document.getElementById('btn-feat-confirm-proceed');
-    const modal = document.getElementById('modal-feature-confirm');
 
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
-        if (this._pendingFeatConfirm?.onCancel) {
-          this._pendingFeatConfirm.onCancel();
-        }
-        this._pendingFeatConfirm = null;
-        modal.classList.remove('active');
+        this.closeModal('modal-feature-confirm');
       });
     }
 
@@ -740,7 +843,7 @@ class VibesApp {
       proceedBtn.addEventListener('click', () => {
         const pending = this._pendingFeatConfirm;
         this._pendingFeatConfirm = null;
-        modal.classList.remove('active');
+        this.closeModal('modal-feature-confirm');
         if (pending?.onProceed) {
           pending.onProceed();
         }
@@ -766,17 +869,15 @@ class VibesApp {
     document.getElementById('confirm-feat-new').textContent = targetState ? 'Enabled (ON)' : 'Disabled (OFF)';
     document.getElementById('confirm-feat-loc').textContent = `Byte ${feature.byte}, Bit ${feature.bit} (Module ${this.currentSchema.module_address || '0x09'})`;
 
-    modal.classList.add('active');
+    this.openModal('modal-feature-confirm');
   }
 
   openBleHelpModal() {
-    const modal = document.getElementById('modal-ble-help');
-    if (modal) modal.classList.add('active');
+    this.openModal('modal-ble-help');
   }
 
   closeBleHelpModal() {
-    const modal = document.getElementById('modal-ble-help');
-    if (modal) modal.classList.remove('active');
+    this.closeModal('modal-ble-help');
   }
 
   updateConnectionStatus(connected) {
@@ -1402,24 +1503,23 @@ class VibesApp {
     // Add Custom Feature Modal Controls
     const openAddBtn = document.getElementById('btn-open-add-custom');
     const cancelAddBtn = document.getElementById('btn-cancel-custom-feat');
-    const addModal = document.getElementById('modal-add-custom-feature');
     const addForm = document.getElementById('form-add-custom-feature');
 
-    if (openAddBtn && addModal) {
+    if (openAddBtn) {
       openAddBtn.addEventListener('click', () => {
-        addModal.classList.add('active');
+        this.openModal('modal-add-custom-feature');
         const nameInput = document.getElementById('custom-feat-name');
         if (nameInput) setTimeout(() => nameInput.focus(), 100);
       });
     }
 
-    if (cancelAddBtn && addModal) {
+    if (cancelAddBtn) {
       cancelAddBtn.addEventListener('click', () => {
-        addModal.classList.remove('active');
+        this.closeModal('modal-add-custom-feature');
       });
     }
 
-    if (addForm && addModal) {
+    if (addForm) {
       addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('custom-feat-name').value.trim();
@@ -1455,7 +1555,7 @@ class VibesApp {
         this.renderByteGrid();
         this.renderBitSwitches();
         this.showToast(`✓ Custom setting "${name}" (Byte ${byte}, Bit ${bit}) saved!`);
-        addModal.classList.remove('active');
+        this.closeModal('modal-add-custom-feature');
         addForm.reset();
       });
     }
@@ -1836,17 +1936,12 @@ class VibesApp {
 
   // --- Pre-Write Safety Audit Pipeline & Modal ---
   setupSafetyModal() {
-    const modal = document.getElementById('modal-safety-audit');
     const confirmBtn = document.getElementById('btn-modal-confirm');
     const cancelBtn = document.getElementById('btn-modal-cancel');
 
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
-        if (modal) modal.classList.remove('active');
-        if (this.pendingWrite && this.pendingWrite.onCancel) {
-          this.pendingWrite.onCancel();
-        }
-        this.pendingWrite = null;
+        this.closeModal('modal-safety-audit');
       });
     }
 
@@ -1893,7 +1988,7 @@ class VibesApp {
             this.pendingWrite.onSuccess();
           }
 
-          if (modal) modal.classList.remove('active');
+          this.closeModal('modal-safety-audit');
           alert('Coding applied successfully! Pre-write snapshot saved to local storage.');
           this.renderBackupsList();
         } catch (err) {
@@ -1948,7 +2043,7 @@ class VibesApp {
       }
     }
 
-    modal.classList.add('active');
+    this.openModal('modal-safety-audit');
   }
 
   // --- Backups Management Tab ---
