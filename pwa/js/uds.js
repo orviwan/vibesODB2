@@ -29,7 +29,7 @@ export const NRC_DESCRIPTIONS = {
 
 // VAG CAN arbitration addresses
 export const MODULE_ARBITRATION = {
-  '0x09': { tx: '714', rx: '77E', name: 'Cent. Elect. (BCM)' },
+  '0x09': { tx: '70E', rx: '778', name: 'Cent. Elect. (BCM)' },
   '0x17': { tx: '714', rx: '77E', name: 'Instrument Cluster' },
   '0x19': { tx: '710', rx: '77A', name: 'CAN Gateway' },
   '0x08': { tx: '714', rx: '77E', name: 'Climatronic' },
@@ -45,20 +45,21 @@ export class UdsClient {
     this.testerPresentInterval = null;
   }
 
-  async setTargetModule(moduleHex) {
+  async setTargetModule(moduleHex, customTx = null) {
     let key = (moduleHex || '0x09').toLowerCase().trim();
     if (!key.startsWith('0x')) key = '0x' + key;
     this.activeModule = key;
-    const arb = MODULE_ARBITRATION[key] || { tx: '714', rx: '77E' };
-    await this.transport.setHeader(arb.tx);
+    const arb = MODULE_ARBITRATION[key] || { tx: '70E', rx: '778' };
+    const tx = customTx || arb.tx;
+    await this.transport.setHeader(tx);
   }
 
-  async setModuleAddress(moduleHex) {
-    return await this.setTargetModule(moduleHex);
+  async setModuleAddress(moduleHex, customTx = null) {
+    return await this.setTargetModule(moduleHex, customTx);
   }
 
-  async setModule(moduleHex) {
-    return await this.setTargetModule(moduleHex);
+  async setModule(moduleHex, customTx = null) {
+    return await this.setTargetModule(moduleHex, customTx);
   }
 
   async sendUdsRequest(payloadBytes) {

@@ -17,7 +17,7 @@ export class TelemetryEngine {
     this.latestMetrics = this.getInitialMetrics();
   }
 
-  getInitialMetrics() {
+    getInitialMetrics() {
     return {
       vehicle_speed_kmh: null,
       engine_rpm: null,
@@ -29,6 +29,9 @@ export class TelemetryEngine {
       fuel_rail_pressure_bar: null,
       dpf_soot_load_g: null,
       exhaust_gas_temp_c: null,
+      engine_load_pct: null,
+      oil_temp_c: null,
+      battery_voltage: null,
       engaged_gear: '--'
     };
   }
@@ -70,7 +73,6 @@ export class TelemetryEngine {
         loopCycle++;
 
         // 1. FAST TIER (Every cycle: RPM and Speed)
-        // Querying individually ensures maximum compatibility across all VAG / MQB ECUs
         const resRpm = await this.transport.sendCommand('010C', 800);
         this.parsePidResponse(resRpm);
 
@@ -85,25 +87,48 @@ export class TelemetryEngine {
           );
         }
 
-        // 2. MEDIUM TIER (Every 4 cycles: Boost/MAP & Throttle)
-        if (loopCycle % 4 === 0) {
+        // 2. MEDIUM TIER (Every 3 cycles: Boost/MAP, Throttle / Accelerator Pedal, Engine Load)
+        if (loopCycle % 3 === 0) {
           const resMap = await this.transport.sendCommand('010B', 800);
           this.parsePidResponse(resMap);
 
-          const resTh = await this.transport.sendCommand('0111', 800);
-          this.parsePidResponse(resTh);
+          // Query Accelerator Pedal Pos D (0149) or fallback Throttle (0111)
+          const resPedal = await this.transport.sendCommand('0149', 800);
+          this.parsePidResponse(resPedal);
+          if (this.latestMetrics.throttle_position_pct === null) {
+            const resTh = await this.transport.sendCommand('0111', 800);
+            this.parsePidResponse(resTh);
+          }
+
+          const resLoad = await this.transport.sendCommand('0104', 800);
+          this.parsePidResponse(resLoad);
         }
 
-        // 3. SLOW TIER (Every 10 cycles: Coolant, IAT, Fuel Rail)
-        if (loopCycle % 10 === 0) {
-          const resClt = await this.transport.sendCommand('0105', 1000);
+        // 3. SLOW TIER (Every 8 cycles: Coolant, IAT, Fuel Rail, DPF Soot, EGT, Oil Temp, Voltage)
+        if (loopCycle % 8 === 0) {
+          const resClt = await this.transport.sendCommand('0105', 900);
           this.parsePidResponse(resClt);
 
-          const resIat = await this.transport.sendCommand('010F', 1000);
+          const resIat = await this.transport.sendCommand('010F', 900);
           this.parsePidResponse(resIat);
 
-          const resFuel = await this.transport.sendCommand('0123', 1000);
+          const resFuel = await this.transport.sendCommand('0123', 900);
           this.parsePidResponse(resFuel);
+
+          // EGT (0178) & DPF Soot (017C) for VAG TDI
+          const resEgt = await this.transport.sendCommand('0178', 900);
+          this.parsePidResponse(resEgt);
+
+          const resSoot = await this.transport.sendCommand('017C', 900);
+          this.parsePidResponse(resSoot);
+
+          // Engine Oil Temp (015C)
+          const resOil = await this.transport.sendCommand('015C', 900);
+          this.parsePidResponse(resOil);
+
+          // Battery Voltage
+          const resVolt = await this.transport.sendCommand('ATRV', 600);
+          this.parseVoltageResponse(resVolt);
         }
 
         this._recordSample();
@@ -114,15 +139,23 @@ export class TelemetryEngine {
       }
 
       const elapsed = performance.now() - startTime;
-      const waitTime = Math.max(10, 40 - elapsed);
+      const waitTime = Math.max(10, 35 - elapsed);
       await new Promise((r) => setTimeout(r, waitTime));
+    }
+  }
+
+  parseVoltageResponse(raw) {
+    if (!raw) return;
+    const match = raw.match(/([0-9]+\.?[0-9]*)\s*V/i);
+    if (match) {
+      const v = parseFloat(match[1]);
+      if (!isNaN(v)) this.latestMetrics.battery_voltage = v;
     }
   }
 
   /**
    * Universal Mode 01 PID Response Parser.
-   * Accurately parses standard OBD-II frames, whether single or multi-PID,
-   * with or without CAN frame headers (e.g. "41 0C 0A 1B", "7E8 04 41 0D 32").
+   * Accurately parses standard OBD-II frames, single or multi-frame.
    */
   parsePidResponse(raw) {
     if (!raw) return;
@@ -149,6 +182,13 @@ export class TelemetryEngine {
               this.latestMetrics.vehicle_speed_kmh = spd;
             }
             cursor += 2;
+          } else if (pid === '04' && cursor + 1 < parts.length) {
+            // Engine Load: (A * 100) / 255 %
+            const ld = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(ld)) {
+              this.latestMetrics.engine_load_pct = Number(((ld * 100) / 255.0).toFixed(1));
+            }
+            cursor += 2;
           } else if (pid === '05' && cursor + 1 < parts.length) {
             // Coolant Temp: A - 40 °C
             const clt = parseInt(parts[cursor + 1], 16);
@@ -171,8 +211,8 @@ export class TelemetryEngine {
               this.latestMetrics.intake_air_temp_c = iat - 40;
             }
             cursor += 2;
-          } else if (pid === '11' && cursor + 1 < parts.length) {
-            // Throttle Position: (A * 100) / 255 %
+          } else if ((pid === '11' || pid === '49' || pid === '4A' || pid === '5A') && cursor + 1 < parts.length) {
+            // Accelerator Pedal / Throttle Position: (A * 100) / 255 %
             const th = parseInt(parts[cursor + 1], 16);
             if (!isNaN(th)) {
               this.latestMetrics.throttle_position_pct = Number(((th * 100) / 255.0).toFixed(1));
@@ -184,6 +224,29 @@ export class TelemetryEngine {
             const b = parseInt(parts[cursor + 2], 16);
             if (!isNaN(a) && !isNaN(b)) {
               this.latestMetrics.fuel_rail_pressure_bar = Number((((a * 256) + b) * 10 / 100.0).toFixed(1));
+            }
+            cursor += 3;
+          } else if (pid === '5C' && cursor + 1 < parts.length) {
+            // Engine Oil Temp: A - 40 °C
+            const ot = parseInt(parts[cursor + 1], 16);
+            if (!isNaN(ot)) {
+              this.latestMetrics.oil_temp_c = ot - 40;
+            }
+            cursor += 2;
+          } else if (pid === '78' && cursor + 2 < parts.length) {
+            // EGT Sensor 1: ((A * 256) + B) / 10.0 - 40.0 °C
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              this.latestMetrics.exhaust_gas_temp_c = Number((((a * 256) + b) / 10.0 - 40.0).toFixed(1));
+            }
+            cursor += 3;
+          } else if (pid === '7C' && cursor + 2 < parts.length) {
+            // DPF Bank 1 Soot Mass: ((A * 256) + B) / 100.0 grams
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              this.latestMetrics.dpf_soot_load_g = Number((((a * 256) + b) / 100.0).toFixed(2));
             }
             cursor += 3;
           } else {

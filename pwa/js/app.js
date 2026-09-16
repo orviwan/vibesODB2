@@ -128,7 +128,7 @@ class VibesApp {
     this.selectedSchemaKey = 'mqb_bcm_0x09';
     this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey] || BUNDLED_SCHEMAS['pq25_bcm_0x09'];
     this.selectedByteIndex = 0;
-    this.vin = 'WVWZZZ5GZJW123456'; // Default MQB Golf VII baseline VIN
+    this.vin = null;
 
     // Default 30-byte baseline coding
     this.baselineHex = '000000000000000000000000000000000000000000000000000000000000';
@@ -260,23 +260,9 @@ class VibesApp {
   // --- Web Bluetooth Connection ---
   setupBluetooth() {
     const bleBtn = document.getElementById('btn-ble-connect');
-    const reconnectBtn = document.getElementById('btn-ble-reconnect');
     const closeHelpBtn = document.getElementById('btn-close-ble-help');
     if (closeHelpBtn) {
       closeHelpBtn.addEventListener('click', () => this.closeBleHelpModal());
-    }
-
-    if (reconnectBtn) {
-      reconnectBtn.addEventListener('click', async () => {
-        await this.handleBleConnect(true);
-      });
-      const lastDev = WebBleTransport.getLastDevice();
-      if (lastDev) {
-        reconnectBtn.style.display = 'inline-flex';
-        reconnectBtn.title = `Reconnect to ${lastDev.name}`;
-      } else {
-        reconnectBtn.style.display = 'none';
-      }
     }
 
     this.updateNoticeBanner();
@@ -294,7 +280,7 @@ class VibesApp {
           this.telemetryEngine.stop();
           this.updateConnectionStatus(false);
         } else {
-          await this.handleBleConnect(false);
+          await this.handleBleConnect();
         }
       });
     }
@@ -337,22 +323,12 @@ class VibesApp {
     `;
   }
 
-  async handleBleConnect(useAutoReconnect = false) {
+  async handleBleConnect() {
     const bleBtn = document.getElementById('btn-ble-connect');
-    const reconnectBtn = document.getElementById('btn-ble-reconnect');
     if (bleBtn) bleBtn.textContent = 'Connecting...';
-    if (reconnectBtn) reconnectBtn.disabled = true;
 
     try {
-      let result = null;
-      if (useAutoReconnect && WebBleTransport.canAutoReconnect()) {
-        const lastDev = WebBleTransport.getLastDevice();
-        this.showToast(`Reconnecting to ${lastDev?.name || 'saved adapter'}...`);
-        result = await this.bleTransport.reconnectLastDevice();
-      }
-      if (!result) {
-        result = await this.bleTransport.connect();
-      }
+      const result = await this.bleTransport.connect();
 
       if (result) {
         this.updateConnectionStatus(true);
@@ -370,8 +346,6 @@ class VibesApp {
         alert('Bluetooth connection cancelled or failed:\n\n' + (err.message || err));
       }
       this.updateConnectionStatus(false);
-    } finally {
-      if (reconnectBtn) reconnectBtn.disabled = false;
     }
   }
 
@@ -383,20 +357,24 @@ class VibesApp {
       let vin = null;
       try {
         await this.bleTransport.setHeader('7DF');
-        const vinResp = await this.bleTransport.sendCommand('0902', 2000);
+        const vinResp = await this.bleTransport.sendCommand('0902', 2500);
         vin = this._extractVinFromResponse(vinResp);
       } catch (ve) {
         console.warn('Mode 09 VIN query error:', ve);
       }
 
       if (!vin) {
-        try {
-          await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
-          await this.udsClient.enterExtendedSession();
-          const vinBytes = await this.udsClient.readDataById('F190');
-          vin = this._extractVinFromBytes(vinBytes);
-        } catch (ue) {
-          console.warn('UDS VIN query fallback error:', ue);
+        const checkModules = [this.currentSchema.module_address || '0x09', '0x19', '0x01'];
+        for (const mod of checkModules) {
+          try {
+            await this.udsClient.setModuleAddress(mod);
+            await this.udsClient.enterExtendedSession();
+            const vinBytes = await this.udsClient.readDataById('F190');
+            vin = this._extractVinFromBytes(vinBytes);
+            if (vin) break;
+          } catch (ue) {
+            console.warn(`UDS VIN query error on ${mod}:`, ue);
+          }
         }
       }
 
@@ -418,43 +396,60 @@ class VibesApp {
       let ecuSwVer = '--';
       let ecuSerial = '--';
 
-      try {
-        await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
-        await this.udsClient.enterExtendedSession();
-
+      const fetchSpecsFromModule = async (moduleHex) => {
         try {
-          // DID 0xF187: VW Spare Part Number
-          const pBytes = await this.udsClient.readDataById('F187');
-          const pStr = bytesToAscii(pBytes);
-          if (pStr) ecuPartNo = pStr;
-        } catch (e) {}
+          await this.udsClient.setModuleAddress(moduleHex);
+          await this.udsClient.enterExtendedSession();
 
-        try {
-          // DID 0xF191: ECU Hardware Number
-          const hBytes = await this.udsClient.readDataById('F191');
-          const hStr = bytesToAscii(hBytes);
-          if (hStr) ecuHwNo = hStr;
-        } catch (e) {}
-
-        try {
-          // DID 0xF189: ECU Software Version
-          const sBytes = await this.udsClient.readDataById('F189');
-          const sStr = bytesToAscii(sBytes);
-          if (sStr) ecuSwVer = sStr;
-        } catch (e) {}
-
-        try {
-          // DID 0xF18C: ECU Serial Number
-          const snBytes = await this.udsClient.readDataById('F18C');
-          const snStr = bytesToAscii(snBytes);
-          if (snStr && snStr.length >= 4) {
-            ecuSerial = snStr;
-          } else if (snBytes && snBytes.length > 0) {
-            ecuSerial = bytesToHexString(snBytes);
+          if (ecuPartNo === '--') {
+            try {
+              const pBytes = await this.udsClient.readDataById('F187');
+              const pStr = bytesToAscii(pBytes);
+              if (pStr && pStr.length >= 3) ecuPartNo = pStr;
+            } catch (e) {}
           }
-        } catch (e) {}
-      } catch (specErr) {
-        console.warn('ECU spec query error:', specErr);
+
+          if (ecuHwNo === '--') {
+            try {
+              const hBytes = await this.udsClient.readDataById('F191');
+              const hStr = bytesToAscii(hBytes);
+              if (hStr && hStr.length >= 3) ecuHwNo = hStr;
+            } catch (e) {}
+          }
+
+          if (ecuSwVer === '--') {
+            try {
+              const sBytes = await this.udsClient.readDataById('F189');
+              const sStr = bytesToAscii(sBytes);
+              if (sStr && sStr.length >= 2) ecuSwVer = sStr;
+            } catch (e) {}
+          }
+
+          if (ecuSerial === '--') {
+            try {
+              const snBytes = await this.udsClient.readDataById('F18C');
+              const snStr = bytesToAscii(snBytes);
+              if (snStr && snStr.length >= 4) {
+                ecuSerial = snStr;
+              } else if (snBytes && snBytes.length > 0) {
+                ecuSerial = bytesToHexString(snBytes);
+              }
+            } catch (e) {}
+          }
+        } catch (err) {
+          console.warn(`ECU spec query error on ${moduleHex}:`, err);
+        }
+      };
+
+      // Query target module (BCM 0x09 at 70E)
+      await fetchSpecsFromModule(this.currentSchema.module_address || '0x09');
+
+      // If any specs missing, fallback to Gateway (0x19 at 710) or Engine (0x01 at 7E0)
+      if (ecuPartNo === '--' || ecuHwNo === '--' || ecuSwVer === '--') {
+        await fetchSpecsFromModule('0x19');
+      }
+      if (ecuPartNo === '--' || ecuHwNo === '--' || ecuSwVer === '--') {
+        await fetchSpecsFromModule('0x01');
       }
 
       // Update Vehicle Specs Card in Cockpit
@@ -485,7 +480,7 @@ class VibesApp {
 
       // 4. Automatically capture Baseline Snapshot #1 on first connect
       const backup = await saveBackup({
-        vin: this.vin,
+        vin: this.vin || 'UNKNOWN_VIN',
         moduleAddress: this.currentSchema.module_address || '0x09',
         did: this.currentSchema.coding_did || '0x0600',
         featureName: 'Initial Connect Baseline Snapshot (Auto-Protected)',
@@ -512,7 +507,7 @@ class VibesApp {
       console.warn('Post-connect setup fallback:', err);
       try {
         const backup = await saveBackup({
-          vin: this.vin,
+          vin: this.vin || 'UNKNOWN_VIN',
           moduleAddress: this.currentSchema.module_address || '0x09',
           did: this.currentSchema.coding_did || '0x0600',
           featureName: 'Initial Connect Baseline Snapshot (Fallback)',
@@ -610,25 +605,105 @@ class VibesApp {
   }
 
   _extractVinFromBytes(rawBytes) {
-    if (!rawBytes) return null;
-    const str = bytesToAscii(rawBytes);
-    const match = str.match(/[A-HJ-NPR-Z0-9]{17}/);
-    return match ? match[0] : null;
+    if (!rawBytes || rawBytes.length === 0) return null;
+    let bytes = rawBytes;
+    if (bytes.length >= 20 && bytes[0] === 0x62 && bytes[1] === 0xF1 && bytes[2] === 0x90) {
+      bytes = bytes.subarray(3);
+    }
+    const str = bytesToAscii(bytes);
+    const match = str.match(/[A-HJ-NPR-Z0-9]{17}/i);
+    return match ? match[0].toUpperCase() : null;
   }
 
   _extractVinFromResponse(resp) {
     if (!resp) return null;
     const clean = resp.replace(/>/g, ' ').toUpperCase();
-    const parts = clean.split(/\s+/).filter(p => /^[0-9A-F]{2}$/.test(p));
-    let ascii = '';
-    for (const hex of parts) {
-      const byte = parseInt(hex, 16);
-      if (byte >= 32 && byte <= 126) {
-        ascii += String.fromCharCode(byte);
+
+    // 1. Check for UDS DID 0xF190 response: "62 F1 90 ..." or "62F190..."
+    const udsMatch = clean.match(/62\s*F1\s*90\s*([0-9A-F\s]{34,})/i);
+    if (udsMatch) {
+      const hexBytes = udsMatch[1].replace(/[^0-9A-F]/gi, '');
+      let ascii = '';
+      for (let i = 0; i + 1 < hexBytes.length && ascii.length < 17; i += 2) {
+        const code = parseInt(hexBytes.substr(i, 2), 16);
+        if (code >= 32 && code <= 126) ascii += String.fromCharCode(code);
+      }
+      const vinMatch = ascii.match(/[A-HJ-NPR-Z0-9]{17}/i);
+      if (vinMatch) return vinMatch[0].toUpperCase();
+    }
+
+    // 2. Parse OBD-II Mode 09 PID 02 multi-line / ISO-TP framed responses
+    const lines = clean.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+    let mode09Payload = '';
+    let foundMode09 = false;
+
+    for (const line of lines) {
+      const noPrefix = line.replace(/^[0-9A-F]+:\s*/i, '').trim();
+      const tokens = noPrefix.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
+      if (tokens.length === 0) continue;
+
+      if (tokens[0] === '49' && tokens[1] === '02' && tokens.length >= 3) {
+        foundMode09 = true;
+        for (let k = 3; k < tokens.length; k++) {
+          mode09Payload += tokens[k];
+        }
+      } else if (foundMode09) {
+        for (const tok of tokens) {
+          mode09Payload += tok;
+        }
       }
     }
-    const vinMatch = ascii.match(/[A-HJ-NPR-Z0-9]{17}/);
-    return vinMatch ? vinMatch[0] : null;
+
+    if (mode09Payload.length >= 34) {
+      let ascii = '';
+      for (let i = 0; i + 1 < mode09Payload.length; i += 2) {
+        const code = parseInt(mode09Payload.substr(i, 2), 16);
+        if (code >= 32 && code <= 126) ascii += String.fromCharCode(code);
+      }
+      const match = ascii.match(/[A-HJ-NPR-Z0-9]{17}/i);
+      if (match) return match[0].toUpperCase();
+    }
+
+    // 3. Parse continuous stream with inline 49 02 XX markers
+    const allTokens = clean.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
+    let streamPayload = '';
+    let i = 0;
+    while (i < allTokens.length) {
+      if (allTokens[i] === '49' && allTokens[i + 1] === '02' && i + 2 < allTokens.length) {
+        i += 3;
+        while (i < allTokens.length && !(allTokens[i] === '49' && allTokens[i + 1] === '02')) {
+          streamPayload += allTokens[i];
+          i++;
+        }
+      } else {
+        i++;
+      }
+    }
+
+    if (streamPayload.length >= 34) {
+      let ascii = '';
+      for (let j = 0; j + 1 < streamPayload.length; j += 2) {
+        const code = parseInt(streamPayload.substr(j, 2), 16);
+        if (code >= 32 && code <= 126) ascii += String.fromCharCode(code);
+      }
+      const match = ascii.match(/[A-HJ-NPR-Z0-9]{17}/i);
+      if (match) return match[0].toUpperCase();
+    }
+
+    // 4. Ultimate fallback: scan all printable hex pairs
+    let generalAscii = '';
+    for (const tok of allTokens) {
+      const code = parseInt(tok, 16);
+      if (code >= 32 && code <= 126) {
+        generalAscii += String.fromCharCode(code);
+      } else {
+        generalAscii += ' ';
+      }
+    }
+    const generalMatch = generalAscii.match(/[A-HJ-NPR-Z0-9]{17}/i);
+    if (generalMatch) return generalMatch[0].toUpperCase();
+
+    return null;
   }
 
   setupFeatureConfirmationModal() {
@@ -691,7 +766,6 @@ class VibesApp {
 
   updateConnectionStatus(connected) {
     const bleBtn = document.getElementById('btn-ble-connect');
-    const reconnectBtn = document.getElementById('btn-ble-reconnect');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
 
@@ -710,9 +784,6 @@ class VibesApp {
       if (bleBtn) {
         bleBtn.classList.add('connected');
         bleBtn.textContent = 'Disconnect BLE';
-      }
-      if (reconnectBtn) {
-        reconnectBtn.style.display = 'none';
       }
       if (statusDot) {
         statusDot.className = 'dot connected';
@@ -734,10 +805,6 @@ class VibesApp {
       if (bleBtn) {
         bleBtn.classList.remove('connected');
         bleBtn.textContent = 'Connect BLE';
-      }
-      const lastDev = WebBleTransport.getLastDevice();
-      if (reconnectBtn && lastDev) {
-        reconnectBtn.style.display = 'inline-flex';
       }
       if (statusDot) {
         statusDot.className = 'dot';
@@ -1009,12 +1076,36 @@ class VibesApp {
       sootBarEl.style.width = `${pct}%`;
     }
 
-    // 9. Throttle Position
+    // 9. Throttle / Accelerator Pedal Position
     const throttleEl = document.getElementById('metric-throttle-val');
     if (throttleEl) {
       throttleEl.textContent = data.throttle_position_pct != null 
         ? `${Math.round(data.throttle_position_pct)}%` 
         : '-- %';
+    }
+
+    // 10. Engine Calculated Load
+    const loadEl = document.getElementById('metric-load-val');
+    if (loadEl) {
+      loadEl.textContent = data.engine_load_pct != null 
+        ? `${Math.round(data.engine_load_pct)}%` 
+        : '-- %';
+    }
+
+    // 11. Engine Oil Temp
+    const oilEl = document.getElementById('metric-oil-val');
+    if (oilEl) {
+      oilEl.textContent = data.oil_temp_c != null 
+        ? `${Math.round(data.oil_temp_c)} °C` 
+        : '-- °C';
+    }
+
+    // 12. Battery Voltage
+    const voltEl = document.getElementById('metric-voltage-val');
+    if (voltEl) {
+      voltEl.textContent = data.battery_voltage != null 
+        ? `${data.battery_voltage.toFixed(1)} V` 
+        : '-- V';
     }
   }
 
@@ -1741,7 +1832,7 @@ class VibesApp {
           alert('Failed to read DTCs: ' + (err.message || err));
         } finally {
           scanBtn.disabled = false;
-          scanBtn.textContent = 'Scan Diagnostic Codes';
+          scanBtn.textContent = 'Scan Fault Codes';
         }
       });
     }

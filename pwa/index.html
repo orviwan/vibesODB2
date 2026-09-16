@@ -35,9 +35,6 @@
         <span id="status-dot" class="dot"></span>
         <span id="status-text">Disconnected</span>
       </div>
-      <button id="btn-ble-reconnect" class="btn-ble" style="display:none; background: rgba(16,185,129,0.15); border: 1px solid var(--success); color: #34d399;">
-        <span>🔄</span> Reconnect
-      </button>
       <button id="btn-ble-connect" class="btn-ble">
         <span>⚡</span> Connect BLE
       </button>
@@ -117,9 +114,19 @@
           <div id="progress-boost" class="progress-bar-fill" style="width: 0%;"></div>
         </div>
 
-        <div class="metric-row" style="margin-top: 1.5rem;">
-          <span class="metric-label">Throttle Position</span>
+        <div class="metric-row" style="margin-top: 1.25rem;">
+          <span class="metric-label">Throttle / Pedal Position</span>
           <span class="metric-value" id="metric-throttle-val">-- %</span>
+        </div>
+
+        <div class="metric-row" style="margin-top: 0.65rem;">
+          <span class="metric-label">Calculated Engine Load</span>
+          <span class="metric-value" id="metric-load-val">-- %</span>
+        </div>
+
+        <div class="metric-row" style="margin-top: 0.65rem;">
+          <span class="metric-label">Battery Voltage</span>
+          <span class="metric-value" id="metric-voltage-val" style="color: #38bdf8;">-- V</span>
         </div>
       </div>
 
@@ -137,10 +144,15 @@
         </div>
 
         <div class="metric-row" style="margin-top: 1.25rem;">
+          <span class="metric-label">Engine Oil Temp</span>
+          <span class="metric-value" id="metric-oil-val">-- °C</span>
+        </div>
+
+        <div class="metric-row" style="margin-top: 0.5rem;">
           <span class="metric-label">Intake Air Temp (IAT)</span>
           <span class="metric-value" id="metric-iat-val">-- °C</span>
         </div>
-        <div class="metric-row">
+        <div class="metric-row" style="margin-top: 0.5rem;">
           <span class="metric-label">Exhaust Gas Temp (EGT)</span>
           <span class="metric-value" id="metric-egt-val">-- °C</span>
         </div>
