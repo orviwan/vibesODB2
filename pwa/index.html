@@ -265,6 +265,18 @@
       <select id="schema-select" class="select-box"></select>
     </div>
 
+    <!-- Feature Filter Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <div id="feature-filter-tabs" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+        <button type="button" class="btn-filter-feat active" data-filter="all" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: var(--primary); color: #fff; border: 1px solid var(--primary); cursor: pointer;">All Settings (<span id="count-feat-all">0</span>)</button>
+        <button type="button" class="btn-filter-feat" data-filter="active" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); cursor: pointer;">🟢 Active / ON (<span id="count-feat-active">0</span>)</button>
+        <button type="button" class="btn-filter-feat" data-filter="inactive" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; background: rgba(100, 116, 139, 0.2); color: #cbd5e1; border: 1px solid var(--border-color); cursor: pointer;">⚪ Disabled / OFF (<span id="count-feat-inactive">0</span>)</button>
+      </div>
+      <div id="feature-summary-pill" style="font-size: 0.75rem; color: #94a3b8; font-family: var(--font-mono);">
+        Live Coding: <span id="val-coding-bytes-len">30</span> Bytes Loaded
+      </div>
+    </div>
+
     <div id="feature-list-container" class="feature-list">
       <!-- Populated dynamically via schemas.js -->
     </div>

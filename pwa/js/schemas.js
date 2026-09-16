@@ -24,6 +24,78 @@ export const BUNDLED_SCHEMAS = {
     "expected_byte_length": 30,
     "features": [
       {
+        "id": "drl_standard_active",
+        "category": "Daytime Running Lights",
+        "byte": 11,
+        "bit": 2,
+        "name": "Daytime Running Lights (DRL) Active",
+        "description": "Enables primary front daytime running lights operation in ignition ON position.",
+        "prerequisites": null
+      },
+      {
+        "id": "scandinavian_drl",
+        "category": "Daytime Running Lights",
+        "byte": 12,
+        "bit": 0,
+        "name": "Scandinavian DRL (Rear Tail Lights Active with DRL)",
+        "description": "Keeps rear LED/bulb taillights illuminated together with front Daytime Running Lights during daylight.",
+        "prerequisites": null
+      },
+      {
+        "id": "drl_off_with_handbrake",
+        "category": "Daytime Running Lights",
+        "byte": 14,
+        "bit": 1,
+        "name": "Deactivate DRL when Electronic Parking Brake (EPB) Set",
+        "description": "Switches off daytime running lights whenever vehicle is stationary with parking brake applied.",
+        "prerequisites": null
+      },
+      {
+        "id": "auto_lock_speed",
+        "category": "Central Locking",
+        "byte": 0,
+        "bit": 4,
+        "name": "Automatic Door Auto-Lock (>15 km/h)",
+        "description": "Automatically locks all doors when driving speed exceeds 15 km/h for anti-carjacking protection.",
+        "prerequisites": null
+      },
+      {
+        "id": "auto_unlock_key_removal",
+        "category": "Central Locking",
+        "byte": 0,
+        "bit": 5,
+        "name": "Automatic Door Auto-Unlock on Key Removal",
+        "description": "Automatically unlocks all doors when ignition key is extracted or engine Start/Stop turned off.",
+        "prerequisites": null
+      },
+      {
+        "id": "central_locking_remote_active",
+        "category": "Central Locking",
+        "byte": 2,
+        "bit": 0,
+        "name": "Radio Remote Keyless Central Locking Active",
+        "description": "Enables wireless RF receiver processing for factory remote key fobs.",
+        "prerequisites": null
+      },
+      {
+        "id": "comfort_windows_remote",
+        "category": "Mirrors & Convenience",
+        "byte": 2,
+        "bit": 2,
+        "name": "Comfort Window Open / Close via Key Fob",
+        "description": "Enables holding Lock/Unlock button on remote key fob to automatically roll all power windows up or down.",
+        "prerequisites": "Power electric windows."
+      },
+      {
+        "id": "sunroof_comfort_remote",
+        "category": "Mirrors & Convenience",
+        "byte": 2,
+        "bit": 4,
+        "name": "Panoramic Sunroof Comfort Open / Close via Key Fob",
+        "description": "Enables opening and tilting panoramic electric glass sunroof together with comfort window operation.",
+        "prerequisites": "Panoramic sunroof."
+      },
+      {
         "id": "passenger_mirror_dip_reverse",
         "category": "Mirrors & Convenience",
         "byte": 4,
@@ -33,12 +105,30 @@ export const BUNDLED_SCHEMAS = {
         "prerequisites": "Power folding/memory exterior mirror motor."
       },
       {
-        "id": "scandinavian_drl",
-        "category": "Daytime Running Lights",
-        "byte": 12,
-        "bit": 0,
-        "name": "Scandinavian DRL (Rear Tail Lights Active with DRL)",
-        "description": "Keeps rear LED/bulb taillights illuminated together with front Daytime Running Lights during daylight.",
+        "id": "heated_exterior_mirrors",
+        "category": "Mirrors & Convenience",
+        "byte": 4,
+        "bit": 6,
+        "name": "Heated Exterior Mirrors Active with Defroster",
+        "description": "Powers electric exterior mirror heating elements when heated rear windscreen defroster is switched on.",
+        "prerequisites": "Heated exterior mirrors."
+      },
+      {
+        "id": "optical_lock_ack",
+        "category": "Locking Feedback",
+        "byte": 1,
+        "bit": 5,
+        "name": "Turn Indicator Flash Acknowledgment on Lock",
+        "description": "Flashes hazard/turn indicators once upon successful vehicle locking.",
+        "prerequisites": null
+      },
+      {
+        "id": "optical_unlock_ack",
+        "category": "Locking Feedback",
+        "byte": 1,
+        "bit": 7,
+        "name": "Turn Indicator Flash Acknowledgment on Unlock",
+        "description": "Flashes hazard/turn indicators twice upon remote unlocking.",
         "prerequisites": null
       },
       {
@@ -51,21 +141,39 @@ export const BUNDLED_SCHEMAS = {
         "prerequisites": "Factory alarm siren."
       },
       {
-        "id": "drl_off_with_handbrake",
-        "category": "Daytime Running Lights",
-        "byte": 14,
-        "bit": 1,
-        "name": "Deactivate DRL when Electronic Parking Brake (EPB) Set",
-        "description": "Switches off daytime running lights whenever vehicle is stationary with parking brake applied.",
-        "prerequisites": null
-      },
-      {
         "id": "cornering_lights_via_fogs",
         "category": "Exterior Lighting",
         "byte": 12,
         "bit": 4,
         "name": "Dynamic Cornering Lights via Fog Lamps",
         "description": "Fades fog lamp on and off smoothly during cornering maneuvers or indicator usage.",
+        "prerequisites": "Front fog lamps."
+      },
+      {
+        "id": "front_fog_lights_installed",
+        "category": "Exterior Lighting",
+        "byte": 10,
+        "bit": 0,
+        "name": "Front Fog Lamps Installed",
+        "description": "Enables BCM output stage circuitry for front halogen/LED fog light assemblies.",
+        "prerequisites": "Front fog lamps."
+      },
+      {
+        "id": "rear_fog_light_installed",
+        "category": "Exterior Lighting",
+        "byte": 10,
+        "bit": 1,
+        "name": "Rear Fog Lamp Installed",
+        "description": "Enables BCM output stage circuitry for high-intensity rear fog safety lamp.",
+        "prerequisites": null
+      },
+      {
+        "id": "coming_home_fog_lights",
+        "category": "Exterior Lighting",
+        "byte": 10,
+        "bit": 2,
+        "name": "Coming Home / Leaving Home with Fog Lights",
+        "description": "Uses fog lights instead of xenon/LED low beams for Coming Home lighting to extend bulb life.",
         "prerequisites": "Front fog lamps."
       },
       {
@@ -87,22 +195,40 @@ export const BUNDLED_SCHEMAS = {
         "prerequisites": null
       },
       {
+        "id": "rear_window_wiper_installed",
+        "category": "Wipers & Washers",
+        "byte": 14,
+        "bit": 0,
+        "name": "Rear Window Wiper Installed",
+        "description": "Enables rear tailgate wiper motor output driver and stalk intermittent control.",
+        "prerequisites": "Rear wiper."
+      },
+      {
         "id": "rear_wiper_reverse_sync",
         "category": "Wipers & Washers",
         "byte": 14,
         "bit": 4,
-        "name": "Rear Wiper on Reverse Gear",
+        "name": "Rear Wiper on Reverse Gear Sync",
         "description": "Automatically runs rear wiper when selecting reverse gear if front wipers are active.",
         "prerequisites": "Rear wiper."
       },
       {
-        "id": "coming_home_fog_lights",
-        "category": "Exterior Lighting",
-        "byte": 10,
-        "bit": 2,
-        "name": "Coming Home / Leaving Home with Fog Lights",
-        "description": "Uses fog lights instead of xenon/LED low beams for Coming Home lighting to extend bulb life.",
-        "prerequisites": "Front fog lamps."
+        "id": "heated_rear_window_installed",
+        "category": "Wipers & Washers",
+        "byte": 9,
+        "bit": 0,
+        "name": "Heated Rear Defrost Window Installed",
+        "description": "Controls high-current relay driver for rear windscreen heating grid.",
+        "prerequisites": null
+      },
+      {
+        "id": "footwell_ambient_lighting",
+        "category": "Interior Lighting",
+        "byte": 5,
+        "bit": 7,
+        "name": "Interior Footwell Lighting Installed",
+        "description": "Enables LED/bulb footwell illumination with door open and dimmable ambient drive lighting.",
+        "prerequisites": "Footwell LED units."
       }
     ]
   },

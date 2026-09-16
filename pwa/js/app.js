@@ -141,11 +141,12 @@ class VibesApp {
     this.selectedByteIndex = 0;
     this.vin = null;
 
-    // Default 30-byte baseline coding
-    this.baselineHex = '000000000000000000000000000000000000000000000000000000000000';
+    // Default 30-byte baseline coding (realistic MQB stock equipment baseline)
+    this.baselineHex = '30A005004080000000010304000001000000000000000000000000000000';
     this.baselineBytes = hexStringToBytes(this.baselineHex);
     this.currentBytes = new Uint8Array(this.baselineBytes);
     this.hasCapturedBaseline = false;
+    this.featureFilter = 'all'; // 'all' | 'active' | 'inactive'
     this._pendingFeatConfirm = null;
     this._toastTimeout = null;
 
@@ -1447,6 +1448,24 @@ class VibesApp {
       });
     }
 
+    // Filter buttons click handler
+    document.querySelectorAll('.btn-filter-feat').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-filter-feat').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'rgba(100, 116, 139, 0.2)';
+          b.style.color = '#cbd5e1';
+          b.style.borderColor = 'var(--border-color)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--primary)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'var(--primary)';
+        this.featureFilter = btn.getAttribute('data-filter') || 'all';
+        this.renderFeatureList();
+      });
+    });
+
     // Export Community Schema JSON
     const exportSchemaBtn = document.getElementById('btn-export-community-schema');
     if (exportSchemaBtn) {
@@ -1472,141 +1491,188 @@ class VibesApp {
     if (!container) return;
     container.innerHTML = '';
 
-    const features = this.currentSchema.features || [];
-    if (features.length === 0) {
-      container.innerHTML = '<p class="text-muted">No predefined feature toggles for this module. Use the Byte Matrix tab for manual bitwise coding.</p>';
+    const allFeatures = this.currentSchema.features || [];
+    const countAllEl = document.getElementById('count-feat-all');
+    const countActiveEl = document.getElementById('count-feat-active');
+    const countInactiveEl = document.getElementById('count-feat-inactive');
+    const bytesLenEl = document.getElementById('val-coding-bytes-len');
+
+    let activeCount = 0;
+    let inactiveCount = 0;
+
+    allFeatures.forEach(feat => {
+      const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
+      if (isEnabled) activeCount++;
+      else inactiveCount++;
+    });
+
+    if (countAllEl) countAllEl.textContent = allFeatures.length;
+    if (countActiveEl) countActiveEl.textContent = activeCount;
+    if (countInactiveEl) countInactiveEl.textContent = inactiveCount;
+    if (bytesLenEl) bytesLenEl.textContent = this.currentBytes.length;
+
+    let displayFeatures = allFeatures;
+    if (this.featureFilter === 'active') {
+      displayFeatures = allFeatures.filter(f => (this.currentBytes[f.byte] & (1 << f.bit)) !== 0);
+    } else if (this.featureFilter === 'inactive') {
+      displayFeatures = allFeatures.filter(f => (this.currentBytes[f.byte] & (1 << f.bit)) === 0);
+    }
+
+    if (displayFeatures.length === 0) {
+      container.innerHTML = `<p class="text-muted" style="padding: 1.5rem; text-align: center; background: rgba(15, 23, 42, 0.4); border-radius: 8px; border: 1px solid var(--border-color);">No features match the filter "${this.featureFilter}". Use "All Settings" or switch target module.</p>`;
       return;
     }
 
-    features.forEach(feat => {
-      const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
-      const wasOriginalEnabled = (this.baselineBytes[feat.byte] & (1 << feat.bit)) !== 0;
-      const isModified = (isEnabled !== wasOriginalEnabled);
+    // Group features by Category
+    const grouped = {};
+    displayFeatures.forEach(feat => {
+      const cat = feat.category || 'General Vehicle Coding';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(feat);
+    });
 
-      const item = document.createElement('div');
-      item.className = `feature-item ${isModified ? 'feature-item-modified' : ''}`;
-      if (isModified) {
-        item.style.borderLeft = '3px solid var(--warning)';
-        item.style.background = 'rgba(245, 158, 11, 0.05)';
-      }
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
 
-      const info = document.createElement('div');
-      info.className = 'feature-info';
+    Object.keys(grouped).forEach(category => {
+      const catHeader = document.createElement('div');
+      catHeader.style.cssText = 'margin: 1.25rem 0 0.5rem 0; font-size: 0.82rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(100, 116, 139, 0.2); padding-bottom: 4px;';
+      catHeader.innerHTML = `<span>📁 ${category}</span> <span style="font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; background: rgba(100, 116, 139, 0.2); color: #cbd5e1;">${grouped[category].length} setting${grouped[category].length > 1 ? 's' : ''}</span>`;
+      container.appendChild(catHeader);
 
-      let stateBadgeHtml = '';
-      if (isModified) {
-        stateBadgeHtml = `
-          <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; padding:2px 6px; border-radius:4px; background:rgba(245, 158, 11, 0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4); margin-left:6px;">
-            ⚠️ Modified (Was: ${wasOriginalEnabled ? 'ON' : 'OFF'} ➔ Now: ${isEnabled ? 'ON' : 'OFF'})
-          </span>
-        `;
-      } else {
-        stateBadgeHtml = `
-          <span style="display:inline-flex; align-items:center; font-size:0.7rem; padding:1px 5px; border-radius:3px; background:rgba(100, 116, 139, 0.2); color:#94a3b8; margin-left:6px;">
-            Original: ${wasOriginalEnabled ? 'ON' : 'OFF'}
-          </span>
-        `;
-      }
+      grouped[category].forEach(feat => {
+        const isEnabled = (this.currentBytes[feat.byte] & (1 << feat.bit)) !== 0;
+        const wasOriginalEnabled = (this.baselineBytes[feat.byte] & (1 << feat.bit)) !== 0;
+        const isModified = (isEnabled !== wasOriginalEnabled);
 
-      info.innerHTML = `
-        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-          <h4 style="margin:0;">${feat.name}</h4>
-          ${stateBadgeHtml}
-        </div>
-        <p style="margin:4px 0 2px 0;">${feat.description || ''}</p>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
-            [Byte ${feat.byte}, Bit ${feat.bit}] ${feat.prerequisites ? '• ' + feat.prerequisites : ''}
-          </span>
-          ${isModified ? `<button type="button" class="btn-revert-feature" style="background:none; border:none; color:#38bdf8; font-size:0.72rem; cursor:pointer; text-decoration:underline; padding:0;">↺ Revert to Original (${wasOriginalEnabled ? 'ON' : 'OFF'})</button>` : ''}
-        </div>
-      `;
-
-      const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
-
-      if (isModified) {
-        const revertBtn = info.querySelector('.btn-revert-feature');
-        if (revertBtn) {
-          if (!isConnected) {
-            revertBtn.disabled = true;
-            revertBtn.style.opacity = '0.38';
-            revertBtn.style.cursor = 'not-allowed';
-            revertBtn.title = 'Connect Bluetooth to revert feature';
-          } else {
-            revertBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              if (wasOriginalEnabled) {
-                this.currentBytes[feat.byte] |= (1 << feat.bit);
-              } else {
-                this.currentBytes[feat.byte] &= ~(1 << feat.bit);
-              }
-              this.renderFeatureList();
-              this.renderByteGrid();
-              this.renderBitSwitches();
-            });
-          }
+        const item = document.createElement('div');
+        item.className = `feature-item ${isModified ? 'feature-item-modified' : ''}`;
+        if (isModified) {
+          item.style.borderLeft = '3px solid var(--warning)';
+          item.style.background = 'rgba(245, 158, 11, 0.05)';
+        } else if (isEnabled) {
+          item.style.borderLeft = '3px solid #10b981';
         }
-      }
 
-      const toggleLabel = document.createElement('label');
-      toggleLabel.className = `toggle-switch ${!isConnected ? 'disabled' : ''}`;
+        const info = document.createElement('div');
+        info.className = 'feature-info';
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = isEnabled;
-      if (!isConnected) {
-        checkbox.disabled = true;
-        checkbox.title = 'Connect Bluetooth to toggle vehicle coding';
-      }
+        let stateBadgeHtml = '';
+        if (isModified) {
+          stateBadgeHtml = `
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; padding:2px 6px; border-radius:4px; background:rgba(245, 158, 11, 0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4); margin-left:6px;">
+              ⚠️ Modified (Was: ${wasOriginalEnabled ? 'ON' : 'OFF'} ➔ Now: ${isEnabled ? 'ON' : 'OFF'})
+            </span>
+          `;
+        } else if (isEnabled) {
+          stateBadgeHtml = `
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; padding:1px 6px; border-radius:4px; background:rgba(16, 185, 129, 0.15); color:#34d399; font-weight:700; border:1px solid rgba(16, 185, 129, 0.3); margin-left:6px;">
+              🟢 Active / ON
+            </span>
+          `;
+        } else {
+          stateBadgeHtml = `
+            <span style="display:inline-flex; align-items:center; font-size:0.7rem; padding:1px 5px; border-radius:3px; background:rgba(100, 116, 139, 0.2); color:#94a3b8; margin-left:6px;">
+              ⚪ Disabled / OFF
+            </span>
+          `;
+        }
 
-      const slider = document.createElement('span');
-      slider.className = 'slider';
+        info.innerHTML = `
+          <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+            <h4 style="margin:0;">${feat.name}</h4>
+            ${stateBadgeHtml}
+          </div>
+          <p style="margin:4px 0 2px 0;">${feat.description || ''}</p>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
+              [Byte ${feat.byte}, Bit ${feat.bit}] ${feat.prerequisites ? '• ' + feat.prerequisites : ''}
+            </span>
+            ${isModified ? `<button type="button" class="btn-revert-feature" style="background:none; border:none; color:#38bdf8; font-size:0.72rem; cursor:pointer; text-decoration:underline; padding:0;">↺ Revert to Original (${wasOriginalEnabled ? 'ON' : 'OFF'})</button>` : ''}
+          </div>
+        `;
 
-      checkbox.addEventListener('change', () => {
-        const targetState = checkbox.checked;
-        const origState = wasOriginalEnabled;
-
-        this.confirmFeatureToggle({
-          feature: feat,
-          targetState,
-          origState,
-          onProceed: () => {
-            // Clone current bytes
-            const modifiedBytes = new Uint8Array(this.currentBytes);
-            if (targetState) {
-              modifiedBytes[feat.byte] |= (1 << feat.bit);
+        if (isModified) {
+          const revertBtn = info.querySelector('.btn-revert-feature');
+          if (revertBtn) {
+            if (!isConnected) {
+              revertBtn.disabled = true;
+              revertBtn.style.opacity = '0.38';
+              revertBtn.style.cursor = 'not-allowed';
+              revertBtn.title = 'Connect Bluetooth to revert feature';
             } else {
-              modifiedBytes[feat.byte] &= ~(1 << feat.bit);
-            }
-
-            // Request Pre-Write Safety Audit Modal
-            this.promptSafetyAudit({
-              featureName: feat.name,
-              modifiedBytes,
-              onSuccess: () => {
-                this.currentBytes = modifiedBytes;
+              revertBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wasOriginalEnabled) {
+                  this.currentBytes[feat.byte] |= (1 << feat.bit);
+                } else {
+                  this.currentBytes[feat.byte] &= ~(1 << feat.bit);
+                }
                 this.renderFeatureList();
                 this.renderByteGrid();
                 this.renderBitSwitches();
-                this.vibrate([40, 20, 40]);
-              },
-              onCancel: () => {
-                checkbox.checked = !targetState; // Revert
-              }
-            });
-          },
-          onCancel: () => {
-            checkbox.checked = !targetState; // Revert switch
+              });
+            }
           }
+        }
+
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = `toggle-switch ${!isConnected ? 'disabled' : ''}`;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = isEnabled;
+        if (!isConnected) {
+          checkbox.disabled = true;
+          checkbox.title = 'Connect Bluetooth to toggle vehicle coding';
+        }
+
+        const slider = document.createElement('span');
+        slider.className = 'slider';
+
+        checkbox.addEventListener('change', () => {
+          const targetState = checkbox.checked;
+          const origState = wasOriginalEnabled;
+
+          this.confirmFeatureToggle({
+            feature: feat,
+            targetState,
+            origState,
+            onProceed: () => {
+              const modifiedBytes = new Uint8Array(this.currentBytes);
+              if (targetState) {
+                modifiedBytes[feat.byte] |= (1 << feat.bit);
+              } else {
+                modifiedBytes[feat.byte] &= ~(1 << feat.bit);
+              }
+
+              this.promptSafetyAudit({
+                featureName: feat.name,
+                modifiedBytes,
+                onSuccess: () => {
+                  this.currentBytes = modifiedBytes;
+                  this.renderFeatureList();
+                  this.renderByteGrid();
+                  this.renderBitSwitches();
+                  this.vibrate([40, 20, 40]);
+                },
+                onCancel: () => {
+                  checkbox.checked = !targetState;
+                }
+              });
+            },
+            onCancel: () => {
+              checkbox.checked = !targetState;
+            }
+          });
         });
+
+        toggleLabel.appendChild(checkbox);
+        toggleLabel.appendChild(slider);
+
+        item.appendChild(info);
+        item.appendChild(toggleLabel);
+        container.appendChild(item);
       });
-
-      toggleLabel.appendChild(checkbox);
-      toggleLabel.appendChild(slider);
-
-      item.appendChild(info);
-      item.appendChild(toggleLabel);
-      container.appendChild(item);
     });
   }
 
