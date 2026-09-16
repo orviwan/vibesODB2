@@ -44,7 +44,8 @@ export const MODULE_ARBITRATION = {
   '0x19': { tx: '710', rx: '77A', name: 'CAN Gateway' },
   '0x08': { tx: '714', rx: '77E', name: 'Climatronic' },
   '0x10': { tx: '714', rx: '77E', name: 'Park Distance Control' },
-  '0x01': { tx: '7E0', rx: '7E8', name: 'Engine ECU' }
+  '0x01': { tx: '7E0', rx: '7E8', name: 'Engine ECU' },
+  '0x53': { tx: '746', rx: '7B0', name: 'Parking Brake (EPB)' }
 };
 
 export class UdsClient {
@@ -66,6 +67,9 @@ export class UdsClient {
     await this.transport.setHeader(tx);
     if (rx && this.transport.setFilter) {
       await this.transport.setFilter(rx);
+    }
+    if (this.transport.setFlowControl) {
+      await this.transport.setFlowControl(tx, rx);
     }
   }
 

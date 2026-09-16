@@ -322,6 +322,20 @@ export class WebBleTransport {
     }
   }
 
+  async setFlowControl(txHex, rxHex) {
+    try {
+      if (txHex && txHex !== '7DF') {
+        await this.sendCommand(`ATFCSH ${txHex}`);
+        await this.sendCommand('ATFCSD 300000');
+        await this.sendCommand('ATFCSM 1');
+      } else {
+        await this.sendCommand('ATFCSM 0');
+      }
+    } catch (e) {
+      // Ignore if adapter is basic clone
+    }
+  }
+
   async disconnect() {
     if (this.device && this.device.gatt.connected) {
       await this.device.gatt.disconnect();

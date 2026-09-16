@@ -378,6 +378,9 @@ class VibesApp {
       let vin = null;
       try {
         await this.bleTransport.setHeader('7DF');
+        if (this.bleTransport.setFlowControl) {
+          await this.bleTransport.setFlowControl(null);
+        }
         const vinResp = await this.bleTransport.sendCommand('0902', 2500);
         vin = this._extractVinFromResponse(vinResp);
       } catch (ve) {
@@ -385,7 +388,7 @@ class VibesApp {
       }
 
       if (!vin) {
-        const checkModules = [this.currentSchema.module_address || '0x09', '0x19', '0x01'];
+        const checkModules = ['0x19', this.currentSchema.module_address || '0x09', '0x01'];
         for (const mod of checkModules) {
           try {
             await this.udsClient.setModuleAddress(mod);
@@ -403,7 +406,7 @@ class VibesApp {
         this.vin = vin;
         console.log('Vehicle VIN detected:', vin);
         // Automatic platform switching (MQB for Golf 7 / 7.5: 5G, BA, AU, BQ, 8V, etc.)
-        if (/5G|BA|AU|BQ|8V|5F|5E|3G|AD|BW|7L/i.test(vin)) {
+        if (/5G|BA|AU|BQ|8V|5F|5E|NE|NX|3G|AD|BW|7L|KH|NS/i.test(vin)) {
           this.selectedSchemaKey = 'mqb_bcm_0x09';
           this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
           const sel = document.getElementById('schema-select');
@@ -452,7 +455,7 @@ class VibesApp {
               const snStr = bytesToAscii(snBytes);
               if (snStr && snStr.length >= 4) {
                 ecuSerial = snStr;
-              } else if (snBytes && snBytes.length > 0) {
+              } else if (snBytes && snBytes.length >= 4) {
                 ecuSerial = bytesToHexString(snBytes);
               }
             } catch (e) {}

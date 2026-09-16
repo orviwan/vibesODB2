@@ -13,11 +13,14 @@ export class IsoTpAssembler {
     if (!rawResponse) return new Uint8Array([]);
 
     const clean = rawResponse.replace(/>/g, '').trim();
-    if (/NO DATA|ERROR|CAN ERROR|UNABLE|BUFFER FULL|STOPPED|\?/i.test(clean)) {
+    if (/^(NO DATA|ERROR|CAN ERROR|FC ERROR|FB ERROR|DATA ERROR|BUFFER FULL|STOPPED|UNABLE TO CONNECT|\?)$/i.test(clean)) {
       return new Uint8Array([]);
     }
 
-    const lines = clean.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    const lines = clean.split(/[\r\n]+/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !/NO DATA|CAN ERROR|FC ERROR|FB ERROR|DATA ERROR|BUFFER FULL|STOPPED|UNABLE|\?|SEARCHING|BUS INIT/i.test(l));
+
     if (lines.length === 0) return new Uint8Array([]);
 
     // Check for ELM327 "0: 62 F1 90 ... 1: 5A ..." multi-frame format
@@ -25,8 +28,8 @@ export class IsoTpAssembler {
     if (isIndexedMultiFrame) {
       const hexTokens = [];
       for (const line of lines) {
-        const stripped = line.replace(/^[0-9A-F]+:\s*/i, '').trim();
-        const tokens = stripped.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
+        const cleanedLine = line.replace(/[0-9A-F]+:\s*/gi, ' ');
+        const tokens = cleanedLine.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
         hexTokens.push(...tokens);
       }
       const bytes = hexTokens.map(t => parseInt(t, 16));
@@ -70,11 +73,6 @@ export class IsoTpAssembler {
         totalLength = (lenHigh << 8) | lenLow;
         const data = byteTokens.slice(2).map(b => parseInt(b, 16));
         payload.push(...data);
-
-        // Send Flow Control frame if hardware flow control is not auto-handling it
-        try {
-          await this.transport.sendCommand('30 00 00', 800);
-        } catch (e) {}
       } else if (frameType === 0x2 && isIsoTp) {
         // Consecutive Frame
         const data = byteTokens.slice(1).map(b => parseInt(b, 16));
