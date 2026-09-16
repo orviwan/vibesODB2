@@ -134,8 +134,14 @@ export class MaintenanceManager {
           this.showToast('Battery registration parameters loaded from Gateway.');
         } catch (err) {
           if (statusEl) {
-            statusEl.textContent = 'Could not read existing battery parameters: ' + (err.message || err);
-            statusEl.style.color = '#fbbf24';
+            const isUnsupported = err.unsupported || err.message?.includes('J367') || err.message?.includes('0x31');
+            if (isUnsupported) {
+              statusEl.textContent = 'ℹ️ Battery monitoring channels not found on Gateway (0x19). Your vehicle does not have a J367 Battery Monitoring Sensor (normal for models without Start/Stop).';
+              statusEl.style.color = '#94a3b8';
+            } else {
+              statusEl.textContent = '⚠️ Could not read existing battery parameters: ' + (err.message || err);
+              statusEl.style.color = '#fbbf24';
+            }
           }
         } finally {
           btnRead.disabled = false;
@@ -182,7 +188,7 @@ export class MaintenanceManager {
             statusEl.textContent = '❌ Battery registration failed: ' + (err.message || err);
             statusEl.style.color = '#f87171';
           }
-          alert('Failed to register battery: ' + (err.message || err));
+          alert('Battery Registration Status:\n\n' + (err.message || err));
         } finally {
           btnApply.disabled = false;
           btnApply.textContent = '⚡ Register New Battery';

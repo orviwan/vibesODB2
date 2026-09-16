@@ -45,7 +45,8 @@ export const MODULE_ARBITRATION = {
   '0x08': { tx: '714', rx: '77E', name: 'Climatronic' },
   '0x10': { tx: '714', rx: '77E', name: 'Park Distance Control' },
   '0x01': { tx: '7E0', rx: '7E8', name: 'Engine ECU' },
-  '0x53': { tx: '746', rx: '7B0', name: 'Parking Brake (EPB)' }
+  '0x53': { tx: '746', rx: '7B0', name: 'Parking Brake (EPB)' },
+  '0x61': { tx: '761', rx: '769', name: 'Battery Regulation' }
 };
 
 export class UdsClient {
@@ -267,49 +268,195 @@ export class UdsClient {
     return success;
   }
 
-  // --- 12V Battery Registration (Gateway 0x19) ---
+  // --- 12V Battery Registration (Gateway 0x19 / Module 0x61) ---
   async readBatteryConfig() {
-    await this.setTargetModule('0x19'); // CAN Gateway (710)
+    // 1. Try CAN Gateway 0x19
+    await this.setTargetModule('0x19');
     await this.enterExtendedSession();
 
-    let capacityAh = 70;
-    let tech = 'AGM';
-    let serial = '1111111111';
-    let vendor = 'JCB';
+    let capacityAh = null;
+    let tech = null;
+    let vendor = null;
+    let serial = null;
+    let foundAny = false;
 
+    // Check MQB separate adaptation DIDs:
+    // 0x0E0C = Capacity, 0x0E0D = Tech, 0x0E0E = Vendor, 0x0E0F = Serial
     try {
-      const raw = await this.readDataById('002B');
-      if (raw && raw.length >= 4) {
-        capacityAh = raw[0];
-        serial = bytesToAscii(raw.slice(1)) || serial;
+      const capRaw = await this.readDataById('0E0C');
+      if (capRaw && capRaw.length > 0) {
+        foundAny = true;
+        const str = bytesToAscii(capRaw);
+        const match = str.match(/\d+/);
+        if (match) {
+          capacityAh = parseInt(match[0], 10);
+        } else if (capRaw.length >= 2) {
+          capacityAh = (capRaw[0] << 8) | capRaw[1];
+        } else if (capRaw.length === 1) {
+          capacityAh = capRaw[0];
+        }
       }
     } catch (e) {}
 
-    return { capacityAh, tech, vendor, serial };
+    try {
+      const techRaw = await this.readDataById('0E0D');
+      if (techRaw && techRaw.length > 0) {
+        foundAny = true;
+        const tStr = bytesToAscii(techRaw).toUpperCase();
+        if (tStr.includes('AGM') || tStr.includes('FLEECE')) tech = 'AGM';
+        else if (tStr.includes('EFB')) tech = 'EFB';
+        else if (tStr.includes('GEL')) tech = 'GEL';
+        else if (tStr.includes('WET') || tStr.includes('NASS')) tech = 'WET';
+      }
+    } catch (e) {}
+
+    try {
+      const venRaw = await this.readDataById('0E0E');
+      if (venRaw && venRaw.length > 0) {
+        foundAny = true;
+        vendor = bytesToAscii(venRaw).slice(0, 3).toUpperCase();
+      }
+    } catch (e) {}
+
+    try {
+      const serRaw = await this.readDataById('0E0F');
+      if (serRaw && serRaw.length > 0) {
+        foundAny = true;
+        serial = bytesToAscii(serRaw).slice(0, 10);
+      }
+    } catch (e) {}
+
+    // Check Combined DIDs if separate DIDs not present: 0x0607, 0x2A00, 0x002B
+    if (!foundAny) {
+      for (const cDid of ['0607', '2A00', '1A02', '002B']) {
+        try {
+          const raw = await this.readDataById(cDid);
+          if (raw && raw.length >= 4) {
+            foundAny = true;
+            capacityAh = raw[0];
+            const asc = bytesToAscii(raw.slice(1));
+            if (asc.length >= 10) serial = asc.slice(0, 10);
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+
+    // If still not found, check Module 0x61 (Battery Regulation on PQ platforms / T5 / T6)
+    if (!foundAny) {
+      try {
+        await this.setTargetModule('0x61', '761', '769');
+        await this.enterExtendedSession();
+        const raw61 = await this.readDataById('0001');
+        if (raw61 && raw61.length >= 4) {
+          foundAny = true;
+          capacityAh = raw61[0];
+          serial = bytesToAscii(raw61.slice(1)) || serial;
+        }
+      } catch (e) {}
+    }
+
+    if (!foundAny) {
+      const notSupportedErr = new Error("Battery monitoring channels not found in Gateway (0x19). Your vehicle might not have a J367 Battery Monitoring Sensor (standard on models without Start-Stop / energy recuperation).");
+      notSupportedErr.unsupported = true;
+      throw notSupportedErr;
+    }
+
+    return {
+      capacityAh: capacityAh || 70,
+      tech: tech || 'AGM',
+      vendor: vendor || 'JCB',
+      serial: serial || '1111111111'
+    };
   }
 
   async writeBatteryConfig({ capacityAh = 70, tech = 'AGM', vendor = 'JCB', serial = '1111111111' }) {
     await this.setTargetModule('0x19');
     await this.enterExtendedSession();
 
-    const cleanSerial = (serial || '1111111111').slice(0, 10).padEnd(10, '0');
-    const serialBytes = [];
-    for (let i = 0; i < cleanSerial.length; i++) {
-      serialBytes.push(cleanSerial.charCodeAt(i));
-    }
-
-    const payload = [
-      Math.min(120, Math.max(30, parseInt(capacityAh, 10) || 70)),
-      ...serialBytes
-    ];
-
+    // 1. Attempt Security Access with VAG Gateway Login 20103
     try {
-      await this.writeDataById('002B', payload);
-      return true;
-    } catch (err) {
-      console.warn('Battery coding write fallback:', err);
-      return true;
+      await this.securityAccess('20103');
+    } catch (secErr) {
+      console.warn('Gateway Security Access login notice:', secErr);
     }
+
+    const cleanCap = Math.min(120, Math.max(30, parseInt(capacityAh, 10) || 70));
+    const cleanTech = (tech || 'AGM').toUpperCase();
+    const cleanVendor = (vendor || 'JCB').slice(0, 3).padEnd(3, ' ').toUpperCase();
+    const cleanSerial = (serial || '1111111111').slice(0, 10).padEnd(10, '0');
+
+    let writeSuccess = false;
+    let lastError = null;
+
+    // A. Try MQB separate DIDs (0x0E0C to 0x0E0F)
+    try {
+      // 0x0E0C: Capacity (2 ASCII digits or integer)
+      const capBytes = Array.from(cleanCap.toString().padStart(3, '0')).map(c => c.charCodeAt(0));
+      await this.writeDataById('0E0C', capBytes);
+
+      // 0x0E0D: Tech (Fleece/AGM, EFB, Wet, Gel)
+      const techStr = cleanTech === 'AGM' ? 'Fleece' : cleanTech;
+      const techBytes = Array.from(techStr).map(c => c.charCodeAt(0));
+      await this.writeDataById('0E0D', techBytes);
+
+      // 0x0E0E: Vendor
+      const venBytes = Array.from(cleanVendor).map(c => c.charCodeAt(0));
+      await this.writeDataById('0E0E', venBytes);
+
+      // 0x0E0F: Serial
+      const serBytes = Array.from(cleanSerial).map(c => c.charCodeAt(0));
+      await this.writeDataById('0E0F', serBytes);
+
+      writeSuccess = true;
+    } catch (e) {
+      lastError = e;
+    }
+
+    // B. Try Combined DIDs if separate did not succeed
+    if (!writeSuccess) {
+      const serialBytes = Array.from(cleanSerial).map(c => c.charCodeAt(0));
+      const venBytes = Array.from(cleanVendor).map(c => c.charCodeAt(0));
+      const combinedPayload = [cleanCap, ...venBytes, ...serialBytes];
+
+      for (const cDid of ['0607', '2A00', '1A02', '002B']) {
+        try {
+          await this.writeDataById(cDid, combinedPayload);
+          writeSuccess = true;
+          break;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+    }
+
+    // C. Try Module 0x61 if Gateway 0x19 did not accept
+    if (!writeSuccess) {
+      try {
+        await this.setTargetModule('0x61', '761', '769');
+        await this.enterExtendedSession();
+        const serialBytes = Array.from(cleanSerial).map(c => c.charCodeAt(0));
+        await this.writeDataById('0001', [cleanCap, ...serialBytes]);
+        writeSuccess = true;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (!writeSuccess) {
+      const isNrc31 = lastError && (lastError.nrc === 0x31 || lastError.message?.includes('0x31'));
+      const isNrc33 = lastError && (lastError.nrc === 0x33 || lastError.message?.includes('0x33'));
+
+      if (isNrc31) {
+        throw new Error("Vehicle Gateway rejected battery coding (NRC 0x31: Out of Range). Your vehicle likely does NOT have a J367 Battery Monitoring Sensor (standard on models without Start-Stop). Battery registration is not needed on this vehicle.");
+      } else if (isNrc33) {
+        throw new Error("Security Access Denied (NRC 0x33). The CAN Gateway did not accept programming access code 20103.");
+      } else {
+        throw new Error(lastError ? lastError.message : "CAN Gateway rejected battery adaptation write.");
+      }
+    }
+
+    return true;
   }
 
   // --- Electronic Parking Brake (EPB) Service Mode ---

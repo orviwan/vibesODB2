@@ -23,44 +23,51 @@
 
 👉 [**Open vibesODB2 (https://orviwan.github.io/vibesODB2/)**](https://orviwan.github.io/vibesODB2/)
 
-| Live Digital Dashboard | Feature Tweaks (Coding) | Byte Matrix & Inspector | Safety Backups & Restores |
+| Live Digital Dashboard | Feature Tweaks (Coding) | Service & Maintenance | Byte Matrix & Inspector |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/images/pwa_mobile_cockpit.png" width="220" /> | <img src="docs/images/pwa_mobile_coding.png" width="220" /> | <img src="docs/images/pwa_mobile_matrix.png" width="220" /> | <img src="docs/images/pwa_mobile_safety_modal.png" width="220" /> |
+| <img src="docs/images/pwa_mobile_cockpit.png" width="220" /> | <img src="docs/images/pwa_mobile_coding.png" width="220" /> | <img src="docs/images/pwa_mobile_service.png" width="220" /> | <img src="docs/images/pwa_mobile_matrix.png" width="220" /> |
 
 ---
 
 ## ✨ What Can You Do with vibesODB2?
 
-### 🏎️ 1. Live Digital Dashboard (Virtual Cockpit)
-Stream real-time driving gauges on your mounted phone:
-* Digital speedometer (km/h & mph) and tachometer with redline warnings.
-* Turbo boost gauge (bar & PSI), throttle position, and DSG gear indicator.
-* Thermal gauges (Coolant temperature, Intake Air temp, Turbo exhaust gas temp).
-* Diesel Particulate Filter (DPF) soot mass loading and fuel rail pressure.
-* Screen wake lock keeps your phone display awake while driving.
+### 🏎️ 1. Live Digital Dashboard & Scope (Virtual Cockpit)
+Stream real-time driving gauges and record telemetry runs on your mounted phone:
+* **Digital Speedometer & Tachometer**: Live km/h & mph with redline alerts.
+* **Turbo Boost & Engine Load**: Real-time boost gauge (bar & PSI), throttle position, and DSG gear indicator.
+* **Thermal Sensors**: Coolant temperature, Intake Air temperature, and Exhaust Gas temperature (EGT).
+* **Emissions & Fueling**: Diesel Particulate Filter (DPF) soot mass loading and Common Rail fuel pressure.
+* **📈 Live Telemetry Scope & CSV Export**: Graph live sensor parameters in real time (VAG-Scope style) and export your driving sessions to `.csv` files.
+* **Screen Wake Lock**: Keeps your phone display awake while driving.
 
 ### ⚡ 2. One-Tap Feature Tweaks (Long Coding)
-Customize your car's features using friendly toggle switches:
-* **Gauge Needle Sweep / Staging**: Needles sweep to max on ignition startup.
-* **Acoustic Lock Chirp**: Quick alarm chirp confirmation when locking.
-* **Speed-Dependent Auto-Lock**: Automatically lock doors over 15 km/h.
-* **Tear Wiping / Rain Functions**: Extra final wipe after windscreen washers.
-* **Mirror Dip on Reverse Gear**: Automatically tilts the passenger mirror down when reversing.
-* **Cornering Fog Lights**: Illuminates the fog light in the direction you turn.
+Inspect your car's factory-enabled equipment and toggle enthusiast tweaks using categorized switches:
+* **Active vs. Disabled Filter Pills**: Quickly filter between `🟢 Active / ON`, `⚪ Disabled / OFF`, or browse all platform settings.
+* **Daytime Running Lights (DRL)**: Standard DRL, Scandinavian rear DRLs, or auto-off with handbrake.
+* **Central Locking & Convenience**: Speed auto-lock (>15 km/h), auto-unlock on key extraction, and remote window roll up/down via key fob.
+* **Mirrors & Lighting**: Heated exterior mirrors, passenger mirror dip in reverse gear, acoustic alarm lock beep, and dynamic cornering fog lights.
+* **Wipers & Washers**: Teardrop wipe, rear wiper reverse sync, and heated rear windscreen.
 
-### 🛡️ 3. Automatic Backups & One-Click Undo
+### 🔧 3. Service & Maintenance Tools
+Perform routine maintenance without expensive dealer tools:
+* **Service Reminder Reset (SRI)**: Reset Oil Service distance and time intervals (0 km / 0 days) and custom Inspection intervals on the Instrument Cluster (`0x17`).
+* **12V Battery Registration**: Read and write battery capacity (Ah), battery chemistry (`AGM`, `EFB`, `Wet`, `Gel`), vendor (`JCB`, `VAO`), and serial numbers to the CAN Gateway (`0x19`) or Battery Regulation (`0x61`).
+* **Electronic Parking Brake (EPB) Service Mode**: Safely retract rear brake caliper electric motors (`0x53`) into service position for brake pad changes, and recalibrate after installation.
+* **True Engine ECU Mileage**: Read untampered odometer mileage stored internally in the Engine Control Unit (`0x01`) to inspect used cars for odometer rollback.
+
+### 🛡️ 4. Automatic Backups & One-Click Undo
 Never worry about losing your original settings:
 * Automatically saves an immutable snapshot before any setting is written.
 * **Backup Explorer**: View byte-by-byte differences between your snapshots and active settings.
 * One-tap restore gets you back to your factory baseline instantly.
 
-### 🔍 4. Fault Code Scanner (DTCs)
+### 🔍 5. Fault Code Scanner (DTCs)
 * Read active and pending Diagnostic Trouble Codes across vehicle modules.
-* Clear fault codes and reset warning lights (engine, ABS, airbag, convenience systems) after maintenance.
+* Clear fault codes and reset warning lights (Engine Check, ABS, Airbag, BCM convenience systems) after repairs.
 
-### 🚗 5. Vehicle & ECU Identification
-* Auto-decodes your 17-digit VIN to show your exact vehicle model, model year, and factory assembly plant.
-* Reads ECU hardware part numbers, software version numbers, and serial numbers.
+### 🚗 6. Vehicle & ECU Identification
+* Auto-decodes your 17-digit VIN to show your exact vehicle model, model year, assembly plant, and chassis serial number.
+* Reads live ECU hardware part numbers, software version numbers, and ECU serial numbers directly over UDS.
 
 ---
 

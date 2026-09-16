@@ -243,7 +243,7 @@ class VibesApp {
 
         if (targetTab === 'tab-backups') {
           this.renderBackupsList();
-        } else if (targetTab === 'tab-features') {
+        } else if (targetTab === 'tab-coding') {
           this.renderFeatureList();
         } else if (targetTab === 'tab-matrix') {
           this.renderByteGrid();
@@ -258,6 +258,18 @@ class VibesApp {
         const dtcTabBtn = document.querySelector('.tab-btn[data-tab="tab-dtcs"]');
         if (dtcTabBtn) dtcTabBtn.click();
       });
+    }
+
+    // Support direct tab / modal opening via URL hash (e.g. #tab-coding, #tab-service, #modal-safety)
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      if (hash.startsWith('modal-')) {
+        const modal = document.getElementById(hash);
+        if (modal) modal.classList.add('active');
+      } else {
+        const matchBtn = document.querySelector(`.tab-btn[data-tab="${hash}"]`);
+        if (matchBtn) setTimeout(() => matchBtn.click(), 50);
+      }
     }
   }
 

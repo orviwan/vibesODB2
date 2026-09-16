@@ -151,15 +151,35 @@ def main():
         time.sleep(1.0)
         base_url = f"http://127.0.0.1:{port}"
 
-        # 1. Cockpit
+        # 1. Virtual Cockpit
         img_cockpit = OUTPUT_DIR / "pwa_mobile_cockpit.png"
-        capture_url(f"{base_url}/index.html", img_cockpit, wait_ms=2500, width=420, height=900)
+        capture_url(f"{base_url}/index.html#tab-cockpit", img_cockpit, wait_ms=2000, width=430, height=932)
 
-        # 2. Terminal Cockpit HUD
+        # 2. Feature Coding (23 Features with categories & filter pills)
+        img_coding = OUTPUT_DIR / "pwa_mobile_coding.png"
+        capture_url(f"{base_url}/index.html#tab-coding", img_coding, wait_ms=2000, width=430, height=932)
+
+        # 3. Interactive Byte Matrix
+        img_matrix = OUTPUT_DIR / "pwa_mobile_matrix.png"
+        capture_url(f"{base_url}/index.html#tab-matrix", img_matrix, wait_ms=2000, width=430, height=932)
+
+        # 4. Service & Maintenance Tools
+        img_service = OUTPUT_DIR / "pwa_mobile_service.png"
+        capture_url(f"{base_url}/index.html#tab-service", img_service, wait_ms=2000, width=430, height=932)
+
+        # 5. Fault Codes Scanner
+        img_dtcs = OUTPUT_DIR / "pwa_mobile_dtcs.png"
+        capture_url(f"{base_url}/index.html#tab-dtcs", img_dtcs, wait_ms=2000, width=430, height=932)
+
+        # 6. Safety Guardrail Audit Modal
+        img_modal = OUTPUT_DIR / "pwa_mobile_safety_modal.png"
+        capture_url(f"{base_url}/index.html#modal-safety", img_modal, wait_ms=2000, width=430, height=932)
+
+        # 7. Terminal Cockpit HUD
         img_hud = OUTPUT_DIR / "vibesodb2_terminal_hud.png"
         generate_terminal_hud_screenshot(img_hud)
 
-        print("\nScreenshots updated successfully!")
+        print("\nAll screenshots captured and updated successfully!")
 
     finally:
         server.shutdown()
