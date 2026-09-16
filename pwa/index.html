@@ -257,7 +257,8 @@
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.75rem;">
         <div class="card-title" style="margin:0;">Select Target Vehicle Platform & Module</div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-          <button id="btn-open-add-custom" class="btn btn-primary" style="font-size:0.78rem; padding:5px 12px;">➕ Add Custom Setting</button>
+          <button id="btn-read-live-coding" class="btn btn-primary" style="font-size:0.78rem; padding:5px 12px; background:linear-gradient(135deg, #0284c7, #0369a1);" title="Read real factory Long Coding directly from ECU">🔄 Read Vehicle Long Coding</button>
+          <button id="btn-open-add-custom" class="btn btn-secondary" style="font-size:0.78rem; padding:5px 12px;">➕ Add Custom Setting</button>
           <button id="btn-export-community-schema" class="btn btn-secondary" style="font-size:0.78rem; padding:5px 12px;" title="Export active schema and custom settings for sharing">📤 Export Schema</button>
         </div>
       </div>
@@ -282,9 +283,12 @@
     </div>
 
     <div class="card" style="margin-bottom: 1.25rem;">
-      <div class="card-title">
-        <span>30-Byte Coding Buffer</span>
-        <span id="selected-byte-index" style="color: var(--primary-light); font-family: var(--font-mono); font-size: 0.85rem;">Byte 0 (0x68)</span>
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div>
+          <span>30-Byte Coding Buffer</span>
+          <span id="selected-byte-index" style="color: var(--primary-light); font-family: var(--font-mono); font-size: 0.85rem; margin-left:8px;">Byte 0 (0x68)</span>
+        </div>
+        <button id="btn-matrix-read-coding" class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px;" title="Re-read coding from ECU">🔄 Refresh from ECU</button>
       </div>
       <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
         Click any byte below to inspect and flip its individual 8 bits:

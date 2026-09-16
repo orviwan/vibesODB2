@@ -242,6 +242,11 @@ class VibesApp {
 
         if (targetTab === 'tab-backups') {
           this.renderBackupsList();
+        } else if (targetTab === 'tab-features') {
+          this.renderFeatureList();
+        } else if (targetTab === 'tab-matrix') {
+          this.renderByteGrid();
+          this.renderBitSwitches();
         }
       });
     });
@@ -485,41 +490,14 @@ class VibesApp {
         ecuSerial
       });
 
-      // 3. Read live Long Coding from target module (BCM 0x09, DID 0x0600)
-      let liveCoding = null;
+      // 3. Read live Long Coding from target module (BCM 0x09)
       try {
-        await this.udsClient.setModuleAddress(this.currentSchema.module_address || '0x09');
-        await this.udsClient.enterExtendedSession();
-        const readDid = this.currentSchema.coding_did || '0600';
-        liveCoding = await this.udsClient.readDataById(readDid);
+        await this.readLiveCodingFromVehicle(true);
       } catch (ce) {
-        console.warn('UDS Long Coding read error:', ce);
+        console.warn('Post-connect live coding read fallback:', ce);
       }
 
-      if (liveCoding && liveCoding.length >= 10) {
-        this.baselineBytes = new Uint8Array(liveCoding);
-        this.currentBytes = new Uint8Array(liveCoding);
-        this.baselineHex = bytesToHexString(this.baselineBytes);
-      }
-
-      // 4. Automatically capture Baseline Snapshot #1 on first connect
-      const backup = await saveBackup({
-        vin: this.vin || 'UNKNOWN_VIN',
-        moduleAddress: this.currentSchema.module_address || '0x09',
-        did: this.currentSchema.coding_did || '0x0600',
-        featureName: 'Initial Connect Baseline Snapshot (Auto-Protected)',
-        rawHexData: bytesToHexString(this.baselineBytes),
-        timestamp: new Date().toISOString()
-      });
-
-      this.hasCapturedBaseline = true;
-      this.showToast(`🛡️ Baseline Snapshot #${backup.id} automatically captured! Factory coding safely stored.`);
-      this.renderBackupsList();
-      this.renderByteGrid();
-      this.renderBitSwitches();
-      this.renderFeatureList();
-
-      // 5. Automatic Background Diagnostic Trouble Code (DTC) Scan
+      // 4. Automatic Background Diagnostic Trouble Code (DTC) Scan
       try {
         const dtcs = await this.udsClient.readDTCs();
         this.updateCockpitDtcAlert(dtcs);
@@ -1288,8 +1266,98 @@ class VibesApp {
     drawSeries('#a855f7', pt => pt.egt, 900);         // EGT (0-900°C)
   }
 
+  async readLiveCodingFromVehicle(isAutoBaseline = false) {
+    if (!this.bleTransport || !this.bleTransport.isConnected) {
+      if (!isAutoBaseline) {
+        alert('Please connect your Bluetooth OBD-II adapter first.');
+      }
+      return false;
+    }
+
+    const targetMod = this.currentSchema.module_address || '0x09';
+    if (!isAutoBaseline) {
+      this.showToast(`Reading live Long Coding from module ${targetMod}...`);
+    }
+
+    try {
+      await this.udsClient.setModuleAddress(targetMod);
+      await this.udsClient.enterExtendedSession();
+
+      const primaryDid = (this.currentSchema.coding_did || '0600').replace(/^0x/i, '');
+      const candidateDids = [primaryDid, '0600', 'F1A0', '0100'].filter((d, i, a) => a.indexOf(d) === i);
+      let liveCoding = null;
+
+      for (const cDid of candidateDids) {
+        try {
+          const resBytes = await this.udsClient.readDataById(cDid);
+          if (resBytes && resBytes.length >= 10) {
+            liveCoding = resBytes;
+            console.log(`Successfully read Long Coding via DID 0x${cDid} (${resBytes.length} bytes)`);
+            break;
+          }
+        } catch (de) {
+          console.warn(`DID 0x${cDid} read error:`, de);
+        }
+      }
+
+      if (liveCoding && liveCoding.length >= 10) {
+        this.baselineBytes = new Uint8Array(liveCoding);
+        this.currentBytes = new Uint8Array(liveCoding);
+        this.baselineHex = bytesToHexString(this.baselineBytes);
+
+        // Auto-save fresh snapshot
+        const backup = await saveBackup({
+          vin: this.vin || 'UNKNOWN_VIN',
+          moduleAddress: targetMod,
+          did: this.currentSchema.coding_did || '0x0600',
+          featureName: isAutoBaseline ? 'Initial Connect Baseline Snapshot (Auto-Protected)' : `Live Vehicle Coding Read (${targetMod})`,
+          rawHexData: this.baselineHex,
+          timestamp: new Date().toISOString()
+        });
+
+        this.hasCapturedBaseline = true;
+        this.renderBackupsList();
+        this.renderByteGrid();
+        this.renderBitSwitches();
+        this.renderFeatureList();
+
+        const msg = isAutoBaseline 
+          ? `🛡️ Baseline Snapshot #${backup.id} captured (${liveCoding.length} bytes)! Features synchronized with vehicle.`
+          : `✅ Vehicle Long Coding successfully read (${liveCoding.length} bytes)! Features updated.`;
+        this.showToast(msg);
+        return true;
+      } else {
+        if (!isAutoBaseline) {
+          alert('Could not read Long Coding from module. Ensure ignition is ON with engine OFF.');
+        }
+        return false;
+      }
+    } catch (err) {
+      console.error('Failed to read live coding:', err);
+      if (!isAutoBaseline) {
+        alert('Failed to read live coding: ' + (err.message || err));
+      }
+      return false;
+    }
+  }
+
   // --- Feature Coding Tab ---
   setupFeatureCoding() {
+    const readLiveCodingBtn = document.getElementById('btn-read-live-coding');
+    if (readLiveCodingBtn) {
+      readLiveCodingBtn.addEventListener('click', async () => {
+        readLiveCodingBtn.disabled = true;
+        const orig = readLiveCodingBtn.textContent;
+        readLiveCodingBtn.textContent = 'Reading ECU...';
+        try {
+          await this.readLiveCodingFromVehicle(false);
+        } finally {
+          readLiveCodingBtn.disabled = false;
+          readLiveCodingBtn.textContent = orig;
+        }
+      });
+    }
+
     const schemaSelect = document.getElementById('schema-select');
     if (schemaSelect) {
       schemaSelect.innerHTML = '';
@@ -1547,6 +1615,21 @@ class VibesApp {
     const rawInput = document.getElementById('raw-hex-input');
     const applyBtn = document.getElementById('btn-apply-hex');
     const resetBtn = document.getElementById('btn-reset-hex');
+    const matrixReadBtn = document.getElementById('btn-matrix-read-coding');
+
+    if (matrixReadBtn) {
+      matrixReadBtn.addEventListener('click', async () => {
+        matrixReadBtn.disabled = true;
+        const orig = matrixReadBtn.textContent;
+        matrixReadBtn.textContent = 'Reading...';
+        try {
+          await this.readLiveCodingFromVehicle(false);
+        } finally {
+          matrixReadBtn.disabled = false;
+          matrixReadBtn.textContent = orig;
+        }
+      });
+    }
 
     if (rawInput) {
       rawInput.value = bytesToHexString(this.currentBytes);
