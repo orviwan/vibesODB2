@@ -55,29 +55,35 @@ export class UdsClient {
     this.testerPresentInterval = null;
   }
 
-  async setTargetModule(moduleHex, customTx = null) {
+  async setTargetModule(moduleHex, customTx = null, customRx = null) {
     let key = (moduleHex || '0x09').toLowerCase().trim();
     if (!key.startsWith('0x')) key = '0x' + key;
     this.activeModule = key;
     const arb = MODULE_ARBITRATION[key] || { tx: '70E', rx: '778' };
     const tx = customTx || arb.tx;
+    const rx = customRx || arb.rx;
+
     await this.transport.setHeader(tx);
-  }
-
-  async setModuleAddress(moduleHex, customTx = null) {
-    return await this.setTargetModule(moduleHex, customTx);
-  }
-
-  async setModule(moduleHex, customTx = null) {
-    return await this.setTargetModule(moduleHex, customTx);
-  }
-
-  async sendUdsRequest(payloadBytes) {
-    const frames = IsoTpAssembler.packetize(payloadBytes);
-    let rawResponse = '';
-    for (const frame of frames) {
-      rawResponse = await this.transport.sendCommand(frame, 3500);
+    if (rx && this.transport.setFilter) {
+      await this.transport.setFilter(rx);
     }
+  }
+
+  async setModuleAddress(moduleHex, customTx = null, customRx = null) {
+    return await this.setTargetModule(moduleHex, customTx, customRx);
+  }
+
+  async setModule(moduleHex, customTx = null, customRx = null) {
+    return await this.setTargetModule(moduleHex, customTx, customRx);
+  }
+
+  async sendUdsRequest(payloadBytes, timeoutMs = 3500) {
+    // With ATCAF1 enabled, format raw UDS payload directly as hex command
+    const hexCmd = Array.from(payloadBytes)
+      .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      .join(' ');
+
+    const rawResponse = await this.transport.sendCommand(hexCmd, timeoutMs);
     const responseBytes = await this.assembler.assembleResponse(rawResponse);
 
     if (responseBytes.length >= 3 && responseBytes[0] === UDS_SERVICES.NEGATIVE_RESPONSE) {
@@ -106,12 +112,12 @@ export class UdsClient {
       try {
         if (this.transport.isConnected) {
           // 0x3E 00 (TesterPresent without response suppression)
-          await this.sendUdsRequest(new Uint8Array([0x3E, 0x00]));
+          await this.sendUdsRequest(new Uint8Array([0x3E, 0x00]), 1500);
         }
       } catch (e) {
         // Suppress background ping error
       }
-    }, 2000);
+    }, 2500);
   }
 
   stopTesterPresent() {
@@ -130,6 +136,9 @@ export class UdsClient {
     // Positive response format: 0x62 <DID High> <DID Low> <Data...>
     if (res.length >= 3 && res[0] === 0x62 && res[1] === high && res[2] === low) {
       return res.slice(3);
+    }
+    if (res.length >= 1 && res[0] === 0x62) {
+      return res.slice(1);
     }
     return res;
   }
@@ -169,10 +178,18 @@ export class UdsClient {
     return dtcs;
   }
 
+  async readDTCs() {
+    return await this.readDtcs();
+  }
+
   async clearDtcs() {
     // 0x14 FF FF FF (Clear all DTCs)
     const res = await this.sendUdsRequest(new Uint8Array([0x14, 0xFF, 0xFF, 0xFF]));
     return res.length >= 1 && res[0] === 0x54;
+  }
+
+  async clearDTCs() {
+    return await this.clearDtcs();
   }
 
   async securityAccess(accessKeyHex = '31347') {

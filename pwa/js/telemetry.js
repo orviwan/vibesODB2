@@ -63,10 +63,13 @@ export class TelemetryEngine {
     this.bleLoopActive = true;
     let loopCycle = 0;
 
-    // Set OBD-II Functional Broadcast header (7DF) ONCE upon starting loop
+    // Set OBD-II Functional Broadcast header (7DF) and Engine RX Filter (7E8) ONCE upon starting loop
     try {
       if (this.transport && this.transport.isConnected) {
         await this.transport.setHeader('7DF');
+        if (this.transport.setFilter) {
+          await this.transport.setFilter('7E8');
+        }
       }
     } catch (e) {
       console.warn('Could not set 7DF header:', e);

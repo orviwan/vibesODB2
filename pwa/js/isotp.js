@@ -10,78 +10,103 @@ export class IsoTpAssembler {
    * Handles Single Frame, First Frame, and Consecutive Frames.
    */
   async assembleResponse(rawResponse, expectedHeader = null) {
-    const lines = rawResponse.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    if (!rawResponse) return new Uint8Array([]);
+
+    const clean = rawResponse.replace(/>/g, '').trim();
+    if (/NO DATA|ERROR|CAN ERROR|UNABLE|BUFFER FULL|STOPPED|\?/i.test(clean)) {
+      return new Uint8Array([]);
+    }
+
+    const lines = clean.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return new Uint8Array([]);
+
+    // Check for ELM327 "0: 62 F1 90 ... 1: 5A ..." multi-frame format
+    const isIndexedMultiFrame = lines.some(l => /^[0-9A-F]+:/i.test(l));
+    if (isIndexedMultiFrame) {
+      const hexTokens = [];
+      for (const line of lines) {
+        const stripped = line.replace(/^[0-9A-F]+:\s*/i, '').trim();
+        const tokens = stripped.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
+        hexTokens.push(...tokens);
+      }
+      const bytes = hexTokens.map(t => parseInt(t, 16));
+      // If byte 0 is total length and byte 1 is positive/negative response SID
+      if (bytes.length > 2 && bytes[0] <= bytes.length - 1 && (bytes[1] >= 0x40 && bytes[1] <= 0x7F)) {
+        return new Uint8Array(bytes.slice(1, 1 + bytes[0]));
+      }
+      return new Uint8Array(bytes);
+    }
+
+    // Check for ISO-TP Single / Multi frames (with or without CAN ID header)
     let totalLength = null;
     let payload = [];
-    let nextSeq = 1;
+    let isIsoTp = false;
 
     for (const line of lines) {
-      // Remove any CAN error or echo messages
-      if (line.includes('NO DATA') || line.includes('ERROR') || line.includes('CAN ERROR') || line.startsWith('SEARCHING')) {
-        continue;
+      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,8}$/i.test(t));
+      if (tokens.length === 0) continue;
+
+      // Strip 3-char (11-bit) or 8-char (29-bit) CAN arbitration ID if present
+      if (tokens[0].length === 3 || tokens[0].length === 8) {
+        tokens = tokens.slice(1);
       }
 
-      // Split hex bytes
-      const parts = line.split(/\s+/);
-      if (parts.length < 2) continue;
+      const byteTokens = tokens.filter(t => /^[0-9A-F]{2}$/i.test(t));
+      if (byteTokens.length === 0) continue;
 
-      let pciIdx = 0;
-      // If header is enabled (ATH1), parts[0] is typically the 3-char CAN ID (e.g. 7E8)
-      if (parts[0].length === 3 || parts[0].length === 8) {
-        pciIdx = 1;
-      }
+      const b0 = parseInt(byteTokens[0], 16);
+      const frameType = (b0 & 0xF0) >> 4;
 
-      if (pciIdx >= parts.length) continue;
-
-      const pci = parseInt(parts[pciIdx], 16);
-      const frameType = (pci & 0xF0) >> 4;
-
-      if (frameType === 0x0) {
+      if (frameType === 0x0 && byteTokens.length > 1) {
         // Single Frame: length in low nibble
-        const length = pci & 0x0F;
-        const frameData = parts.slice(pciIdx + 1, pciIdx + 1 + length).map(b => parseInt(b, 16));
-        return new Uint8Array(frameData);
-      } else if (frameType === 0x1) {
-        // First Frame: total length in lower 12 bits
-        const highNibble = pci & 0x0F;
-        const lowByte = parseInt(parts[pciIdx + 1], 16);
-        totalLength = (highNibble << 8) | lowByte;
+        const len = b0 & 0x0F;
+        const data = byteTokens.slice(1, 1 + len).map(b => parseInt(b, 16));
+        return new Uint8Array(data);
+      } else if (frameType === 0x1 && byteTokens.length >= 2) {
+        // First Frame: total length in low 12 bits
+        isIsoTp = true;
+        const lenHigh = b0 & 0x0F;
+        const lenLow = parseInt(byteTokens[1], 16);
+        totalLength = (lenHigh << 8) | lenLow;
+        const data = byteTokens.slice(2).map(b => parseInt(b, 16));
+        payload.push(...data);
 
-        // Data starts at pciIdx + 2
-        const frameData = parts.slice(pciIdx + 2).map(b => parseInt(b, 16));
-        payload.push(...frameData);
-
-        // Send Flow Control frame if hardware flow control (ATCAF1) is not auto-handling it
+        // Send Flow Control frame if hardware flow control is not auto-handling it
         try {
-          await this.transport.sendCommand('30 00 00', 1000);
-        } catch (e) {
-          // Hardware might already have handled it
-        }
-      } else if (frameType === 0x2) {
-        // Consecutive Frame: sequence number in lower 4 bits
-        const seq = pci & 0x0F;
-        const frameData = parts.slice(pciIdx + 1).map(b => parseInt(b, 16));
-        payload.push(...frameData);
-
+          await this.transport.sendCommand('30 00 00', 800);
+        } catch (e) {}
+      } else if (frameType === 0x2 && isIsoTp) {
+        // Consecutive Frame
+        const data = byteTokens.slice(1).map(b => parseInt(b, 16));
+        payload.push(...data);
         if (totalLength && payload.length >= totalLength) {
           return new Uint8Array(payload.slice(0, totalLength));
         }
       }
     }
 
-    if (totalLength && payload.length >= totalLength) {
-      return new Uint8Array(payload.slice(0, totalLength));
+    if (isIsoTp && payload.length > 0) {
+      if (totalLength && payload.length >= totalLength) {
+        return new Uint8Array(payload.slice(0, totalLength));
+      }
+      return new Uint8Array(payload);
     }
 
-    // Fallback: parse whatever hex data was received
-    const flatBytes = [];
+    // Fallback: Direct hex bytes (e.g. ATH0 clean payload: "62 F1 87 35 51 ...")
+    const allHex = [];
     for (const line of lines) {
-      const parts = line.split(/\s+/).filter(p => /^[0-9A-Fa-f]{2}$/.test(p));
-      for (const p of parts) {
-        flatBytes.push(parseInt(p, 16));
+      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,8}$/i.test(t));
+      if (tokens.length > 0 && (tokens[0].length === 3 || tokens[0].length === 8)) {
+        tokens = tokens.slice(1);
+      }
+      for (const t of tokens) {
+        if (/^[0-9A-F]{2}$/i.test(t)) {
+          allHex.push(parseInt(t, 16));
+        }
       }
     }
-    return new Uint8Array(flatBytes);
+
+    return new Uint8Array(allHex);
   }
 
   /**

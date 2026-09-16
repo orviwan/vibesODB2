@@ -67,11 +67,21 @@ export function decodeVin(vin) {
     '1P': { model: 'SEAT Leon Mk2', platform: 'PQ35' },
     '6J': { model: 'SEAT Ibiza Mk4', platform: 'PQ25' },
     '6F': { model: 'SEAT Ibiza Mk5', platform: 'MQB-A0' },
-    '5E': { model: 'Škoda Octavia Mk3', platform: 'MQB' },
-    '1Z': { model: 'Škoda Octavia Mk2', platform: 'PQ35' },
-    'NH': { model: 'Škoda Rapid', platform: 'PQ25' },
+    '5E': { model: 'Octavia Mk3', platform: 'MQB' },
+    'NE': { model: 'Octavia Mk3', platform: 'MQB' },
+    'NX': { model: 'Octavia Mk4', platform: 'MQB-Evo' },
+    '1Z': { model: 'Octavia Mk2', platform: 'PQ35' },
+    'NH': { model: 'Rapid', platform: 'PQ25' },
+    'NS': { model: 'Kodiaq', platform: 'MQB' },
+    'KH': { model: 'Karoq', platform: 'MQB' },
+    'NW': { model: 'Scala / Kamiq', platform: 'MQB-A0' },
     'AD': { model: 'Tiguan Mk2', platform: 'MQB' },
+    'BW': { model: 'Tiguan Allspace', platform: 'MQB' },
     '5N': { model: 'Tiguan Mk1', platform: 'PQ35' },
+    '8Y': { model: 'A3 / S3 Mk4', platform: 'MQB-Evo' },
+    'KL': { model: 'Leon Mk4', platform: 'MQB-Evo' },
+    'FP': { model: 'Cupra Formentor', platform: 'MQB-Evo' },
+    'GB': { model: 'A1 Sportback Mk2', platform: 'MQB-A0' },
   };
 
   if (MODEL_MAP[chassisCode]) {
@@ -2056,8 +2066,10 @@ class VibesApp {
 }
 
 // Instantiate and launch
-window.addEventListener('DOMContentLoaded', () => {
-  const app = new VibesApp();
-  app.init();
-  window.__VIBES_APP__ = app;
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('DOMContentLoaded', () => {
+    const app = new VibesApp();
+    app.init();
+    window.__VIBES_APP__ = app;
+  });
+}

@@ -301,10 +301,10 @@ export class WebBleTransport {
     await this.sendCommand('ATZ', 4000);   // Reset
     await this.sendCommand('ATE0');        // Echo off
     await this.sendCommand('ATL0');        // Linefeed off
-    await this.sendCommand('ATH1');        // Headers on (required for CAN ID arbitration)
+    await this.sendCommand('ATH0');        // Headers off (returns clean payload bytes)
     await this.sendCommand('ATSP6');       // ISO 15765-4 CAN (11 bit ID, 500 kbaud)
     try {
-      await this.sendCommand('ATCAF1');    // Try STN hardware flow control acceleration
+      await this.sendCommand('ATCAF1');    // STN / ELM327 Automatic CAN Formatting & Flow Control
     } catch (e) {
       // Ignore if adapter is basic clone
     }
@@ -312,6 +312,14 @@ export class WebBleTransport {
 
   async setHeader(headerHex) {
     await this.sendCommand(`ATSH ${headerHex}`);
+  }
+
+  async setFilter(filterHex) {
+    if (filterHex && filterHex.trim()) {
+      await this.sendCommand(`ATCRA ${filterHex.trim()}`);
+    } else {
+      await this.sendCommand('ATCRA'); // Clear filter to accept responses
+    }
   }
 
   async disconnect() {
