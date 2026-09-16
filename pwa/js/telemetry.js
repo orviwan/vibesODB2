@@ -15,6 +15,11 @@ export class TelemetryEngine {
     this.currentHz = 0;
 
     this.latestMetrics = this.getInitialMetrics();
+
+    // Session Recording Buffer
+    this.isRecording = false;
+    this.recordStartTime = null;
+    this.recordedSamples = [];
   }
 
     getInitialMetrics() {
@@ -269,10 +274,86 @@ export class TelemetryEngine {
     return '7';
   }
 
+  startRecording() {
+    this.isRecording = true;
+    this.recordStartTime = Date.now();
+    this.recordedSamples = [];
+  }
+
+  stopRecording() {
+    this.isRecording = false;
+  }
+
+  clearRecording() {
+    this.recordedSamples = [];
+    this.recordStartTime = null;
+  }
+
+  getRecordedCount() {
+    return this.recordedSamples.length;
+  }
+
+  exportCsv() {
+    if (this.recordedSamples.length === 0) return '';
+    const headers = [
+      'Timestamp_ISO',
+      'Elapsed_Seconds',
+      'Engine_RPM',
+      'Speed_KMH',
+      'Speed_MPH',
+      'Engaged_Gear',
+      'Boost_Bar',
+      'Throttle_Pct',
+      'Engine_Load_Pct',
+      'Coolant_Temp_C',
+      'Oil_Temp_C',
+      'IAT_C',
+      'EGT_C',
+      'DPF_Soot_G',
+      'Fuel_Rail_Bar',
+      'Battery_Voltage_V'
+    ];
+
+    const rows = this.recordedSamples.map(s => [
+      s.timestamp,
+      s.elapsed.toFixed(3),
+      s.engine_rpm ?? '',
+      s.vehicle_speed_kmh ?? '',
+      s.vehicle_speed_kmh != null ? Math.round(s.vehicle_speed_kmh * 0.621371) : '',
+      s.engaged_gear ?? '',
+      s.boost_pressure_bar != null ? s.boost_pressure_bar.toFixed(2) : '',
+      s.throttle_position_pct != null ? s.throttle_position_pct.toFixed(1) : '',
+      s.engine_load_pct != null ? s.engine_load_pct.toFixed(1) : '',
+      s.coolant_temp_c != null ? Math.round(s.coolant_temp_c) : '',
+      s.oil_temp_c != null ? Math.round(s.oil_temp_c) : '',
+      s.intake_air_temp_c != null ? Math.round(s.intake_air_temp_c) : '',
+      s.exhaust_gas_temp_c != null ? Math.round(s.exhaust_gas_temp_c) : '',
+      s.dpf_soot_load_g != null ? s.dpf_soot_load_g.toFixed(2) : '',
+      s.fuel_rail_pressure_bar != null ? s.fuel_rail_pressure_bar.toFixed(1) : '',
+      s.battery_voltage != null ? s.battery_voltage.toFixed(2) : ''
+    ].join(','));
+
+    return [headers.join(','), ...rows].join('\n');
+  }
+
   _recordSample() {
     this.packetCount++;
     this.sampleCount++;
     const now = Date.now();
+
+    if (this.isRecording) {
+      const elapsed = this.recordStartTime ? (now - this.recordStartTime) / 1000.0 : 0;
+      this.recordedSamples.push({
+        timestamp: new Date(now).toISOString(),
+        elapsed,
+        ...this.latestMetrics
+      });
+      // Safety cap at 50,000 samples (~2 hours continuous fast recording)
+      if (this.recordedSamples.length > 50000) {
+        this.recordedSamples.shift();
+      }
+    }
+
     const dt = (now - this.lastRateCalc) / 1000.0;
     if (dt >= 1.0) {
       this.currentHz = Number((this.sampleCount / dt).toFixed(1));
@@ -280,7 +361,9 @@ export class TelemetryEngine {
       this.lastRateCalc = now;
       this.onRateUpdate({
         hz: this.currentHz,
-        packetCount: this.packetCount
+        packetCount: this.packetCount,
+        recordedCount: this.recordedSamples.length,
+        isRecording: this.isRecording
       });
     }
   }

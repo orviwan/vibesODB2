@@ -766,3 +766,26 @@ input:disabled,
 .diff-table tr:last-child td {
   border-bottom: none;
 }
+
+/* Telemetry Scope & Graph Styles */
+.graph-card {
+  position: relative;
+}
+
+.chart-canvas-container canvas {
+  image-rendering: pixelated;
+}
+
+/* Service & Maintenance Grid */
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

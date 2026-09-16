@@ -5,6 +5,7 @@ import { WebBleTransport } from './ble.js';
 import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
+import { MaintenanceManager } from './maintenance.js';
 
 export function bytesToAscii(bytes) {
   if (!bytes || bytes.length === 0) return '';
@@ -149,6 +150,14 @@ class VibesApp {
       onRateUpdate: (hz) => this.renderHz(hz)
     });
 
+    this.maintenanceManager = new MaintenanceManager({
+      udsClient: this.udsClient,
+      bleTransport: this.bleTransport,
+      showToast: (msg) => this.showToast(msg),
+      vibrate: (pattern) => this.vibrate(pattern)
+    });
+
+    this.graphHistory = [];
     this.wakeLock = null;
     this.pendingWrite = null;
     this.lastVibrateTime = 0;
@@ -161,12 +170,14 @@ class VibesApp {
     this.setupBluetooth();
     this.setupWakeLock();
     this.setupGauges();
+    this.setupTelemetryGraphControls();
     this.setupFeatureConfirmationModal();
     this.setupFeatureCoding();
     this.setupByteMatrix();
     this.setupSafetyModal();
     this.setupBackupsTab();
     this.setupDtcsTab();
+    this.maintenanceManager.init();
     this.setupUnitToggle();
 
     // Initial state: Disconnected, waiting for BLE
@@ -772,6 +783,7 @@ class VibesApp {
     const cockpitNotice = document.getElementById('cockpit-ble-notice');
     const codingNotice = document.getElementById('coding-ble-notice');
     const matrixNotice = document.getElementById('matrix-ble-notice');
+    const serviceNotice = document.getElementById('service-ble-notice');
     const dtcsNotice = document.getElementById('dtcs-ble-notice');
 
     const scanBtn = document.getElementById('btn-scan-dtcs');
@@ -794,6 +806,7 @@ class VibesApp {
       if (cockpitNotice) cockpitNotice.style.display = 'none';
       if (codingNotice) codingNotice.style.display = 'none';
       if (matrixNotice) matrixNotice.style.display = 'none';
+      if (serviceNotice) serviceNotice.style.display = 'none';
       if (dtcsNotice) dtcsNotice.style.display = 'none';
 
       if (scanBtn) { scanBtn.disabled = false; scanBtn.title = 'Scan ECU Fault Codes'; }
@@ -818,6 +831,7 @@ class VibesApp {
       }
       if (codingNotice) codingNotice.style.display = 'block';
       if (matrixNotice) matrixNotice.style.display = 'block';
+      if (serviceNotice) serviceNotice.style.display = 'block';
       if (dtcsNotice) dtcsNotice.style.display = 'block';
 
       if (scanBtn) { scanBtn.disabled = true; scanBtn.title = 'Connect Bluetooth to scan DTCs'; }
@@ -1107,6 +1121,9 @@ class VibesApp {
         ? `${data.battery_voltage.toFixed(1)} V` 
         : '-- V';
     }
+
+    // 13. Draw Real-Time Telemetry Graph
+    this.drawTelemetryChart(data);
   }
 
   renderHz(rateData) {
@@ -1115,6 +1132,147 @@ class VibesApp {
       const hzVal = (rateData && typeof rateData === 'object') ? rateData.hz : rateData;
       hzEl.textContent = `${Number(hzVal || 0).toFixed(1)} Hz`;
     }
+    const sampleEl = document.getElementById('telemetry-sample-count');
+    if (sampleEl && rateData && typeof rateData === 'object' && rateData.recordedCount !== undefined) {
+      sampleEl.textContent = `${rateData.recordedCount.toLocaleString()} samples`;
+    }
+  }
+
+  // --- Telemetry Scope & CSV Recording Controls ---
+  setupTelemetryGraphControls() {
+    const btnRecord = document.getElementById('btn-record-telemetry');
+    const btnClear = document.getElementById('btn-clear-telemetry');
+    const btnExport = document.getElementById('btn-export-telemetry-csv');
+    const badge = document.getElementById('telemetry-record-badge');
+    const countEl = document.getElementById('telemetry-sample-count');
+
+    if (btnRecord) {
+      btnRecord.addEventListener('click', () => {
+        if (this.telemetryEngine.isRecording) {
+          this.telemetryEngine.stopRecording();
+          btnRecord.textContent = '⏺️ Start Recording';
+          btnRecord.className = 'btn btn-primary';
+          if (badge) {
+            badge.textContent = 'Paused';
+            badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            badge.style.color = '#f59e0b';
+          }
+          this.showToast('⏸️ Telemetry recording paused.');
+        } else {
+          this.telemetryEngine.startRecording();
+          btnRecord.textContent = '⏸️ Pause Recording';
+          btnRecord.className = 'btn btn-danger';
+          if (badge) {
+            badge.textContent = '🔴 Recording';
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.color = '#f87171';
+          }
+          this.showToast('⏺️ Recording live telemetry session...');
+        }
+      });
+    }
+
+    if (btnClear) {
+      btnClear.addEventListener('click', () => {
+        this.telemetryEngine.clearRecording();
+        this.graphHistory = [];
+        this.drawTelemetryChart({});
+        if (countEl) countEl.textContent = '0 samples';
+        if (badge && !this.telemetryEngine.isRecording) {
+          badge.textContent = 'Idle';
+          badge.style.background = 'rgba(100, 116, 139, 0.2)';
+          badge.style.color = '#94a3b8';
+        }
+        this.showToast('Recording buffer cleared.');
+      });
+    }
+
+    if (btnExport) {
+      btnExport.addEventListener('click', () => {
+        const csv = this.telemetryEngine.exportCsv();
+        if (!csv) {
+          alert('No recorded telemetry data to export. Tap "Start Recording" to capture data while driving.');
+          return;
+        }
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeDate = new Date().toISOString().replace(/[:.]/g, '-');
+        a.href = url;
+        a.download = `vibesodb2_telemetry_${this.vin || 'session'}_${safeDate}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast('📥 Telemetry CSV log downloaded!');
+      });
+    }
+  }
+
+  drawTelemetryChart(latestData) {
+    const canvas = document.getElementById('telemetry-chart-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Push latest point into circular graph history (keep last 120 points)
+    if (latestData && (latestData.engine_rpm != null || latestData.vehicle_speed_kmh != null)) {
+      this.graphHistory.push({
+        rpm: latestData.engine_rpm || 0,
+        speed: latestData.vehicle_speed_kmh || 0,
+        boost: latestData.boost_pressure_bar || 0,
+        throttle: latestData.throttle_position_pct || 0,
+        coolant: latestData.coolant_temp_c || 0,
+        egt: latestData.exhaust_gas_temp_c || latestData.egt_c || 0
+      });
+      if (this.graphHistory.length > 120) {
+        this.graphHistory.shift();
+      }
+    }
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Clear background
+    ctx.fillStyle = '#070a12';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw horizontal grid lines
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= 4; y++) {
+      const yPos = (h / 4) * y;
+      ctx.beginPath();
+      ctx.moveTo(0, yPos);
+      ctx.lineTo(w, yPos);
+      ctx.stroke();
+    }
+
+    if (this.graphHistory.length < 2) return;
+
+    const dx = w / (Math.max(120, this.graphHistory.length) - 1);
+
+    const drawSeries = (color, getValueFn, maxScale) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < this.graphHistory.length; i++) {
+        const val = getValueFn(this.graphHistory[i]);
+        const norm = Math.min(1.0, Math.max(0.0, val / maxScale));
+        const px = i * dx;
+        const py = h - (norm * (h - 20) + 10);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    };
+
+    // Plot series
+    drawSeries('#38bdf8', pt => pt.rpm, 6000);        // RPM (0-6000)
+    drawSeries('#10b981', pt => pt.speed, 200);       // Speed (0-200 km/h)
+    drawSeries('#f59e0b', pt => pt.boost, 2.0);       // Boost (0-2.0 bar)
+    drawSeries('#ec4899', pt => pt.throttle, 100);    // Throttle (0-100%)
+    drawSeries('#ef4444', pt => pt.coolant, 130);     // Coolant (0-130°C)
+    drawSeries('#a855f7', pt => pt.egt, 900);         // EGT (0-900°C)
   }
 
   // --- Feature Coding Tab ---
