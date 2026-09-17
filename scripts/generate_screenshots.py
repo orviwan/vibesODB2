@@ -164,11 +164,19 @@ async def capture_cdp_screens(port: int = 8139):
             print(f"✓ Captured: {out_matrix.name} ({os.path.getsize(out_matrix):,} bytes)")
 
             # -------------------------------------------------------------
-            # E. Fault Code Scanner (DTCs)
+            # E. Fault Code Scanner (DTCs & Auto-Scan with Knowledge Drawer)
             # -------------------------------------------------------------
-            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-dtcs', false)"})
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": """
+                (async () => {
+                    window.__VIBES_APP__.switchTab('tab-dtcs', false);
+                    await window.__VIBES_APP__.runDtcAutoScan(false);
+                    // Expand the first accordion drawer so 'What it means & suggested fix' is showcased
+                    const btn = document.querySelector('.dtc-drawer-toggle');
+                    if (btn) btn.click();
+                })()
+            """, "awaitPromise": True})
             msg_id += 1
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.8)
             res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
             msg_id += 1
             out_dtcs = OUTPUT_DIR / "pwa_mobile_dtcs.png"
@@ -176,7 +184,26 @@ async def capture_cdp_screens(port: int = 8139):
             print(f"✓ Captured: {out_dtcs.name} ({os.path.getsize(out_dtcs):,} bytes)")
 
             # -------------------------------------------------------------
-            # F. Pre-Flash Safety Audit Modal
+            # F. Multi-Vehicle Grouped Backups & License Plate Tagging
+            # -------------------------------------------------------------
+            await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": """
+                (async () => {
+                    localStorage.setItem('vibesodb2_reg_WV1ZZZ7HZ7H061325', 'AB07 VAN');
+                    localStorage.setItem('vibesodb2_reg_WVWZZZAUZEW012345', 'GL14 VWG');
+                    window.__VIBES_APP__.switchTab('tab-backups', false);
+                    await window.__VIBES_APP__.renderBackupsList();
+                })()
+            """, "awaitPromise": True})
+            msg_id += 1
+            await asyncio.sleep(0.6)
+            res = await send_cdp(ws, msg_id, "Page.captureScreenshot")
+            msg_id += 1
+            out_backups = OUTPUT_DIR / "pwa_mobile_backups.png"
+            out_backups.write_bytes(base64.b64decode(res["result"]["data"]))
+            print(f"✓ Captured: {out_backups.name} ({os.path.getsize(out_backups):,} bytes)")
+
+            # -------------------------------------------------------------
+            # G. Pre-Flash Safety Audit Modal
             # -------------------------------------------------------------
             await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": """
                 window.__VIBES_APP__.promptSafetyAudit({

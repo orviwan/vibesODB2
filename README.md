@@ -23,51 +23,52 @@
 
 👉 [**Open vibesODB2 (https://orviwan.github.io/vibesODB2/)**](https://orviwan.github.io/vibesODB2/)
 
-| Live Digital Dashboard | Feature Tweaks (Coding) | Service & Maintenance | Byte Matrix & Inspector |
-| :---: | :---: | :---: | :---: |
-| <a href="docs/images/pwa_mobile_cockpit.png"><img src="docs/images/pwa_mobile_cockpit.png" width="220" alt="Live Digital Dashboard" /></a> | <a href="docs/images/pwa_mobile_coding.png"><img src="docs/images/pwa_mobile_coding.png" width="220" alt="Feature Tweaks (Coding)" /></a> | <a href="docs/images/pwa_mobile_service.png"><img src="docs/images/pwa_mobile_service.png" width="220" alt="Service & Maintenance" /></a> | <a href="docs/images/pwa_mobile_matrix.png"><img src="docs/images/pwa_mobile_matrix.png" width="220" alt="Byte Matrix & Inspector" /></a> |
+| Live Digital Dashboard | VCDS-Grade Auto-Scan & Fixes | Feature Tweaks (Coding) | Service & Maintenance | VIN-Grouped Backups | Byte Matrix & Inspector |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| <a href="docs/images/pwa_mobile_cockpit.png"><img src="docs/images/pwa_mobile_cockpit.png" width="180" alt="Live Digital Dashboard" /></a> | <a href="docs/images/pwa_mobile_dtcs.png"><img src="docs/images/pwa_mobile_dtcs.png" width="180" alt="VCDS-Grade Auto-Scan & Fixes" /></a> | <a href="docs/images/pwa_mobile_coding.png"><img src="docs/images/pwa_mobile_coding.png" width="180" alt="Feature Tweaks (Coding)" /></a> | <a href="docs/images/pwa_mobile_service.png"><img src="docs/images/pwa_mobile_service.png" width="180" alt="Service & Maintenance" /></a> | <a href="docs/images/pwa_mobile_backups.png"><img src="docs/images/pwa_mobile_backups.png" width="180" alt="VIN-Grouped Backups & License Plates" /></a> | <a href="docs/images/pwa_mobile_matrix.png"><img src="docs/images/pwa_mobile_matrix.png" width="180" alt="Byte Matrix & Inspector" /></a> |
 
 ---
 
 ## ✨ What Can You Do with vibesODB2?
 
-### 🏎️ 1. Live Digital Dashboard & Scope (Virtual Cockpit)
+### 🏎️ 1. Live Digital Dashboard & Telemetry Scope (Virtual Cockpit)
 Stream real-time driving gauges and record telemetry runs on your mounted phone:
 * **Digital Speedometer & Tachometer**: Live km/h & mph with redline alerts.
+* **Fuel Economy & Efficiency**: Instant consumption (L/100km, UK MPG, US MPG) when driving, and stationary idle fuel rate (L/h) matching VAG Highline clusters.
 * **Turbo Boost & Engine Load**: Real-time boost gauge (bar & PSI), throttle position, and DSG gear indicator.
-* **Thermal Sensors**: Coolant temperature, Intake Air temperature, and Exhaust Gas temperature (EGT).
-* **Emissions & Fueling**: Diesel Particulate Filter (DPF) soot mass loading and Common Rail fuel pressure.
-* **📈 Live Telemetry Scope & CSV Export**: Graph live sensor parameters in real time (VAG-Scope style) and export your driving sessions to `.csv` files.
+* **Thermal Sensors**: Coolant temperature, Intake Air temperature (IAT), and Exhaust Gas temperature (EGT).
+* **VAG TDI Diesel DPF Telemetry**: Interrogates both calculated and measured soot mass (g), cumulative oil ash volume (g), and distance since last regeneration.
+* **📈 Live Telemetry Scope & CSV Export**: Graph live sensor parameters in real time (VAG-Scope style) and export high-frequency driving sessions to `.csv` files.
 * **Screen Wake Lock**: Keeps your phone display awake while driving.
 
 ### ⚡ 2. One-Tap Feature Tweaks (Long Coding)
 Inspect your car's factory-enabled equipment and toggle enthusiast tweaks using categorized switches:
 * **Active vs. Disabled Filter Pills**: Quickly filter between `🟢 Active / ON`, `⚪ Disabled / OFF`, or browse all platform settings.
+* **Automated Long Coding Read**: Automatically retrieves authentic vehicle configuration from EEPROM upon Bluetooth connection.
 * **Daytime Running Lights (DRL)**: Standard DRL, Scandinavian rear DRLs, or auto-off with handbrake.
 * **Central Locking & Convenience**: Speed auto-lock (>15 km/h), auto-unlock on key extraction, and remote window roll up/down via key fob.
 * **Mirrors & Lighting**: Heated exterior mirrors, passenger mirror dip in reverse gear, acoustic alarm lock beep, and dynamic cornering fog lights.
 * **Wipers & Washers**: Teardrop wipe, rear wiper reverse sync, and heated rear windscreen.
 
-### 🔧 3. Service & Maintenance Tools
-Perform routine maintenance without expensive dealer tools:
+### 🔍 3. VCDS-Grade Diagnostic Auto-Scan & Fix Knowledge Base
+Interrogate vehicle health across all installed electronic control modules:
+* **Multi-Module Vehicle Auto-Scan**: Scans across Engine (`0x01`), Transmission (`0x02`), ABS (`0x03`), Climatronic (`0x08`), Central Electrics (`0x09`), Airbags (`0x15`), Instruments (`0x17`), CAN Gateway (`0x19`), and Steering (`0x44`).
+* **Dual Protocol Compatibility**: Automatic detection of modern **UDS (ISO 14229)** and older **KWP2000 (TP2.0)** for older models (e.g. Transporter T5 pre-facelift).
+* **Embedded Mechanical Knowledge Base**: Expandable **"💡 What it means & suggested fix"** drawers for VAG 5-digit codes (`01117`, `01598`, `00588`) and common TDI P-codes (`P0299`, `P0401`, `P2015`, `P2452`), providing plain-English explanations, real-world physical failure causes, and step-by-step diagnostic actions.
+* **One-Tap Report Export**: Copy formatted diagnostic scan reports directly to your clipboard for forums or mechanics.
+* **Module-Level & All-ECU Clearing**: Clear fault codes for a specific control module or sweep across the entire vehicle.
+
+### 🔧 4. Service & Maintenance Tools
+Perform routine maintenance without dealer visits:
 * **Service Reminder Reset (SRI)**: Reset Oil Service distance and time intervals (0 km / 0 days) and custom Inspection intervals on the Instrument Cluster (`0x17`).
-* **12V Battery Registration**: Read and write battery capacity (Ah), battery chemistry (`AGM`, `EFB`, `Wet`, `Gel`), vendor (`JCB`, `VAO`), and serial numbers to the CAN Gateway (`0x19`) or Battery Regulation (`0x61`).
+* **12V Battery Registration**: Read and write battery capacity (Ah), chemistry (`AGM`, `EFB`, `Wet`), vendor, and serial numbers. Includes safety interlock for non-Start/Stop vehicles without a J367 sensor.
 * **Electronic Parking Brake (EPB) Service Mode**: Safely retract rear brake caliper electric motors (`0x53`) into service position for brake pad changes, and recalibrate after installation.
-* **True Engine ECU Mileage**: Read untampered odometer mileage stored internally in the Engine Control Unit (`0x01`) to inspect used cars for odometer rollback.
+* **True Engine ECU Mileage Checker**: Query untampered odometer mileage stored internally in the Engine Control Unit (`0x01`) with Miles / KM unit toggle to detect odometer fraud.
 
-### 🛡️ 4. Automatic Backups & One-Click Undo
-Never worry about losing your original settings:
-* Automatically saves an immutable snapshot before any setting is written.
-* **Backup Explorer**: View byte-by-byte differences between your snapshots and active settings.
-* One-tap restore gets you back to your factory baseline instantly.
-
-### 🔍 5. Fault Code Scanner (DTCs)
-* Read active and pending Diagnostic Trouble Codes across vehicle modules.
-* Clear fault codes and reset warning lights (Engine Check, ABS, Airbag, BCM convenience systems) after repairs.
-
-### 🚗 6. Vehicle & ECU Identification
-* Auto-decodes your 17-digit VIN to show your exact vehicle model, model year, assembly plant, and chassis serial number.
-* Reads live ECU hardware part numbers, software version numbers, and ECU serial numbers directly over UDS.
+### 🛡️ 5. Multi-Vehicle Management & VIN-Grouped Backups
+* **License Plate / Registration Tagging**: Assign British/EU-style registration badges (e.g. `AB07 VAN`, `GL14 VWG`) to your VINs for effortless fleet or family car management.
+* **VIN-Grouped Backups**: Automatically organizes pre-write snapshots by vehicle with one-tap restore and byte-diff explorer.
+* **Export & Import JSON**: Back up your configuration history to cloud or PC storage.
 
 ---
 

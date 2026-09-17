@@ -65,7 +65,7 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
 
 ## Protocol & Diagnostics Stack
 
-### 1. Unified Diagnostic Services (ISO 14229-1 UDS)
+### 1. Unified Diagnostic Services (ISO 14229-1 UDS) & KWP2000
 * **Diagnostic Session Control (`0x10`)**: Switches between Default Session (`0x01`) and Extended Diagnostic Session (`0x03`).
 * **TesterPresent (`0x3E 0x80`)**: Asynchronous background keepalive loop dispatched every 2000 ms with suppressed positive responses to maintain extended sessions without timing out.
 * **Read Data By Identifier (`0x22`)**:
@@ -76,8 +76,12 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
   * `0xF18C`: ECU Serial Number
   * `0x0600`: Central Electric (BCM) Long Coding Payload (24–30 Bytes)
 * **Write Data By Identifier (`0x2E`)**: Writes modified long-coding payloads with verified session authorization and length checks.
-* **Read DTC Information (`0x19 0x02 0x09`)**: Queries active and confirmed Diagnostic Trouble Codes matching status mask `0x09`.
-* **Clear Diagnostic Information (`0x14 0xFF 0xFF 0xFF`)**: Resets DTCs across modules.
+* **Dual-Protocol Diagnostic Auto-Scan**:
+  * **Modern UDS (`0x19 0x02 0x09`)**: Queries confirmed and pending DTC records (3-byte DTC + 1-byte status mask).
+  * **Older KWP2000 / TP2.0 (`0x18 0x00 0xFF 0x00`)**: Read DTCs by status mask on pre-facelift models (e.g. Transporter T5 7H). Parses 16-bit VAG 5-digit decimal codes (`DTC = (high << 8) | low`, e.g. `0x045D` = `01117`, `0x063E` = `01598`, `0x024C` = `00588`).
+  * **Failure Type Byte (FTB) Decoding**: Decodes VAG symptom codes (`008` Implausible Signal, `002` Lower Limit Exceeded, `33-00` Resistance Too Low).
+  * **Curated Knowledge Base (`dtc_db.js`)**: Maps fault codes to plain-English meanings, real-world physical failure causes (e.g. broken alternator loom wire near starter bracket, worn clockspring), and actionable repair steps.
+* **Clear Diagnostic Information (`0x14 FF FF FF` / `0x14 FF 00`)**: Resets DTCs across modules or targets specific ECUs.
 
 ### 2. ISO-TP Network Layer (ISO 15765-2)
 * **Single Frame (SF)**: Transmitted for payloads $\le 7$ bytes (PCI `0x0N`).
