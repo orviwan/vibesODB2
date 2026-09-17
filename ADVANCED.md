@@ -149,6 +149,7 @@ Vehicle feature coordinates are decoupled into modular JSON schema files. Exampl
 ## Hardware & BLE GATT Specifications
 
 * **Recommended Adapter**: Vgate vLinker MC+ (Bluetooth 4.0 BLE / STN2120 chipset)
+* **DIY Hardware Option**: ESP32 DevKit + SN65HVD230 3.3V CAN Transceiver (see full schematic, BOM, and firmware in [**DIY_ESP32_OBD2_ADAPTER.md**](DIY_ESP32_OBD2_ADAPTER.md))
 * **Target Service**: Nordic Semiconductor UART Service (`UUID: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E`)
 * **TX Characteristic**: `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` (Write without response / Write)
 * **RX Characteristic**: `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` (Notify)

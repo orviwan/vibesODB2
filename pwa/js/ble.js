@@ -148,6 +148,9 @@ export class WebBleTransport {
           { namePrefix: 'Vgate' },
           { namePrefix: 'TONWON' },
           { namePrefix: 'LELINK' },
+          { namePrefix: 'ESP32' },
+          { namePrefix: 'vibesOBD' },
+          { namePrefix: 'DIY-OBD' },
           { namePrefix: 'iCar' },
           { namePrefix: 'Konnwei' },
           { namePrefix: 'V-LINK' }

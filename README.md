@@ -96,6 +96,7 @@ You just need an inexpensive, standard Bluetooth OBD-II adapter with BLE 4.0 sup
 
 * 🥇 **Recommended**: **Vgate vLinker MC+** (Bluetooth 4.0 BLE / works on Android & iOS)
 * **Also Compatible**: **OBDLink MX+**, **OBDLink CX**, or other standard BLE OBD-II dongles.
+* 🛠️ **DIY Option**: **ESP32 + SN65HVD230 CAN Adapter** (~£10 / $12). Build your own high-speed BLE dongle with our [**DIY ESP32 OBD-II Adapter Build Guide**](DIY_ESP32_OBD2_ADAPTER.md)!
 
 *(Note: Cheap generic blue ELM327 clone adapters with 64-byte buffers are not recommended for coding due to packet drop risks).*
 
