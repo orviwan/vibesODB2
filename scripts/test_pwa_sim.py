@@ -84,16 +84,26 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
         "--disable-gpu",
         "--window-size=1280,900"
     ])
-    await asyncio.sleep(1.2)
 
     console_errors = []
 
     try:
-        # Query CDP WebSocket URL
-        req = urllib.request.urlopen(f"http://127.0.0.1:{cdp_port}/json")
-        tabs = json.loads(req.read().decode("utf-8"))
-        page_tab = [t for t in tabs if t.get("type") == "page"][0]
-        ws_url = page_tab["webSocketDebuggerUrl"]
+        # Query CDP WebSocket URL with retry loop
+        ws_url = None
+        for attempt in range(20):
+            await asyncio.sleep(0.5)
+            try:
+                req = urllib.request.urlopen(f"http://127.0.0.1:{cdp_port}/json", timeout=2)
+                tabs = json.loads(req.read().decode("utf-8"))
+                page_tab = [t for t in tabs if t.get("type") == "page"]
+                if page_tab:
+                    ws_url = page_tab[0]["webSocketDebuggerUrl"]
+                    break
+            except Exception:
+                continue
+
+        if not ws_url:
+            raise RuntimeError(f"Headless Chrome failed to bind to CDP port {cdp_port} within 10 seconds.")
 
         async with websockets.connect(ws_url) as ws:
             def id_gen():
