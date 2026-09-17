@@ -251,6 +251,33 @@ class VibesApp {
     }
   }
 
+  // --- Ignition-Gated Write Permission ---
+  // Returns true only when BLE is connected AND the vehicle ignition is ON (key pos 2).
+  // Coding writes to ECU EEPROM are UNSAFE when:
+  //   - ignition is OFF (ECU powered down or sleeping, EEPROM writes will fail or corrupt)
+  //   - engine is running (ECU may be in diagnostic lockout, unstable operating conditions)
+  //   - ignition state is unknown (no bus ping response yet — treat as unsafe)
+  get isWritable() {
+    const connected = !!(this.bleTransport && this.bleTransport.isConnected);
+    return connected && this.ignitionState === 'on';
+  }
+
+  get isWriteBlockedReason() {
+    if (!this.bleTransport || !this.bleTransport.isConnected) {
+      return 'Connect your OBD-II adapter via Bluetooth first.';
+    }
+    if (this.ignitionState === 'off') {
+      return 'Vehicle ignition is OFF. Turn the key to Position 2 (Ignition ON, engine not running) before making any changes.';
+    }
+    if (this.ignitionState === 'running') {
+      return 'Engine is running. Switch the engine OFF (ignition ON only) before writing ECU coding.';
+    }
+    if (this.ignitionState === 'unknown') {
+      return 'Ignition state is unknown. Wait for the adapter to detect the vehicle bus, or press "Check Ignition".';
+    }
+    return 'Cannot write: vehicle bus is not responding.';
+  }
+
   // --- Service Worker Registration ---
   initPwaServiceWorker() {
     if ('serviceWorker' in navigator) {
@@ -438,11 +465,25 @@ class VibesApp {
     }
   }
 
-  showToast(message, duration = 4500) {
+  showToast(message, severity = 'info', duration = 4500) {
     const toast = document.getElementById('toast-banner');
     if (!toast) return;
     toast.textContent = message;
     toast.style.display = 'block';
+    // Apply colour based on severity
+    if (severity === 'warning') {
+      toast.style.background = 'rgba(245, 158, 11, 0.95)';
+      toast.style.color = '#1c1917';
+      toast.style.borderColor = '#f59e0b';
+    } else if (severity === 'error') {
+      toast.style.background = 'rgba(239, 68, 68, 0.95)';
+      toast.style.color = '#fff';
+      toast.style.borderColor = '#ef4444';
+    } else {
+      toast.style.background = '';
+      toast.style.color = '';
+      toast.style.borderColor = '';
+    }
     clearTimeout(this._toastTimeout);
     this._toastTimeout = setTimeout(() => {
       toast.style.display = 'none';
@@ -2435,7 +2476,8 @@ class VibesApp {
       grouped[cat].push(feat);
     });
 
-    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    const isWritable = this.isWritable;
+    const writeBlockedReason = isWritable ? '' : this.isWriteBlockedReason;
 
     Object.keys(grouped).forEach(category => {
       const catHeader = document.createElement('div');
@@ -2521,11 +2563,11 @@ class VibesApp {
         if (isModified) {
           const revertBtn = info.querySelector('.btn-revert-feature');
           if (revertBtn) {
-            if (!isConnected) {
+            if (!isWritable) {
               revertBtn.disabled = true;
               revertBtn.style.opacity = '0.38';
               revertBtn.style.cursor = 'not-allowed';
-              revertBtn.title = 'Connect Bluetooth to revert feature';
+              revertBtn.title = writeBlockedReason;
             } else {
               revertBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2543,16 +2585,16 @@ class VibesApp {
         }
 
         const toggleLabel = document.createElement('label');
-        toggleLabel.className = `toggle-switch ${(!isConnected || isOutOfBounds) ? 'disabled' : ''}`;
+        toggleLabel.className = `toggle-switch ${(!isWritable || isOutOfBounds) ? 'disabled' : ''}`;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = isEnabled;
-        if (!isConnected || isOutOfBounds) {
+        if (!isWritable || isOutOfBounds) {
           checkbox.disabled = true;
           checkbox.title = isOutOfBounds
             ? `Feature is located at Byte ${feat.byte}, but vehicle ECU buffer is only ${this.currentBytes.length} bytes long.`
-            : 'Connect Bluetooth to toggle vehicle coding';
+            : writeBlockedReason;
         }
 
         const slider = document.createElement('span');
@@ -2560,6 +2602,11 @@ class VibesApp {
 
         if (!isOutOfBounds) {
           checkbox.addEventListener('change', () => {
+            if (!this.isWritable) {
+              checkbox.checked = !checkbox.checked;
+              this.showToast(this.isWriteBlockedReason, 'warning');
+              return;
+            }
             const targetState = checkbox.checked;
             const origState = wasOriginalEnabled;
 
@@ -2715,19 +2762,24 @@ class VibesApp {
     bitContainer.innerHTML = '';
     const currentVal = this.currentBytes[this.selectedByteIndex];
 
-    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    const isWritable = this.isWritable;
+    const writeBlockedReason = isWritable ? '' : this.isWriteBlockedReason;
 
     for (let bit = 7; bit >= 0; bit--) {
       const isBitSet = (currentVal & (1 << bit)) !== 0;
       const btn = document.createElement('button');
-      btn.className = `bit-btn ${isBitSet ? 'active' : ''} ${!isConnected ? 'disabled' : ''}`;
-      if (!isConnected) {
+      btn.className = `bit-btn ${isBitSet ? 'active' : ''} ${!isWritable ? 'disabled' : ''}`;
+      if (!isWritable) {
         btn.disabled = true;
-        btn.title = 'Connect Bluetooth to toggle bits';
+        btn.title = writeBlockedReason;
       }
       btn.innerHTML = `<div>Bit ${bit}</div><div style="font-size: 1.1rem; margin-top:2px;">${isBitSet ? '1' : '0'}</div>`;
 
       btn.addEventListener('click', () => {
+        if (!this.isWritable) {
+          this.showToast(this.isWriteBlockedReason, 'warning');
+          return;
+        }
         const modBytes = new Uint8Array(this.currentBytes);
         if (isBitSet) {
           modBytes[this.selectedByteIndex] &= ~(1 << bit);
