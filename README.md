@@ -23,9 +23,9 @@
 
 👉 [**Open vibesODB2 (https://orviwan.github.io/vibesODB2/)**](https://orviwan.github.io/vibesODB2/)
 
-| Live Digital Dashboard | VCDS-Grade Auto-Scan & Fixes | Feature Tweaks (Coding) | Service & Maintenance | VIN-Grouped Backups | Byte Matrix & Inspector |
+| Live Digital Dashboard | Multi-Module Auto-Scan & Fixes | Feature Tweaks (Coding) | Service & Maintenance | VIN-Grouped Backups | Byte Matrix & Inspector |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| <a href="docs/images/pwa_mobile_cockpit.png"><img src="docs/images/pwa_mobile_cockpit.png" width="180" alt="Live Digital Dashboard" /></a> | <a href="docs/images/pwa_mobile_dtcs.png"><img src="docs/images/pwa_mobile_dtcs.png" width="180" alt="VCDS-Grade Auto-Scan & Fixes" /></a> | <a href="docs/images/pwa_mobile_coding.png"><img src="docs/images/pwa_mobile_coding.png" width="180" alt="Feature Tweaks (Coding)" /></a> | <a href="docs/images/pwa_mobile_service.png"><img src="docs/images/pwa_mobile_service.png" width="180" alt="Service & Maintenance" /></a> | <a href="docs/images/pwa_mobile_backups.png"><img src="docs/images/pwa_mobile_backups.png" width="180" alt="VIN-Grouped Backups & License Plates" /></a> | <a href="docs/images/pwa_mobile_matrix.png"><img src="docs/images/pwa_mobile_matrix.png" width="180" alt="Byte Matrix & Inspector" /></a> |
+| <a href="docs/images/pwa_mobile_cockpit.png"><img src="docs/images/pwa_mobile_cockpit.png" width="180" alt="Live Digital Dashboard" /></a> | <a href="docs/images/pwa_mobile_dtcs.png"><img src="docs/images/pwa_mobile_dtcs.png" width="180" alt="Multi-Module Auto-Scan & Fixes" /></a> | <a href="docs/images/pwa_mobile_coding.png"><img src="docs/images/pwa_mobile_coding.png" width="180" alt="Feature Tweaks (Coding)" /></a> | <a href="docs/images/pwa_mobile_service.png"><img src="docs/images/pwa_mobile_service.png" width="180" alt="Service & Maintenance" /></a> | <a href="docs/images/pwa_mobile_backups.png"><img src="docs/images/pwa_mobile_backups.png" width="180" alt="VIN-Grouped Backups & License Plates" /></a> | <a href="docs/images/pwa_mobile_matrix.png"><img src="docs/images/pwa_mobile_matrix.png" width="180" alt="Byte Matrix & Inspector" /></a> |
 
 ---
 
@@ -38,7 +38,7 @@ Stream real-time driving gauges and record telemetry runs on your mounted phone:
 * **Turbo Boost & Engine Load**: Real-time boost gauge (bar & PSI), throttle position, and DSG gear indicator.
 * **Thermal Sensors**: Coolant temperature, Intake Air temperature (IAT), and Exhaust Gas temperature (EGT).
 * **VAG TDI Diesel DPF Telemetry**: Interrogates both calculated and measured soot mass (g), cumulative oil ash volume (g), and distance since last regeneration.
-* **📈 Live Telemetry Scope & CSV Export**: Graph live sensor parameters in real time (VAG-Scope style) and export high-frequency driving sessions to `.csv` files.
+* **📈 Live Telemetry Scope & CSV Export**: Graph live sensor parameters in real time (oscilloscope style) and export high-frequency driving sessions to `.csv` files.
 * **Screen Wake Lock**: Keeps your phone display awake while driving.
 
 ### ⚡ 2. One-Tap Feature Tweaks (Long Coding)
@@ -50,7 +50,7 @@ Inspect your car's factory-enabled equipment and toggle enthusiast tweaks using 
 * **Mirrors & Lighting**: Heated exterior mirrors, passenger mirror dip in reverse gear, acoustic alarm lock beep, and dynamic cornering fog lights.
 * **Wipers & Washers**: Teardrop wipe, rear wiper reverse sync, and heated rear windscreen.
 
-### 🔍 3. VCDS-Grade Diagnostic Auto-Scan & Fix Knowledge Base
+### 🔍 3. Multi-Module Diagnostic Auto-Scan & Fix Knowledge Base
 Interrogate vehicle health across all installed electronic control modules:
 * **Multi-Module Vehicle Auto-Scan**: Scans across Engine (`0x01`), Transmission (`0x02`), ABS (`0x03`), Climatronic (`0x08`), Central Electrics (`0x09`), Airbags (`0x15`), Instruments (`0x17`), CAN Gateway (`0x19`), and Steering (`0x44`).
 * **Dual Protocol Compatibility**: Automatic detection of modern **UDS (ISO 14229)** and older **KWP2000 (TP2.0)** for older models (e.g. Transporter T5 pre-facelift).
