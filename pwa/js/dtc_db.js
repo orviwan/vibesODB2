@@ -1,5 +1,11 @@
 // vibesODB2 - VAG & SAE Diagnostic Trouble Code (DTC) Knowledge Base
 // Provides human-readable descriptions, symptom decoding, real-world failure causes, and suggested fixes.
+//
+// PROVENANCE POLICY (see CONTRIBUTING.md)
+// Fault-code numbers and symptom-byte values are facts. All explanatory prose in this file must be
+// written for this project in the contributor's own words. Do not paste text from diagnostic tool
+// label files, vendor databases, wikis or forum posts. Entries are general guidance, not a
+// diagnosis of any specific vehicle; the UI says so wherever they are shown.
 
 /**
  * Common VAG Failure Type Bytes (FTB) & Symptom Codes

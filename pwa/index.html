@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>vibesODB2 - The free and open source diagnostics &amp; customization for VAG vehicles</title>
   
   <!-- PWA Meta Tags -->
@@ -46,15 +46,15 @@
 
   <!-- Sticky Tabs Navigation -->
   <nav class="tabs-nav">
-    <button class="tab-btn active" data-tab="tab-cockpit">Virtual Cockpit</button>
+    <button class="tab-btn active" data-tab="tab-cockpit">Live Dashboard</button>
     <button class="tab-btn" data-tab="tab-coding">Feature Coding</button>
     <button class="tab-btn" data-tab="tab-matrix">Byte Matrix</button>
-    <button class="tab-btn" data-tab="tab-service">Service &amp; Maintenance</button>
+    <button class="tab-btn" data-tab="tab-service">Service</button>
     <button class="tab-btn" data-tab="tab-backups">Backups</button>
     <button class="tab-btn" data-tab="tab-dtcs">Fault Codes</button>
   </nav>
 
-  <!-- Tab 1: Virtual Cockpit Telemetry -->
+  <!-- Tab 1: Live Dashboard Telemetry -->
   <main id="tab-cockpit" class="tab-content active">
     <!-- Bluetooth Connection Notice Banner -->
     <div id="cockpit-ble-notice" class="ble-notice-banner">
@@ -261,7 +261,7 @@
         </div>
       </div>
 
-      <!-- Real-Time Telemetry Graph & Session CSV Logger (VAG-Scope Style) -->
+      <!-- Real-Time Telemetry Graph & Session CSV Logger -->
       <div class="card graph-card" style="grid-column: 1 / -1;">
         <div class="card-title" style="flex-wrap:wrap; gap:0.75rem;">
           <div style="display:flex; align-items:center; gap:0.5rem;">
@@ -409,226 +409,61 @@
       <div>
         <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-          Connect to your OBD-II adapter to perform Service Resets, Battery Coding, EPB retraction, and Adaptation writes.
+          Connect to your OBD-II adapter to read the standard OBD odometer.
         </p>
       </div>
     </div>
 
     <div class="service-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
-      <!-- Card 1: Service Reminder Reset (SRI) -->
+      <!-- Card 1: Standard OBD-II odometer (SAE J1979 PID A6) -->
       <div class="card">
         <div class="card-title">
-          <span>🛠️ Service Reminder Reset (SRI)</span>
-        </div>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Reset oil service and major inspection interval counters in Instrument Cluster (0x17).
-        </p>
-
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          <button id="btn-reset-oil-service" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">
-            🔄 Reset Oil Service (0 km / 0 days)
-          </button>
-
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-            <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Inspection Intervals (km / days)</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-              <select id="sri-insp-km" class="select-box" style="padding: 4px 8px; font-size: 0.8rem;">
-                <option value="15000">15,000 km</option>
-                <option value="30000" selected>30,000 km</option>
-                <option value="10000">10,000 km</option>
-                <option value="20000">20,000 km</option>
-              </select>
-              <select id="sri-insp-days" class="select-box" style="padding: 4px 8px; font-size: 0.8rem;">
-                <option value="365">365 Days (1 Yr)</option>
-                <option value="730" selected>730 Days (2 Yrs)</option>
-              </select>
-            </div>
-            <button id="btn-reset-insp-service" class="btn btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem;">
-              🔄 Reset Inspection Interval
-            </button>
-          </div>
-        </div>
-
-        <div id="sri-status-msg" style="margin-top: 0.75rem; font-size: 0.8rem; min-height: 1.2rem; color: var(--text-muted);"></div>
-      </div>
-
-      <!-- Card 2: 12V Battery Registration & Coding (CAN Gateway 0x19) -->
-      <div class="card">
-        <div class="card-title">
-          <span>🔋 12V Battery Replacement Registration</span>
+          <span>📏 OBD Odometer (SAE J1979 PID A6)</span>
         </div>
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Register new battery parameters into CAN Gateway (0x19) to recalibrate alternator charging curves.
-        </p>
-
-        <button id="btn-read-battery" class="btn btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; margin-bottom: 0.75rem;">
-          🔍 Read Active Battery from Gateway
-        </button>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Capacity (Ah)</label>
-            <input type="number" id="battery-capacity" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 70" min="30" max="130" />
-          </div>
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Technology</label>
-            <select id="battery-tech" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;">
-              <option value="" disabled selected>-- Select Technology --</option>
-              <option value="AGM">AGM / Fleece</option>
-              <option value="EFB">EFB (Enhanced Flooded)</option>
-              <option value="Wet">Wet / Standard Flooded</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Vendor Code</label>
-            <input type="text" id="battery-vendor" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. JCB or VAO" maxlength="4" />
-          </div>
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Serial Number (10 digits)</label>
-            <input type="text" id="battery-serial" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="10-digit serial" maxlength="10" />
-          </div>
-        </div>
-
-        <button id="btn-apply-battery" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">
-          ⚡ Register New Battery
-        </button>
-
-        <div id="battery-status-msg" style="margin-top: 0.75rem; font-size: 0.8rem; min-height: 1.2rem; color: var(--text-muted);"></div>
-      </div>
-
-      <!-- Card 3: Electronic Parking Brake (EPB) Service Mode -->
-      <div class="card">
-        <div class="card-title">
-          <span>🛑 Electronic Parking Brake (EPB) Service Mode</span>
-        </div>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Retract rear electric caliper motors to service position for brake pad replacement.
-        </p>
-
-        <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--danger); padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.75rem; color: #fca5a5;">
-          ⚠️ <strong>Safety Requirement</strong>: Chock vehicle wheels, ignition ON, engine OFF, release parking brake.
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <button id="btn-epb-open" class="btn btn-warning" style="width: 100%; justify-content: center; font-size: 0.82rem; font-weight: 600;">
-            🔓 Open Calipers (Pad Replacement Mode)
-          </button>
-          <button id="btn-epb-close" class="btn btn-secondary" style="width: 100%; justify-content: center; font-size: 0.82rem;">
-            🔒 Close Calipers (Normal Mode &amp; Calibrate)
-          </button>
-        </div>
-
-        <div id="epb-status-msg" style="margin-top: 0.75rem; font-size: 0.8rem; min-height: 1.2rem; color: var(--text-muted);"></div>
-      </div>
-
-      <!-- Card 4: ECU True Mileage Checker (Anti-Fraud Inspection) -->
-      <div class="card">
-        <div class="card-title">
-          <span>🛡️ ECU True Mileage Checker</span>
-        </div>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Read independent odometer memory logged directly in the Engine ECU (0x01) to verify authentic mileage.
+          Reads the standardised odometer value from the engine control unit, when the ECU implements it. No manufacturer-specific identifiers are used.
         </p>
 
         <div style="margin-bottom: 0.75rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-            <label id="label-dash-mileage" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin: 0;">Dashboard Odometer Display (Miles - optional)</label>
-            <button id="btn-toggle-mileage-unit" type="button" class="btn btn-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:4px;" title="Toggle distance unit between Miles and KM">🇬🇧 Units: Miles</button>
+            <label for="input-dash-odometer" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin: 0;">Dashboard odometer (optional, for comparison)</label>
+            <button id="btn-toggle-odometer-unit" type="button" class="btn btn-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:4px;" title="Toggle distance unit">Units: KM</button>
           </div>
-          <input type="number" id="input-dash-mileage" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 53000" />
+          <input type="number" id="input-dash-odometer" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 85400" />
         </div>
 
-        <button id="btn-check-ecu-mileage" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">
-          🔍 Query True Engine ECU Mileage
+        <button id="btn-check-obd-odometer" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">
+          🔍 Read OBD Odometer
         </button>
 
-        <div id="mileage-results-box" style="display:none; margin-top: 0.75rem; background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.8rem;">
-          <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-            <span style="color:var(--text-muted);">Engine ECU Stored:</span>
-            <strong id="val-ecu-mileage" style="font-family:var(--font-mono); color:#38bdf8;">--</strong>
+        <div id="odometer-results-box" style="display:none; margin-top: 0.75rem; background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.8rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:var(--text-muted);">OBD odometer (engine ECU)</span>
+            <strong id="val-obd-odometer" style="font-family:var(--font-mono); color:#38bdf8;">--</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-            <span style="color:var(--text-muted);">Dashboard Cluster:</span>
-            <strong id="val-dash-mileage" style="font-family:var(--font-mono);">--</strong>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:var(--text-muted);">Dashboard</span>
+            <strong id="val-dash-odometer" style="font-family:var(--font-mono);">--</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
-            <span style="color:var(--text-muted);">Discrepancy:</span>
-            <strong id="val-diff-mileage" style="font-family:var(--font-mono);">--</strong>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:var(--text-muted);">Difference</span>
+            <strong id="val-diff-odometer" style="font-family:var(--font-mono);">--</strong>
           </div>
-          <div id="val-mileage-verdict" style="font-weight:600; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08);"></div>
+          <div id="val-odometer-note" style="color:var(--text-muted); margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08);"></div>
         </div>
       </div>
 
-      <!-- Card 5: Preset One-Click Adaptations -->
-      <div class="card" style="grid-column: 1 / -1;">
+      <!-- Card 2: Removed tools notice -->
+      <div class="card" style="border-left: 4px solid #f59e0b;">
         <div class="card-title">
-          <span>⚙️ Preset One-Click UDS Adaptations</span>
+          <span>🚧 Service resets, battery registration, parking brake, adaptations</span>
         </div>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Modify discrete channel-based vehicle adaptations on BCM (0x09) and Gateway (0x19) with automated security unlock.
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          These tools are not offered in this release. They previously wrote to manufacturer-specific identifiers that had not been verified on any vehicle and ran without the safety interlocks used for long coding.
         </p>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
-          <!-- Comfort Turn Signals -->
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-            <h5 style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">Comfort Turn Signals</h5>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">Number of lane-change indicator blinks (standard: 3).</p>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <select id="select-comfort-blinks" class="select-box" style="flex: 1; padding: 4px 8px; font-size: 0.8rem;">
-                <option value="1">1 Blink</option>
-                <option value="2">2 Blinks</option>
-                <option value="3" selected>3 Blinks (Default)</option>
-                <option value="4">4 Blinks</option>
-                <option value="5">5 Blinks</option>
-              </select>
-              <button id="btn-apply-comfort-blinks" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 10px;">Apply</button>
-            </div>
-          </div>
-
-          <!-- Acoustic Lock Confirmation -->
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-            <h5 style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">Acoustic Lock Chirp</h5>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">Audible horn confirmation beep upon remote locking.</p>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <select id="select-acoustic-lock" class="select-box" style="flex: 1; padding: 4px 8px; font-size: 0.8rem;">
-                <option value="1">Enabled (Chirp on Lock)</option>
-                <option value="0" selected>Disabled (Silent)</option>
-              </select>
-              <button id="btn-apply-acoustic-lock" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 10px;">Apply</button>
-            </div>
-          </div>
-
-          <!-- Start/Stop Voltage Threshold -->
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-            <h5 style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">Start/Stop System Limit</h5>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">Voltage threshold method to deactivate automatic engine shutoff.</p>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <select id="select-start-stop" class="select-box" style="flex: 1; padding: 4px 8px; font-size: 0.8rem;">
-                <option value="disable">Deactivate Start/Stop (12.1V limit)</option>
-                <option value="enable" selected>Standard Start/Stop (7.6V limit)</option>
-              </select>
-              <button id="btn-apply-start-stop" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 10px;">Apply</button>
-            </div>
-          </div>
-
-          <!-- Teardrop Wiper Wipe -->
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-            <h5 style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">Teardrop Wiper Wipe</h5>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">Extra wipe 5 seconds after windscreen washing to catch runoff.</p>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <select id="select-teardrop-wipe" class="select-box" style="flex: 1; padding: 4px 8px; font-size: 0.8rem;">
-                <option value="1">Enabled (Extra Wipe)</option>
-                <option value="0" selected>Disabled</option>
-              </select>
-              <button id="btn-apply-teardrop-wipe" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 10px;">Apply</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="adapt-status-msg" style="margin-top: 0.75rem; font-size: 0.8rem; min-height: 1.2rem; color: var(--text-muted);"></div>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Each one will return only once its identifiers, routines and preconditions are confirmed on a named vehicle and it runs through the same audited write path as long coding. Details: <code>docs/REMOVED_FEATURES.md</code> in the repository.
+        </p>
       </div>
     </div>
   </main>
@@ -637,8 +472,8 @@
   <main id="tab-backups" class="tab-content">
     <div class="card" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
       <div>
-        <h3 style="font-size: 1.05rem; font-weight:700;">Immutable Pre-Write Snapshots</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted);">Stored locally in browser IndexedDB before every UDS flash write.</p>
+        <h3 style="font-size: 1.05rem; font-weight:700;">Pre-Write Snapshots</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Saved in this browser's storage before every coding write. Export them: browser storage is not permanent, and a snapshot only restores to the VIN and module it came from.</p>
       </div>
       <div style="display:flex; gap:0.5rem;">
         <button id="btn-export-backups" class="btn btn-primary">Export JSON</button>
@@ -746,11 +581,11 @@
     <div class="modal-box">
       <div class="modal-title">
         <span>🛡️</span>
-        <span>5-Point Defensive Safety Audit</span>
+        <span>Pre-Write Safety Audit</span>
       </div>
       
       <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
-        The vibesODB2 safety pipeline validates hardware interlocks before writing to vehicle EEPROM:
+        Before anything is written, vibesODB2 checks the following. If any check fails the write is refused and the reason is shown.
       </p>
 
       <div class="check-item">
@@ -780,22 +615,29 @@
       <div class="check-item">
         <div class="check-icon">💾</div>
         <div class="check-text">
-          <h5>Immutable Pre-Write Snapshot</h5>
-          <p>Current ECU state will be automatically saved to local IndexedDB before flashing.</p>
+          <h5>Pre-Write Snapshot</h5>
+          <p>The current coding is saved to this browser's local storage before writing. Local storage can be cleared by the browser: export your backups.</p>
         </div>
       </div>
 
       <div class="check-item">
-        <div class="check-icon">🔄</div>
+        <div class="check-icon">🔎</div>
         <div class="check-text">
-          <h5>Atomic Rollback Armed</h5>
-          <p>If ECU returns a Negative Response Code (NRC), previous state is immediately restored.</p>
+          <h5>Post-Write Verification</h5>
+          <p>After the ECU acknowledges the write, the coding is read back and compared. If it differs, the saved baseline is written back once. A rejected write (negative response) changes nothing and is reported as failed.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">🧾</div>
+        <div class="check-text">
+          <h5>Live Baseline Required</h5>
+          <p>Writes are only allowed after the current coding has been read from this vehicle in this session.</p>
         </div>
       </div>
 
       <!-- Detailed Byte Diffs -->
       <div style="margin-top: 1rem;">
-        <h5 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">PLANNED EEPROM BYTE MODIFICATIONS:</h5>
+        <h5 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">PLANNED BYTE CHANGES:</h5>
         <div id="modal-diff-summary"></div>
       </div>
 
@@ -875,10 +717,17 @@
           <strong>⚙️ Hardware Requirement:</strong>
           <span id="confirm-feat-prereq-text" style="display:block; margin-top:2px; color:#fde047;"></span>
         </div>
+        <div id="confirm-feat-verify-box" style="margin-top:0.75rem; padding:0.6rem 0.8rem; border-radius:6px; background:rgba(148, 163, 184, 0.12); border:1px solid rgba(148, 163, 184, 0.3); font-size:0.78rem; color:#cbd5e1;">
+          <span id="confirm-feat-verify-text"></span>
+        </div>
+        <div id="confirm-feat-regulatory-box" style="display:none; margin-top:0.75rem; padding:0.6rem 0.8rem; border-radius:6px; background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.35); font-size:0.78rem; color:#fca5a5;">
+          <strong>⚖️ Road-legal check:</strong>
+          <span id="confirm-feat-regulatory-text" style="display:block; margin-top:2px;"></span>
+        </div>
       </div>
       <div class="modal-actions">
         <button id="btn-feat-confirm-cancel" class="btn btn-secondary">Cancel</button>
-        <button id="btn-feat-confirm-proceed" class="btn btn-primary">Proceed to Flash Verification</button>
+        <button id="btn-feat-confirm-proceed" class="btn btn-primary">Proceed to Safety Audit</button>
       </div>
     </div>
   </div>
@@ -974,7 +823,7 @@
             Vehicle VIN / Chassis ID
             <span id="modal-reg-vin-status" style="font-size:0.75rem; color:#38bdf8; font-weight:normal; margin-left:4px;"></span>
           </label>
-          <input type="text" id="input-vehicle-vin" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:0.92rem; font-weight:600; letter-spacing:1px;" placeholder="e.g. WV1ZZZ7HZ7H061325 (17 chars)" maxlength="17" />
+          <input type="text" id="input-vehicle-vin" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:0.92rem; font-weight:600; letter-spacing:1px;" placeholder="17-character VIN, e.g. WV1ZZZ7HZ7H000001" maxlength="17" />
           <span style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:block;">Enter 17-digit VIN to unlock automatic chassis platform &amp; factory specs decoding.</span>
         </div>
         <div class="modal-actions">
@@ -1037,6 +886,34 @@
   <div id="toast-banner" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#0f172a; border:1px solid #0284c7; color:#38bdf8; padding:10px 18px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); z-index:9999; font-size:0.85rem; font-weight:600; text-align:center; max-width:90%;"></div>
 
   <!-- Main ES Module Script -->
+  <!-- First-use acknowledgement (shown before the first Bluetooth connection) -->
+  <div id="modal-acknowledge" class="modal-overlay">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-title">
+        <span style="font-size: 1.3rem;">⚠️</span>
+        <h3 style="font-size: 1.05rem;">Before you connect to a vehicle</h3>
+      </div>
+      <div style="font-size: 0.84rem; line-height: 1.55; color: var(--text-main);">
+        <ul style="padding-left: 1.1rem; margin: 0.5rem 0;">
+          <li><strong>Alpha software.</strong> It has not been verified on most listed vehicles. Writing to control units can leave features misconfigured or a module unresponsive.</li>
+          <li><strong>Backups are local.</strong> Snapshots live in this browser only. Export them before writing anything.</li>
+          <li><strong>Lighting and other regulated behaviour.</strong> Some coding options change exterior lighting or safety-related behaviour and may be unlawful on public roads where you are. You are responsible for checking.</li>
+          <li><strong>Fault memory.</strong> Clearing fault codes removes information a mechanic may need and resets emissions readiness monitors.</li>
+          <li><strong>Warranty and insurance</strong> may be affected by modifying vehicle configuration.</li>
+          <li><strong>No warranty, no liability.</strong> This is free open-source software provided as-is (MIT licence). It is not affiliated with any vehicle manufacturer or diagnostic tool vendor.</li>
+        </ul>
+        <label style="display:flex; align-items:flex-start; gap:8px; margin-top:0.75rem; cursor:pointer;">
+          <input type="checkbox" id="ack-checkbox" style="margin-top:3px;">
+          <span>I have read this and accept full responsibility for any changes I make to my vehicle.</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-ack-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="btn-ack-accept" class="btn btn-primary" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

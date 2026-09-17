@@ -1,8 +1,9 @@
 // vibesODB2 Progressive Web Application Controller
-import { BUNDLED_SCHEMAS, computeByteDiff, hexStringToBytes, bytesToHexString } from './schemas.js';
+import { BUNDLED_SCHEMAS, computeByteDiff, hexStringToBytes, bytesToHexString, isRegulatedFeature, featureVerification, LIGHTING_REGULATION_NOTICE } from './schemas.js';
+import { executeCodingWrite, canRestoreBackup } from './writeflow.js';
 import { saveBackup, getBackups, getBackupById, deleteBackup, exportBackupsJson, importBackupsJson, saveCustomFeature, getCustomFeatures } from './storage.js';
 import { WebBleTransport } from './ble.js';
-import { UdsClient } from './uds.js';
+import { UdsClient, MODULE_ARBITRATION } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 import { MaintenanceManager } from './maintenance.js';
@@ -181,7 +182,8 @@ class VibesApp {
       udsClient: this.udsClient,
       bleTransport: this.bleTransport,
       showToast: (msg) => this.showToast(msg),
-      vibrate: (pattern) => this.vibrate(pattern)
+      vibrate: (pattern) => this.vibrate(pattern),
+      withBusLock: (fn) => this.withBusLock(fn)
     });
 
     this.graphHistory = [];
@@ -259,7 +261,7 @@ class VibesApp {
   //   - ignition state is unknown (no bus ping response yet — treat as unsafe)
   get isWritable() {
     const connected = !!(this.bleTransport && this.bleTransport.isConnected);
-    return connected && this.ignitionState === 'on';
+    return connected && this.ignitionState === 'on' && this.hasCapturedBaseline;
   }
 
   get isWriteBlockedReason() {
@@ -275,7 +277,71 @@ class VibesApp {
     if (this.ignitionState === 'unknown') {
       return 'Ignition state is unknown. Wait for the adapter to detect the vehicle bus, or press "Check Ignition".';
     }
+    if (!this.hasCapturedBaseline) {
+      return 'No live coding has been read from this vehicle yet. Tap "Read Live Coding" first so changes are based on the real ECU state.';
+    }
     return 'Cannot write: vehicle bus is not responding.';
+  }
+
+  // --- Bus ownership ---
+  // Diagnostic operations set the adapter's CAN header and RX filter. Background pollers
+  // (telemetry, ignition check, TesterPresent) must not interleave with them, so every
+  // diagnostic operation runs under this lock: telemetry is paused and the ignition poll skips.
+  async withBusLock(fn) {
+    if (this._busLock) {
+      await this._busLock.catch(() => {});
+    }
+    const run = (async () => {
+      this.isBusBusy = true;
+      if (this.telemetryEngine && this.telemetryEngine.isRunning) await this.telemetryEngine.pause();
+      try {
+        return await fn();
+      } finally {
+        this.udsClient.stopTesterPresent();
+        this.isBusBusy = false;
+        // Resume whichever telemetry loop exists now (it may have been started, paused, during fn).
+        if (this.telemetryEngine && this.telemetryEngine.isRunning) this.telemetryEngine.resume();
+      }
+    })();
+    this._busLock = run;
+    try {
+      return await run;
+    } finally {
+      if (this._busLock === run) this._busLock = null;
+    }
+  }
+
+  // Start telemetry without ever sending while a diagnostic operation owns the adapter.
+  startTelemetry() {
+    const locked = this.isBusBusy || !!this._busLock;
+    this.telemetryEngine.start({ paused: locked });
+  }
+
+  // --- First-use acknowledgement ---
+  ensureAcknowledged() {
+    try {
+      if (localStorage.getItem('vibesodb2_ack_v1') === 'yes') return Promise.resolve(true);
+    } catch (_) {}
+    const modal = document.getElementById('modal-acknowledge');
+    const checkbox = document.getElementById('ack-checkbox');
+    const accept = document.getElementById('btn-ack-accept');
+    const cancel = document.getElementById('btn-ack-cancel');
+    if (!modal || !checkbox || !accept || !cancel) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        modal.classList.remove('active');
+        checkbox.onchange = null; accept.onclick = null; cancel.onclick = null;
+      };
+      checkbox.checked = false;
+      accept.disabled = true;
+      checkbox.onchange = () => { accept.disabled = !checkbox.checked; };
+      accept.onclick = () => {
+        try { localStorage.setItem('vibesodb2_ack_v1', 'yes'); } catch (_) {}
+        cleanup(); resolve(true);
+      };
+      cancel.onclick = () => { cleanup(); resolve(false); };
+      modal.classList.add('active');
+    });
   }
 
   // --- Service Worker Registration ---
@@ -645,7 +711,7 @@ class VibesApp {
     // Bind simulated transport to engine components
     this.udsClient.transport = this.bleTransport;
     this.safetyPipeline.transport = this.bleTransport;
-    this.telemetryEngine.bleTransport = this.bleTransport;
+    this.telemetryEngine.transport = this.bleTransport;
     this.maintenanceManager.bleTransport = this.bleTransport;
 
     this.showToast(`🎮 Virtual Simulator Activated: ${SIM_PROFILES[profileId]?.name || profileId}`);
@@ -668,8 +734,9 @@ class VibesApp {
     this.bleTransport = new WebBleTransport();
     this.udsClient.transport = this.bleTransport;
     this.safetyPipeline.transport = this.bleTransport;
-    this.telemetryEngine.bleTransport = this.bleTransport;
+    this.telemetryEngine.transport = this.bleTransport;
     this.maintenanceManager.bleTransport = this.bleTransport;
+    this.hasCapturedBaseline = false;
     this.updateConnectionStatus(false);
     this.showToast('Simulator disconnected. Standard Bluetooth mode active.');
   }
@@ -897,6 +964,10 @@ class VibesApp {
 
   async handleBleConnect() {
     const bleBtn = document.getElementById('btn-ble-connect');
+    if (!this.isSimulated) {
+      const ok = await this.ensureAcknowledged();
+      if (!ok) return;
+    }
     if (bleBtn) bleBtn.textContent = 'Connecting...';
 
     this.showVehicleLoading('ble', 'Connecting to Bluetooth Adapter...', 'Requesting BLE device and establishing GATT connection...');
@@ -923,7 +994,7 @@ class VibesApp {
         this.startIgnitionPolling();
 
         // Start telemetry
-        this.telemetryEngine.start();
+        this.startTelemetry();
       } else {
         this.updateConnectionStatus(false);
       }
@@ -1111,11 +1182,28 @@ class VibesApp {
         }, 400);
       }
 
-      // 5. Automatic Background Diagnostic Trouble Code (DTC) Scan
+      // 5. Automatic background fault-code check on the selected module (under the bus lock so
+      //    it cannot interleave with a user-triggered scan, and never overwriting a fuller scan).
       try {
-        const dtcs = await this.udsClient.readDTCs();
+        const activeMod = this.currentSchema.module_address || '0x09';
+        const dtcs = await this.withBusLock(() => this.udsClient.readModuleDTCs(activeMod));
         this.updateCockpitDtcAlert(dtcs);
-        this.renderDtcsList(dtcs);
+        if (!this.lastDtcScanResults) {
+          this.lastDtcScanResults = {
+            modules: [{
+              address: activeMod,
+              name: MODULE_ARBITRATION[activeMod]?.name || `Module ${activeMod}`,
+              partNumber: 'Quick check',
+              component: 'Selected module only',
+              protocol: dtcs[0]?.protocol || 'UDS',
+              dtcs
+            }],
+            totalDtcCount: dtcs.length,
+            scannedCount: 1,
+            timestamp: new Date().toISOString()
+          };
+          this.renderDtcsList(this.lastDtcScanResults);
+        }
       } catch (dtcErr) {
         console.warn('Auto DTC check error:', dtcErr);
       }
@@ -1366,6 +1454,24 @@ class VibesApp {
     document.getElementById('confirm-feat-new').textContent = targetState ? 'Enabled (ON)' : 'Disabled (OFF)';
     document.getElementById('confirm-feat-loc').textContent = `Byte ${feature.byte}, Bit ${feature.bit} (Module ${this.currentSchema.module_address || '0x09'})`;
 
+    const verifyText = document.getElementById('confirm-feat-verify-text');
+    if (verifyText) {
+      const v = featureVerification(feature);
+      verifyText.textContent = v.verified
+        ? `✔ ${v.label}.`
+        : '❔ This coordinate has not been confirmed on a real vehicle by this project. It may do nothing, or something other than described. Keep your exported backup to hand.';
+    }
+    const regBox = document.getElementById('confirm-feat-regulatory-box');
+    const regText = document.getElementById('confirm-feat-regulatory-text');
+    if (regBox && regText) {
+      if (isRegulatedFeature(feature)) {
+        regBox.style.display = 'block';
+        regText.textContent = LIGHTING_REGULATION_NOTICE;
+      } else {
+        regBox.style.display = 'none';
+      }
+    }
+
     const prereqBox = document.getElementById('confirm-feat-prereq-box');
     const prereqText = document.getElementById('confirm-feat-prereq-text');
     if (prereqBox && prereqText) {
@@ -1459,7 +1565,9 @@ class VibesApp {
   startIgnitionPolling() {
     this.stopIgnitionPolling();
     this._ignitionPollTimer = setInterval(async () => {
-      if (this.bleTransport && this.bleTransport.isConnected && !this.isBusBusy) {
+      // Skip a tick while a diagnostic operation owns the bus; otherwise take the lock so the
+      // 7DF header change can never land between a module's ATSH and its UDS request.
+      if (this.bleTransport && this.bleTransport.isConnected && !this.isBusBusy && !this._busLock) {
         await this.checkIgnitionState(true);
       }
     }, 3500);
@@ -1473,6 +1581,13 @@ class VibesApp {
   }
 
   async checkIgnitionState(suppressUi = false) {
+    if (this.isSimulated || !this.bleTransport || !this.bleTransport.isConnected) {
+      return await this._checkIgnitionUnlocked(suppressUi);
+    }
+    return await this.withBusLock(() => this._checkIgnitionUnlocked(suppressUi));
+  }
+
+  async _checkIgnitionUnlocked(suppressUi = false) {
     if (!this.bleTransport || !this.bleTransport.isConnected) {
       this.ignitionState = 'disconnected';
       this.batteryVoltage = null;
@@ -1500,7 +1615,9 @@ class VibesApp {
         }
       } catch (_) {}
 
-      // 2. Query OBD-II RPM (01 0C) with broad 7DF header to test Terminal 15 response
+      // 2. Query OBD-II RPM (01 0C) with broad 7DF header to test Terminal 15 response.
+      // A module-specific RX filter left by a diagnostic operation would hide the 7E8 reply.
+      if (this.bleTransport.setFilter) await this.bleTransport.setFilter('7E8');
       await this.bleTransport.setHeader('7DF');
       const rpmResp = await this.bleTransport.sendCommand('01 0C', 2000);
       const clean = (rpmResp || '').toUpperCase();
@@ -2200,6 +2317,10 @@ class VibesApp {
   }
 
   async readLiveCodingFromVehicle(isAutoBaseline = false) {
+    return await this.withBusLock(() => this._readLiveCodingUnlocked(isAutoBaseline));
+  }
+
+  async _readLiveCodingUnlocked(isAutoBaseline = false) {
     if (!this.bleTransport || !this.bleTransport.isConnected) {
       if (!isAutoBaseline) {
         alert('Please connect your Bluetooth OBD-II adapter first.');
@@ -2545,13 +2666,29 @@ class VibesApp {
           `;
         }
 
+        const verification = featureVerification(feat);
+        const verifyHtml = `
+            <span title="${verification.label}" style="font-size: 0.69rem; padding: 1px 6px; border-radius: 4px; margin-left:6px; ${verification.verified
+              ? 'background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);'
+              : 'background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);'}">
+              ${verification.verified ? '✔ Verified' : '❔ Unverified'}
+            </span>`;
+        const regulatoryHtml = isRegulatedFeature(feat) ? `
+            <div style="margin-top: 4px;">
+              <span title="${LIGHTING_REGULATION_NOTICE}" style="font-size: 0.69rem; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3);">
+                ⚖️ Road-legal check required
+              </span>
+            </div>` : '';
+
         info.innerHTML = `
           <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
             <h4 style="margin:0;">${feat.name}</h4>
             ${stateBadgeHtml}
+            ${verifyHtml}
           </div>
           <p style="margin:4px 0 2px 0;">${feat.description || ''}</p>
           ${prereqHtml}
+          ${regulatoryHtml}
           <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
             <span style="font-size: 0.72rem; color: #64748b; font-family: var(--font-mono)">
               [Byte ${feat.byte}, Bit ${feat.bit}]
@@ -2823,36 +2960,34 @@ class VibesApp {
         confirmBtn.textContent = 'Writing to ECU...';
 
         try {
-          // Perform Safety Pipeline Pre-Write Audit & Backup
-          const auditResult = await this.safetyPipeline.preWriteAudit({
+          if (!this.bleTransport.isConnected) {
+            alert('Cannot write to ECU: Bluetooth adapter is not connected. Please connect your OBD-II adapter first.');
+            return;
+          }
+
+          // Every write goes through writeflow.js: audit, re-target module, write, verify read-back.
+          const result = await this.withBusLock(() => executeCodingWrite({
+            udsClient: this.udsClient,
+            safetyPipeline: this.safetyPipeline,
             vin: this.vin,
             targetModule: this.currentSchema.module_address,
             did: this.currentSchema.coding_did,
-            baselineHex: bytesToHexString(this.currentBytes),
-            modifiedHex: bytesToHexString(this.pendingWrite.modifiedBytes),
-            expectedByteLength: this.currentSchema.expected_byte_length || 30
-          });
+            baselineBytes: this.currentBytes,
+            modifiedBytes: this.pendingWrite.modifiedBytes,
+            baselineCaptured: this.hasCapturedBaseline,
+            isSimulation: this.isSimulated,
+            simulatedRpm: this.isSimulated && this.bleTransport.engineRunning ? 800 : 0
+          }));
 
-          if (!auditResult.passed) {
-            alert('Safety Check Failed: ' + auditResult.errors.join('\n'));
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Confirm & Write to ECU';
+          if (!result.success) {
+            if (result.rollback?.attempted) {
+              // The ECU state is uncertain: force a fresh read before any further change.
+              this.hasCapturedBaseline = false;
+              this.renderFeatureList();
+            }
+            alert('Write not applied.\n\n' + result.error);
             return;
           }
-
-          // Execute UDS Write
-          if (!this.bleTransport.isConnected) {
-            alert('Cannot write to ECU: Bluetooth adapter is not connected. Please connect your OBD-II adapter first.');
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Confirm & Write to ECU';
-            return;
-          }
-
-          await this.udsClient.enterExtendedSession();
-          await this.udsClient.writeDataById(
-            this.currentSchema.coding_did,
-            this.pendingWrite.modifiedBytes
-          );
 
           // Complete transaction
           if (this.pendingWrite.onSuccess) {
@@ -2860,7 +2995,7 @@ class VibesApp {
           }
 
           this.closeModal('modal-safety-audit');
-          alert('Coding applied successfully! Pre-write snapshot saved to local storage.');
+          alert('Coding written and verified by reading it back from the ECU. Pre-write snapshot saved to local storage.');
           this.renderBackupsList();
         } catch (err) {
           console.error('ECU write error:', err);
@@ -3117,6 +3252,15 @@ class VibesApp {
         const restoreBtn = item.querySelector(`#btn-restore-${b.id}`);
         if (restoreBtn) {
           restoreBtn.addEventListener('click', () => {
+            const check = canRestoreBackup(b, this.vin, this.currentSchema.module_address);
+            if (!check.ok) {
+              alert('Cannot restore this snapshot.\n\n' + check.reason);
+              return;
+            }
+            if (!this.isWritable) {
+              alert(this.isWriteBlockedReason);
+              return;
+            }
             const modBytes = hexStringToBytes(rawHex);
             this.promptSafetyAudit({
               featureName: `Restore Snapshot from ${dateStr}`,
@@ -3221,12 +3365,12 @@ class VibesApp {
       if (isConnected) {
         // Live hardware vehicle Auto-Scan
         const targetModules = isQuick ? ['0x01', '0x09', '0x15'] : null;
-        results = await this.udsClient.autoScanVehicle((p) => {
+        results = await this.withBusLock(() => this.udsClient.autoScanVehicle((p) => {
           const pct = Math.round((p.index / p.total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
           if (percentText) percentText.textContent = `${pct}%`;
           if (statusText) statusText.textContent = `Scanning ${p.moduleName} (${p.moduleHex})...`;
-        }, targetModules);
+        }, targetModules));
       } else {
         // Realistic Demo Mode Auto-Scan matching the Transporter T5 scenario
         const demoModules = isQuick
@@ -3236,7 +3380,7 @@ class VibesApp {
         const modNames = {
           '0x01': 'Engine (ECM)',
           '0x03': 'ABS Brakes',
-          '0x08': 'Climatronic / HVAC',
+          '0x08': 'Climate Control (HVAC)',
           '0x09': 'Cent. Elect. (BCM)',
           '0x15': 'Airbags (SRS)',
           '0x17': 'Instrument Cluster',
@@ -3625,7 +3769,7 @@ class VibesApp {
     const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
     try {
       if (isConnected) {
-        await this.udsClient.clearModuleDTCs(moduleHex);
+        await this.withBusLock(() => this.udsClient.clearModuleDTCs(moduleHex));
       }
       // Update in-memory results
       if (this.lastDtcScanResults && this.lastDtcScanResults.modules) {
@@ -3656,7 +3800,7 @@ class VibesApp {
       if (isConnected && this.lastDtcScanResults && this.lastDtcScanResults.modules) {
         for (const mod of this.lastDtcScanResults.modules) {
           if (mod.dtcs && mod.dtcs.length > 0) {
-            await this.udsClient.clearModuleDTCs(mod.address);
+            await this.withBusLock(() => this.udsClient.clearModuleDTCs(mod.address));
           }
         }
       }

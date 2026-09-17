@@ -43,6 +43,11 @@ jobs:
       - name: Validate PWA JavaScript Syntax
         run: |
           node --check pwa/js/*.js
+          node --check pwa/sw.js
+
+      - name: Run PWA JavaScript Unit Tests
+        run: |
+          node --test --test-force-exit --test-timeout=10000 tests/js/
 
       - name: Run Python Simulator & Diagnostics Pytest Suite
         run: |

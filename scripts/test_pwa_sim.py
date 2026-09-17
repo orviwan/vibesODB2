@@ -9,7 +9,7 @@ in-browser Vehicle Simulator, and verify all core features:
 4. Live Cockpit telemetry streaming.
 5. Multi-Module Diagnostic Auto-Scan & plain-English knowledge base drawers.
 6. Feature coding tab rendering.
-7. Service & Maintenance tab checks.
+7. Service tab (standard OBD odometer only) renders.
 8. Backup manager rendering.
 """
 
@@ -40,6 +40,21 @@ CHROME_BIN = (
 )
 
 
+CONSOLE_ERRORS: list = []
+
+
+def _collect_console_event(data: dict) -> None:
+    """Record uncaught exceptions and console.error output emitted between CDP replies."""
+    method = data.get("method")
+    if method == "Runtime.exceptionThrown":
+        details = data.get("params", {}).get("exceptionDetails", {})
+        text = details.get("exception", {}).get("description") or details.get("text")
+        CONSOLE_ERRORS.append(f"exception: {text}")
+    elif method == "Runtime.consoleAPICalled" and data.get("params", {}).get("type") == "error":
+        args = data.get("params", {}).get("args", [])
+        CONSOLE_ERRORS.append("console.error: " + " ".join(str(a.get("value", a.get("description", ""))) for a in args))
+
+
 async def send_cdp(ws, msg_id: int, method: str, params: dict = None):
     payload = {"id": msg_id, "method": method}
     if params:
@@ -50,6 +65,7 @@ async def send_cdp(ws, msg_id: int, method: str, params: dict = None):
         data = json.loads(raw)
         if data.get("id") == msg_id:
             return data
+        _collect_console_event(data)
 
 
 async def evaluate_js(ws, msg_id_gen, expr: str):
@@ -85,7 +101,7 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
         "--window-size=1280,900"
     ])
 
-    console_errors = []
+    CONSOLE_ERRORS.clear()
 
     try:
         # Query CDP WebSocket URL with retry loop
@@ -122,12 +138,18 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
             print(f"✓ Navigating headless Chrome to: {target_url}")
             await send_cdp(ws, next(gen), "Page.navigate", {"url": target_url})
 
-            # Allow DOM initialization and auto-connection handshake
-            await asyncio.sleep(2.5)
-
-            # Step A: Check connection state
-            is_connected = await evaluate_js(ws, gen, "window.app && window.app.bleTransport && window.app.bleTransport.isConnected")
+            # Step A: Wait for DOM initialisation and the simulator auto-connect handshake
+            is_connected = None
+            for _ in range(30):
+                await asyncio.sleep(0.5)
+                is_connected = await evaluate_js(ws, gen, "!!(window.app && window.app.bleTransport && window.app.bleTransport.isConnected)")
+                if is_connected:
+                    break
             print(f"✓ Simulated BLE connection state: {is_connected}")
+            if not is_connected:
+                state = await evaluate_js(ws, gen, "JSON.stringify({ready: document.readyState, app: typeof window.app, url: location.href})")
+                print(f"  page state: {state}")
+                print(f"  browser errors: {CONSOLE_ERRORS}")
             assert is_connected is True, "Simulated BLE transport failed to connect!"
 
             # Step B: Check detected VIN and Platform
@@ -139,7 +161,7 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
                 await asyncio.sleep(0.5)
 
             print(f"✓ Detected VIN: {detected_vin}")
-            assert "WV1ZZZ7HZ7H061325" in str(detected_vin), f"Expected Transporter T5 VIN, got {detected_vin}"
+            assert "WV1ZZZ7HZ7H000001" in str(detected_vin), f"Expected Transporter T5 VIN, got {detected_vin}"
 
             # Step C: Verify Cockpit live telemetry gauges
             rpm_val = await evaluate_js(ws, gen, "document.getElementById('gauge-rpm-val')?.textContent")
@@ -147,22 +169,42 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
             print(f"✓ Live Cockpit Gauges: RPM={rpm_val}, Speed={speed_val}")
             assert rpm_val is not None, "RPM gauge not rendered!"
 
-            # Step D: Test Multi-Module Auto-Scan execution
-            print("✓ Triggering Multi-Module Diagnostic Auto-Scan...")
-            await evaluate_js(ws, gen, "document.getElementById('btn-scan-dtcs')?.click()")
-
-            # Wait for scan to complete (polls progress bar or completion)
-            for _ in range(40):
-                await asyncio.sleep(0.5)
-                progress = await evaluate_js(ws, gen, "document.getElementById('dtc-scan-progressbar')?.style.width")
-                scan_btn_disabled = await evaluate_js(ws, gen, "document.getElementById('btn-scan-dtcs')?.disabled")
-                scanned_count = await evaluate_js(ws, gen, "document.getElementById('dtc-stat-scanned')?.textContent")
-                if (progress == "100%" or scan_btn_disabled is False) and scanned_count and int(scanned_count) > 0:
+            # Step D: Test Multi-Module Auto-Scan execution.
+            # Wait until the post-connect setup has released the bus lock and the scan button is enabled.
+            for _ in range(30):
+                idle = await evaluate_js(ws, gen, "!window.app.isBusBusy && !document.getElementById('btn-scan-dtcs')?.disabled")
+                if idle:
                     break
+                await asyncio.sleep(0.5)
+            print("✓ Triggering Multi-Module Diagnostic Auto-Scan...")
+            # Record every adapter command during the scan so a wrong header or interleaved
+            # poller shows up in the failure output.
+            await evaluate_js(ws, gen, """
+                (() => { const t = window.app.bleTransport; if (!t.__log) { const orig = t.sendCommand.bind(t); t.__log = [];
+                  t.sendCommand = async (c, ms) => { const r = await orig(c, ms); t.__log.push(c + ' => ' + String(r).slice(0, 24)); return r; }; } })()
+            """)
+            await evaluate_js(ws, gen, "window.app.lastDtcScanResults = null; document.getElementById('btn-scan-dtcs')?.click()")
+
+            # Wait for the scan to publish its results
+            for _ in range(60):
+                await asyncio.sleep(0.5)
+                done = await evaluate_js(ws, gen, "!!window.app.lastDtcScanResults && !document.getElementById('btn-scan-dtcs')?.disabled")
+                if done:
+                    break
+
+            if not done:
+                dbg = await evaluate_js(ws, gen, "JSON.stringify({busy: window.app.isBusBusy, lock: !!window.app._busLock, tIdle: window.app.telemetryEngine._idle, tPaused: window.app.telemetryEngine.isPaused, tRunning: window.app.telemetryEngine.isRunning, hidden: document.hidden, results: !!window.app.lastDtcScanResults, btnDisabled: document.getElementById('btn-scan-dtcs')?.disabled})")
+                print(f"  scan did not complete; app state: {dbg}")
+                print(f"  browser errors: {CONSOLE_ERRORS}")
 
             # Verify scan results rendered in DOM
             dtc_count_text = await evaluate_js(ws, gen, "document.getElementById('dtc-stat-faults')?.textContent")
             print(f"✓ Diagnostic Auto-Scan completed. Total DTCs found: {dtc_count_text}")
+            if not dtc_count_text or int(dtc_count_text) < 3:
+                log = await evaluate_js(ws, gen, "JSON.stringify((window.app.bleTransport.__log || []).filter(l => !/^01[0-9A-F]{2} /.test(l) && !l.startsWith('ATRV')))")
+                mods = await evaluate_js(ws, gen, "JSON.stringify((window.app.lastDtcScanResults?.modules || []).map(m => [m.address, m.dtcs.length]))")
+                print(f"  modules: {mods}")
+                print(f"  adapter log: {log}")
             assert int(dtc_count_text) >= 3, f"Expected at least 3 DTCs in Transporter T5 profile, found {dtc_count_text}"
 
             # Step E: Verify plain-English knowledge base drawer
@@ -185,8 +227,8 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
             assert backups_tab_active is True, "Backups tab failed to activate!"
 
             # Step H: Check for JavaScript exceptions
-            print(f"✓ Checking for uncaught browser errors (errors caught: {len(console_errors)})...")
-            assert len(console_errors) == 0, f"Uncaught browser errors occurred: {console_errors}"
+            print(f"✓ Checking for uncaught browser errors (errors caught: {len(CONSOLE_ERRORS)})...")
+            assert len(CONSOLE_ERRORS) == 0, f"Uncaught browser errors occurred: {CONSOLE_ERRORS}"
 
             print("=================================================================")
             print("✅ ALL PWA SIMULATOR AUTOMATED END-TO-END TESTS PASSED!")

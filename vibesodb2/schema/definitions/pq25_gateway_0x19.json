@@ -15,7 +15,8 @@
       "bit": 2,
       "name": "Trailer Detection Module (J345)",
       "description": "Enables CAN communication and lighting coordination for factory or aftermarket towbar module.",
-      "prerequisites": "Physical towbar wiring kit installed."
+      "prerequisites": "Physical towbar wiring kit installed.",
+      "verified_on": []
     },
     {
       "id": "navigation_module_installed",
@@ -24,7 +25,8 @@
       "bit": 4,
       "name": "Navigation System (RNS/Discover)",
       "description": "Registers headunit navigation bus on Gateway installation table.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     }
   ]
 }

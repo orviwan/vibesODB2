@@ -1,5 +1,5 @@
 // vibesODB2 Service Worker for Offline PWA Support
-const CACHE_NAME = 'vibesodb2-v24';
+const CACHE_NAME = 'vibesodb2-v25';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -60,17 +60,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for static assets
+  // Network-first for every same-origin asset too. The page and its ES modules must always come
+  // from the same deployment: serving a fresh index.html with stale cached JS produced mixed
+  // versions of a tool that writes to vehicle ECUs.
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {/* Offline */});
-        return cachedResponse;
-      }
       return fetch(event.request).then((response) => {
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
@@ -81,6 +75,7 @@ self.addEventListener('fetch', (event) => {
         });
         return response;
       }).catch(() => {
+        if (cachedResponse) return cachedResponse;
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }

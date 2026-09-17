@@ -6,7 +6,7 @@ export const SIM_PROFILES = {
   transporter_t5: {
     id: 'transporter_t5',
     name: 'VW Transporter T5 (2007 2.5 TDI PD)',
-    vin: 'WV1ZZZ7HZ7H061325',
+    vin: 'WV1ZZZ7HZ7H000001',
     platform: 'PQ35',
     protocol: 'KWP2000',
     engineType: 'diesel_tdi',
@@ -14,7 +14,7 @@ export const SIM_PROFILES = {
     modules: {
       '0x01': { name: 'Engine Control Module', partNumber: '070906016DH', swVersion: '8547', dtcs: [] },
       '0x03': { name: 'Brake Electronics (ABS/ESP)', partNumber: '7H0907379E', swVersion: '0002', dtcs: [] },
-      '0x08': { name: 'Climatronic / Heating', partNumber: '7H0907040D', swVersion: '0201', dtcs: [] },
+      '0x08': { name: 'Climate Control (HVAC)', partNumber: '7H0907040D', swVersion: '0201', dtcs: [] },
       '0x09': {
         name: 'Central Electrics (Bordnetz SG)',
         partNumber: '7H0937049K',
@@ -49,7 +49,7 @@ export const SIM_PROFILES = {
     modules: {
       '0x01': { name: 'Engine Control Module', partNumber: '03L906022JD', swVersion: '9970', dtcs: [] },
       '0x03': { name: 'Brake Electronics (ABS/ESP)', partNumber: '7E0614517A', swVersion: '0105', dtcs: [] },
-      '0x08': { name: 'Climatronic / Heating', partNumber: '7E5907040E', swVersion: '0402', dtcs: [] },
+      '0x08': { name: 'Climate Control (HVAC)', partNumber: '7E5907040E', swVersion: '0402', dtcs: [] },
       '0x09': {
         name: 'Central Electrics (BCM)',
         partNumber: '7H0937087H',
@@ -241,18 +241,15 @@ export class SimulatedBleTransport {
       '714': '0x17',
       '710': '0x19',
       '746': '0x08',
-      '734': '0x10',
-      '744': '0x10',
-      '701': '0x01',
       '7E0': '0x01',
       '7E1': '0x02',
-      '7E2': '0x03',
       '713': '0x03',
-      '7E5': '0x15',
       '715': '0x15',
       '712': '0x44'
     };
-    return map[this.txHeader.toUpperCase()] || '0x09';
+    // Unknown headers (including the 7DF functional broadcast) address no diagnostic module,
+    // exactly like a real bus: UDS requests then get no reply instead of silently hitting the BCM.
+    return map[this.txHeader.toUpperCase()] || null;
   }
 
   getCurrentModule() {

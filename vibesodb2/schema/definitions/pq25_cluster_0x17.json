@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Gauge Needle Sweep (Staging)",
       "description": "Sweeps speedometer and tachometer needles to maximum position and back upon turning ignition ON.",
-      "prerequisites": "Supported instrument cluster revision (MFA+ / Highline)."
+      "prerequisites": "Supported instrument cluster revision with multifunction display.",
+      "verified_on": []
     },
     {
       "id": "seatbelt_chime_warning",
@@ -24,7 +25,8 @@
       "bit": 1,
       "name": "Seatbelt Warning Acoustic Chime",
       "description": "Sounds audible chime when driver seatbelt is unbuckled with vehicle in motion.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     }
   ]
 }

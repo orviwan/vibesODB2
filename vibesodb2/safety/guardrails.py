@@ -1,7 +1,7 @@
 """
 Safety Guardrail Architecture & Fail-Safe Pipeline.
 Enforces module blacklisting, engine-off validation, strict payload sizing,
-mandatory pre-write SQLite snapshots, and atomic rollbacks.
+mandatory pre-write SQLite snapshots, and read-back verification with baseline restore on mismatch.
 """
 
 from __future__ import annotations
@@ -42,6 +42,14 @@ class EngineRunningInterlockError(SafetyViolationError):
 class PayloadLengthMismatchError(SafetyViolationError):
     """Raised when write payload length differs from original read length."""
     pass
+
+
+class WriteVerificationError(SafetyViolationError):
+    """Raised when the coding read back after a write does not match what was written."""
+
+    def __init__(self, message: str, restored: bool):
+        super().__init__(message)
+        self.restored = restored
 
 
 class SafetyEngine:
@@ -147,7 +155,7 @@ class SafetyEngine:
         2. Engine-off verification
         3. Mandatory SQLite backup snapshot
         4. Strict length consistency check
-        5. Write execution with atomic rollback handler on NRC
+        5. Write execution with read-back verification (baseline restored once on mismatch)
         """
         # 1. Module blacklist
         self.validate_module_allowed(module_address)
@@ -167,17 +175,33 @@ class SafetyEngine:
             original_payload=original_bytes,
         )
 
-        # 5. Write execution with atomic rollback
+        # 5. Write, then verify by reading back. A negative response means the ECU changed
+        #    nothing, so it is reported without any rewrite. Only a read-back mismatch triggers a
+        #    single restore of the baseline.
         try:
             await uds_client.write_data_by_id(did, modified_bytes)
-            logger.info("Safe write completed successfully for module 0x%02X DID 0x%04X.", module_address, did)
-            return backup
         except NegativeResponseError as nrc_err:
-            logger.critical("UDS Write failed with NRC: %s. Initiating atomic rollback protocol.", nrc_err)
-            try:
-                logger.warning("Restoring original baseline from backup snapshot #%d...", backup.id)
-                await uds_client.write_data_by_id(did, original_bytes)
-                logger.info("Rollback restored original configuration successfully.")
-            except Exception as rollback_err:
-                logger.critical("EMERGENCY: Rollback write also encountered error: %s", rollback_err)
-            raise nrc_err
+            logger.critical("UDS write rejected by ECU (%s). No change was made to the vehicle.", nrc_err)
+            raise
+
+        read_back = await uds_client.read_data_by_id(did)
+        if bytes(read_back) == bytes(modified_bytes):
+            logger.info("Safe write verified for module 0x%02X DID 0x%04X.", module_address, did)
+            return backup
+
+        logger.critical(
+            "Post-write verification mismatch on module 0x%02X DID 0x%04X: ECU reports %s. Restoring baseline...",
+            module_address, did, read_back.hex().upper(),
+        )
+        restored = False
+        try:
+            await uds_client.write_data_by_id(did, original_bytes)
+            restored = True
+            logger.info("Baseline restored and acknowledged by the ECU.")
+        except Exception as restore_err:
+            logger.critical("Baseline restore failed: %s", restore_err)
+        raise WriteVerificationError(
+            f"Post-write verification failed: ECU reports {read_back.hex().upper()} but {modified_bytes.hex().upper()} was written. "
+            + ("The original baseline was re-written and acknowledged." if restored else f"Automatic restore FAILED; use `backups --restore {backup.id}`."),
+            restored=restored,
+        )

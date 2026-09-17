@@ -46,6 +46,7 @@ class SimulatedTransport(Transport):
         self.adapter = SimulatedELM327(self.vehicle)
         self._connected = False
         self._rx_buffer = bytearray()
+        self.sent_commands: list[str] = []
 
     @property
     def is_connected(self) -> bool:
@@ -137,6 +138,7 @@ class SimulatedTransport(Transport):
             raise ConnectionError("SimulatedTransport not connected.")
 
         cmd_str = data.decode("ascii", errors="replace").strip()
+        self.sent_commands.append(cmd_str)
         response = self.adapter.process_command(cmd_str)
 
         if self.vehicle.simulate_timeout:

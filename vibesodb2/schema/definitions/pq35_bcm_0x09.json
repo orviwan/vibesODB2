@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Selective Door Unlocking",
       "description": "First press unlocks driver door; second press unlocks passenger and boot doors.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "auto_lock_15kmh",
@@ -24,7 +25,8 @@
       "bit": 1,
       "name": "Auto-Locking (>15 km/h)",
       "description": "Automatically locks all doors once vehicle speed reaches 15 km/h.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "auto_unlock_key_removal",
@@ -33,7 +35,8 @@
       "bit": 2,
       "name": "Auto-Unlock on Key Removal",
       "description": "Unlocks vehicle doors automatically when ignition key is pulled from ignition barrel.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "acoustic_lock_chirp",
@@ -42,7 +45,8 @@
       "bit": 2,
       "name": "Acoustic Lock Confirmation (Horn/Siren Chirp)",
       "description": "Emits short acoustic chirp upon vehicle locking via remote fob.",
-      "prerequisites": "Alarm siren installed."
+      "prerequisites": "Alarm siren installed.",
+      "verified_on": []
     },
     {
       "id": "optical_lock_flash",
@@ -51,7 +55,8 @@
       "bit": 5,
       "name": "Optical Indicator Blink on Lock",
       "description": "Flashes turn indicators once when vehicle is locked.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "comfort_windows_remote",
@@ -60,7 +65,8 @@
       "bit": 0,
       "name": "Comfort Window Operation via Remote",
       "description": "Allows opening/closing windows by holding lock/unlock buttons on key fob.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "teardrop_wipe_front",
@@ -69,7 +75,8 @@
       "bit": 4,
       "name": "Windscreen Teardrop Wiping",
       "description": "Executes one final wipe 5 seconds after screenwash spray.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "rain_closing_windows",
@@ -78,7 +85,8 @@
       "bit": 5,
       "name": "Rain-Closing Windows & Sunroof",
       "description": "Automatically closes open windows and sunroof if rain is detected while vehicle is locked.",
-      "prerequisites": "Rain/Light sensor equipped."
+      "prerequisites": "Rain/Light sensor equipped.",
+      "verified_on": []
     },
     {
       "id": "coming_home_automatic",
@@ -87,7 +95,8 @@
       "bit": 1,
       "name": "Coming Home Automatic Mode",
       "description": "Coming Home lights trigger automatically on door open when dark without requiring stalk flash.",
-      "prerequisites": "Rain/Light sensor with Auto headlight switch."
+      "prerequisites": "Rain/Light sensor with Auto headlight switch.",
+      "verified_on": []
     },
     {
       "id": "leaving_home_active",
@@ -96,7 +105,8 @@
       "bit": 2,
       "name": "Leaving Home Illumination",
       "description": "Illuminates headlights upon remote unlocking at night.",
-      "prerequisites": "Rain/Light sensor."
+      "prerequisites": "Rain/Light sensor.",
+      "verified_on": []
     },
     {
       "id": "drl_via_fog_lights",
@@ -105,7 +115,8 @@
       "bit": 2,
       "name": "DRL via Front Fog Lights",
       "description": "Runs front fog lamps as Daytime Running Lights instead of main dipped beams.",
-      "prerequisites": "Front fog lamps."
+      "prerequisites": "Front fog lamps.",
+      "verified_on": []
     },
     {
       "id": "cornering_fog_lights",
@@ -114,7 +125,8 @@
       "bit": 0,
       "name": "Dynamic Cornering Fog Lights",
       "description": "Turns on corresponding fog lamp when steering or indicating at low speed.",
-      "prerequisites": "Front fog lamps."
+      "prerequisites": "Front fog lamps.",
+      "verified_on": []
     },
     {
       "id": "drl_handbrake_off",
@@ -123,7 +135,8 @@
       "bit": 1,
       "name": "Deactivate DRL with Handbrake",
       "description": "Turns off daytime running lamps whenever parking brake is engaged.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "rear_wipe_reverse",
@@ -132,7 +145,8 @@
       "bit": 4,
       "name": "Rear Wiper on Reverse Gear",
       "description": "Wipes rear window when reverse gear is selected with front wipers running.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "emergency_brake_flash",
@@ -141,7 +155,8 @@
       "bit": 1,
       "name": "Emergency Brake Hazard Flashing",
       "description": "Flashes hazard lights under emergency deceleration.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "comfort_turn_signals",
@@ -150,7 +165,8 @@
       "bit": 3,
       "name": "Highway Comfort Turn Signals (3 Flashes)",
       "description": "3 turn indicator flashes on light tap of stalk.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "footwell_lights_installed",
@@ -159,7 +175,8 @@
       "bit": 0,
       "name": "Footwell Ambient Lighting Active",
       "description": "Enables ambient footwell lighting circuit.",
-      "prerequisites": "Footwell lights."
+      "prerequisites": "Footwell lights.",
+      "verified_on": []
     }
   ]
 }

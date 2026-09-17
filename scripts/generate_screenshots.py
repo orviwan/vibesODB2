@@ -2,7 +2,7 @@
 """
 Automated Screenshot Capture Engine for vibesODB2 via Chrome DevTools Protocol (CDP).
 Captures high-resolution, pixel-perfect screenshots of:
-- Virtual Cockpit
+- Live Dashboard
 - Schema-Driven Feature Coding (23 features, categories, active/disabled filters)
 - Interactive Byte Matrix
 - Service & Maintenance Tools (SRI, Battery Registration, EPB, Mileage)
@@ -140,7 +140,7 @@ async def capture_cdp_screens(port: int = 8139):
             print(f"✓ Captured: {out_coding.name} ({os.path.getsize(out_coding):,} bytes)")
 
             # -------------------------------------------------------------
-            # C. Service & Maintenance (SRI Reset, Battery, EPB, Mileage)
+            # C. Service (standard OBD-II odometer)
             # -------------------------------------------------------------
             await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": "window.__VIBES_APP__.switchTab('tab-service', false)"})
             msg_id += 1
@@ -188,7 +188,7 @@ async def capture_cdp_screens(port: int = 8139):
             # -------------------------------------------------------------
             await send_cdp(ws, msg_id, "Runtime.evaluate", {"expression": """
                 (async () => {
-                    localStorage.setItem('vibesodb2_reg_WV1ZZZ7HZ7H061325', 'AB07 VAN');
+                    localStorage.setItem('vibesodb2_reg_WV1ZZZ7HZ7H000001', 'AB07 VAN');
                     localStorage.setItem('vibesodb2_reg_WVWZZZAUZEW012345', 'GL14 VWG');
                     window.__VIBES_APP__.switchTab('tab-backups', false);
                     await window.__VIBES_APP__.renderBackupsList();

@@ -2,7 +2,10 @@
 
 Welcome to the complete hardware and firmware build guide for creating your own **high-speed, custom Bluetooth Low Energy (BLE) OBD-II adapter** using an **ESP32** and a **3.3V CAN transceiver**.
 
-This adapter is 100% compatible with **[vibesODB2](https://orviwan.github.io/vibesODB2/)**, supports standard VAG 500 kbps high-speed CAN, implements ELM327/STN command emulation over the Nordic UART Service (NUS), and costs **less than £12 / $15** in off-the-shelf components.
+This adapter works with **[vibesODB2](https://orviwan.github.io/vibesODB2/)**, supports standard VAG 500 kbps high-speed CAN, implements a subset of the ELM327-style AT command set over the Nordic UART Service (NUS), and costs **less than £12 / $15** in off-the-shelf components.
+
+> [!CAUTION]
+> **Read before building.** This is a hobbyist design, not a certified product. It has no CE / UKCA / FCC conformity assessment, no automotive-grade EMC testing, and no type approval. You build, install and use it entirely at your own risk. A wiring mistake can damage the vehicle's CAN bus, gateway, or battery, and a device left plugged in can flatten the battery. Never leave a self-built adapter connected while the vehicle is unattended, and do not use it on a vehicle you do not own or have permission to work on. "ELM327" is a trademark of Elm Electronics; this firmware is not an Elm product and only implements a compatible subset of its command set for interoperability. See the [licence and legal notes in the README](README.md#legal-safety-and-trademarks).
 
 ---
 
@@ -246,7 +249,7 @@ This safely operates within the ESP32's 0V to 3.1V linear ADC range.
 This is the complete, production-ready Arduino/PlatformIO C++ source code. It includes:
 * Native ESP32 TWAI CAN driver running at 500 kbps (VAG standard high-speed CAN).
 * BLE Nordic UART Service (NUS) with high-throughput 256-byte MTU support.
-* Comprehensive ELM327 / STN command parser (`ATZ`, `ATE0`, `ATL0`, `ATS0`, `ATH1/0`, `ATSP6`, `ATSH`, `ATFCSx`, `ATRV`, `ATI`).
+* ELM327-compatible AT command parser (subset) (`ATZ`, `ATE0`, `ATL0`, `ATS0`, `ATH1/0`, `ATSP6`, `ATSH`, `ATFCSx`, `ATRV`, `ATI`).
 * Raw UDS multi-frame transmission and reception matching vibesODB2 requirements.
 * Automatic sleep management when ignition is off.
 
@@ -469,7 +472,7 @@ void processCommand(String cmd) {
       spacesEnabled = true;
       currentHeader = 0x7E0;
       receiveHeader = 0x7E8;
-      sendResponse("\r\rELM327 v1.5\r\r>");
+      sendResponse("\r\rvibesOBD2 ESP32 v1.0 (ELM327-compatible command set)\r\r>");
       return;
     }
     // Echo: ATE0 / ATE1
@@ -540,7 +543,9 @@ void processCommand(String cmd) {
     }
     // Identification: ATI / AT@1
     if (sub == "I") {
-      sendResponse("ELM327 v1.5\r>");
+      // Identify honestly: this is not an Elm Electronics product. Apps that key on the
+      // exact string "ELM327" in ATI/ATZ replies may need a compatibility setting.
+      sendResponse("vibesOBD2 ESP32 v1.0 (ELM327-compatible command set)\r>");
       return;
     }
     if (sub == "@1") {
@@ -815,7 +820,7 @@ Before plugging your DIY adapter into your vehicle, perform this step-by-step ve
 - [ ] Navigate to `chrome://bluetooth-internals` or use the **nRF Connect** app.
 - [ ] Scan for BLE devices: You should see **`vibesOBD-ESP32`** advertising service `6e400001-b5a3-f393-e0a9-e50e24dcca9e`.
 - [ ] Connect to it. Write `ATZ\r` to characteristic `6e400002-...`.
-- [ ] Check notify characteristic `6e400003-...`: It should respond with `ELM327 v1.5>`.
+- [ ] Check notify characteristic `6e400003-...`: It should respond with `vibesOBD2 ESP32 v1.0 (ELM327-compatible command set)>`.
 - [ ] Write `ATRV\r`: It should respond with the simulated battery voltage (e.g., `12.0V>`).
 
 ---

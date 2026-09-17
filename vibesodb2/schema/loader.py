@@ -18,8 +18,10 @@ from vibesodb2.schema.models import ModuleSchema, VehicleFeature
 logger = logging.getLogger(__name__)
 
 DEFINITIONS_DIR = Path(__file__).parent / "definitions"
+# Remote definitions are fetched from this repository only. Never point this at an
+# organisation or repository the project does not control: it would be a schema injection path.
 REMOTE_SCHEMA_BASE_URL = (
-    "https://raw.githubusercontent.com/vibesodb2/schemas/main/definitions"
+    "https://raw.githubusercontent.com/orviwan/vibesODB2/main/vibesodb2/schema/definitions"
 )
 
 

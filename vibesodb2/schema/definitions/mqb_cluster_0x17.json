@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Gauge Needle Sweep (Staging / Celebration)",
       "description": "Sweeps speedometer and tachometer needles from min to max and back upon ignition activation.",
-      "prerequisites": "Supported instrument cluster revision (Analog & Active Info Display)."
+      "prerequisites": "Supported instrument cluster revision (Analog & Active Info Display).",
+      "verified_on": []
     },
     {
       "id": "lap_timer_active",
@@ -24,7 +25,8 @@
       "bit": 3,
       "name": "Lap Timer & Oil Temperature Menu",
       "description": "Activates the track lap timer and dedicated engine oil temperature telemetry screen in cluster MFA.",
-      "prerequisites": "Color MFA or Virtual Cockpit."
+      "prerequisites": "Colour multifunction display or fully digital instrument cluster.",
+      "verified_on": []
     },
     {
       "id": "refuel_quantity_display",
@@ -33,7 +35,8 @@
       "bit": 2,
       "name": "Refuel Volume Display (Quantity to Add)",
       "description": "Displays the exact liters/gallons needed to fill fuel tank to capacity in 5-liter increments.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "seatbelt_chime_warning",
@@ -42,7 +45,8 @@
       "bit": 1,
       "name": "Seatbelt Acoustic Warning Chime",
       "description": "Sounds audible chime when driver or passenger seatbelts are unbuckled with vehicle in motion.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     }
   ]
 }

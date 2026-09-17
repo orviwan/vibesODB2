@@ -18,14 +18,11 @@ HEADER_TO_MODULE = {
     "70E": 0x09,  # BCM
     "714": 0x17,  # Cluster
     "710": 0x19,  # Gateway
-    "746": 0x08,  # Climatronic
-    "734": 0x10,  # PDC
-    "701": 0x01,  # Engine
-    "7E0": 0x01,  # Engine OBD broadcast
+    "746": 0x08,  # Climate control
+    "7E0": 0x01,  # Engine
     "7E1": 0x02,  # Transmission
-    "7E2": 0x03,  # ABS
-    "7E5": 0x15,  # Airbag
-    "7E8": 0x01,  # Standard OBD response
+    "713": 0x03,  # ABS
+    "715": 0x15,  # Airbag
     "712": 0x44,  # Steering
 }
 
@@ -53,8 +50,8 @@ class SimulatedELM327:
         header = self.tx_header.upper().strip()
         if header in HEADER_TO_MODULE:
             return HEADER_TO_MODULE[header]
-        # Broadcast default to 0x01 (Engine) or 0x09
-        return 0x09
+        # Unknown or functional (7DF) header: no diagnostic module is addressed, as on a real bus.
+        return None
 
     def process_command(self, cmd_str: str) -> str:
         """

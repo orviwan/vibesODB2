@@ -24,88 +24,29 @@ class ModuleAddressConfig:
     description: str
 
 
-# VAG (PQ25 / PQ35 / MQB) Module Addressing Definitions
+# VAG 11-bit CAN arbitration IDs (ISO 15765-4, 500 kbit/s).
+# This table must stay identical to the `verified: true` entries of MODULE_ARBITRATION in
+# pwa/js/uds.js; tests/test_module_table.py enforces it. Modules whose IDs have not been
+# verified are intentionally absent: use set_custom_arbitration() with explicit IDs.
 MODULE_REGISTRY: Dict[int, ModuleAddressConfig] = {
-    0x01: ModuleAddressConfig(
-        name="Engine Control Module",
-        address=0x01,
-        tx_header="7E0",
-        rx_filter="7E8",
-        default_coding_did=0x0600,
-        description="Engine Control Unit managing ignition, fuel injection, turbocharging, and emissions.",
-    ),
-    0x02: ModuleAddressConfig(
-        name="Transmission Control Module",
-        address=0x02,
-        tx_header="7E1",
-        rx_filter="7E9",
-        default_coding_did=0x0600,
-        description="Automatic / DSG gearbox controller.",
-    ),
-    0x03: ModuleAddressConfig(
-        name="Brake Electronics (ABS/ESP)",
-        address=0x03,
-        tx_header="7E2",
-        rx_filter="7EA",
-        default_coding_did=0x0600,
-        description="Anti-lock braking system, traction control, and electronic parking brake.",
-    ),
-    0x08: ModuleAddressConfig(
-        name="Air Conditioning",
-        address=0x08,
-        tx_header="746",
-        rx_filter="7B0",
-        default_coding_did=0x0600,
-        description="HVAC / Climatronic climate control module.",
-    ),
-    0x09: ModuleAddressConfig(
-        name="Central Electric (BCM)",
-        address=0x09,
-        tx_header="70E",
-        rx_filter="778",
-        default_coding_did=0x0600,
-        description="Body Control Module controlling lighting, wipers, central locking, and power distribution.",
-    ),
-    0x10: ModuleAddressConfig(
-        name="Park Assist (PDC)",
-        address=0x10,
-        tx_header="734",
-        rx_filter="79E",
-        default_coding_did=0x0600,
-        description="Park Distance Control ultrasonic distance sensing unit.",
-    ),
-    0x15: ModuleAddressConfig(
-        name="Airbag Control Unit",
-        address=0x15,
-        tx_header="7E5",
-        rx_filter="7ED",
-        default_coding_did=0x0600,
-        description="Supplemental Restraint System (SRS) airbag crash sensors and igniters.",
-    ),
-    0x17: ModuleAddressConfig(
-        name="Instrument Cluster",
-        address=0x17,
-        tx_header="714",
-        rx_filter="77E",
-        default_coding_did=0x0600,
-        description="Instrument gauge cluster, warning indicators, and multifunction display.",
-    ),
-    0x19: ModuleAddressConfig(
-        name="CAN Gateway",
-        address=0x19,
-        tx_header="710",
-        rx_filter="77A",
-        default_coding_did=0x0600,
-        description="Inter-bus gateway coordinating Powertrain, Convenience, and Infotainment CAN buses.",
-    ),
-    0x44: ModuleAddressConfig(
-        name="Power Steering",
-        address=0x44,
-        tx_header="712",
-        rx_filter="77C",
-        default_coding_did=0x0600,
-        description="Electromechanical power steering assist controller.",
-    ),
+    0x01: ModuleAddressConfig("Engine Control Module", 0x01, "7E0", "7E8", 0x0600,
+                              "Engine Control Unit managing ignition, fuel injection, turbocharging, and emissions."),
+    0x02: ModuleAddressConfig("Transmission Control Module", 0x02, "7E1", "7E9", 0x0600,
+                              "Automatic / DSG gearbox controller."),
+    0x03: ModuleAddressConfig("Brake Electronics (ABS/ESP)", 0x03, "713", "77D", 0x0600,
+                              "Anti-lock braking system, traction control, and stability program."),
+    0x08: ModuleAddressConfig("Climate Control (HVAC)", 0x08, "746", "7B0", 0x0600,
+                              "Heating, ventilation and air-conditioning control module."),
+    0x09: ModuleAddressConfig("Central Electric (BCM)", 0x09, "70E", "778", 0x0600,
+                              "Body Control Module controlling lighting, wipers, central locking, and power distribution."),
+    0x15: ModuleAddressConfig("Airbag Control Unit", 0x15, "715", "77F", 0x0600,
+                              "Supplemental Restraint System (SRS) airbag crash sensors and igniters."),
+    0x17: ModuleAddressConfig("Instrument Cluster", 0x17, "714", "77E", 0x0600,
+                              "Instrument gauge cluster, warning indicators, and multifunction display."),
+    0x19: ModuleAddressConfig("CAN Gateway", 0x19, "710", "77A", 0x0600,
+                              "Inter-bus gateway coordinating Powertrain, Convenience, and Infotainment CAN buses."),
+    0x44: ModuleAddressConfig("Power Steering", 0x44, "712", "77C", 0x0600,
+                              "Electromechanical power steering assist controller."),
 }
 
 

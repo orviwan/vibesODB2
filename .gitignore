@@ -37,3 +37,6 @@ htmlcov/
 *.sqlite3
 .opentransporter/
 .vibesodb2/
+
+# Local editor/agent helpers
+.claude/
