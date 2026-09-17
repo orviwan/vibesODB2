@@ -1,5 +1,5 @@
 // vibesODB2 Service Worker for Offline PWA Support
-const CACHE_NAME = 'vibesodb2-v20';
+const CACHE_NAME = 'vibesodb2-v23';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   './css/app.css',
   './js/app.js',
   './js/ble.js',
+  './js/simulator.js',
   './js/isotp.js',
   './js/uds.js',
   './js/dtc_db.js',
@@ -42,10 +43,27 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Network-First for navigation / HTML documents so updates arrive immediately when online
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('.html') || event.request.url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Return cached and refresh in background
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
@@ -63,7 +81,6 @@ self.addEventListener('fetch', (event) => {
         });
         return response;
       }).catch(() => {
-        // If offline and request is for navigation, return index.html
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }

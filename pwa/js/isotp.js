@@ -46,8 +46,17 @@ export class IsoTpAssembler {
     let isIsoTp = false;
 
     for (const line of lines) {
-      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,8}$/i.test(t));
+      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,}$/i.test(t));
       if (tokens.length === 0) continue;
+
+      // Handle unspaced contiguous hex stream: e.g. "5902CF045D..." or "5802045D08..."
+      if (tokens.length === 1 && tokens[0].length > 2 && tokens[0].length % 2 === 0) {
+        const hexStr = tokens[0];
+        tokens = [];
+        for (let k = 0; k < hexStr.length; k += 2) {
+          tokens.push(hexStr.substring(k, k + 2));
+        }
+      }
 
       // Strip 3-char (11-bit) or 8-char (29-bit) CAN arbitration ID if present
       if (tokens[0].length === 3 || tokens[0].length === 8) {
@@ -90,10 +99,17 @@ export class IsoTpAssembler {
       return new Uint8Array(payload);
     }
 
-    // Fallback: Direct hex bytes (e.g. ATH0 clean payload: "62 F1 87 35 51 ...")
+    // Fallback: Direct hex bytes (e.g. ATH0 clean payload: "62 F1 87 35 51 ..." or unspaced "62F187...")
     const allHex = [];
     for (const line of lines) {
-      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,8}$/i.test(t));
+      let tokens = line.split(/\s+/).filter(t => /^[0-9A-F]{1,}$/i.test(t));
+      if (tokens.length === 1 && tokens[0].length > 2 && tokens[0].length % 2 === 0) {
+        const hexStr = tokens[0];
+        tokens = [];
+        for (let k = 0; k < hexStr.length; k += 2) {
+          tokens.push(hexStr.substring(k, k + 2));
+        }
+      }
       if (tokens.length > 0 && (tokens[0].length === 3 || tokens[0].length === 8)) {
         tokens = tokens.slice(1);
       }

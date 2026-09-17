@@ -7,6 +7,7 @@ import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 import { MaintenanceManager } from './maintenance.js';
 import { lookupDtc } from './dtc_db.js';
+import { SimulatedBleTransport, SIM_PROFILES } from './simulator.js';
 
 export function bytesToAscii(bytes) {
   if (!bytes || bytes.length === 0) return '';
@@ -140,7 +141,11 @@ class VibesApp {
     this.selectedSchemaKey = 'mqb_bcm_0x09';
     this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey] || BUNDLED_SCHEMAS['pq25_bcm_0x09'];
     this.selectedByteIndex = 0;
-    this.vin = null;
+    try {
+      this.vin = localStorage.getItem('vibesodb2_last_vehicle_id') || null;
+    } catch (_) {
+      this.vin = null;
+    }
 
     // Default 30-byte baseline coding (realistic MQB stock equipment baseline)
     this.baselineHex = '30A005004080000000010304000001000000000000000000000000000000';
@@ -154,6 +159,12 @@ class VibesApp {
     this._toastTimeout = null;
     this.lastDtcScanResults = null;
     this.dtcFilterText = '';
+
+    // Ignition State & Voltage Monitor
+    this.ignitionState = 'unknown'; // 'on' | 'off' | 'running' | 'unknown' | 'disconnected'
+    this.batteryVoltage = null;
+    this._ignitionPollTimer = null;
+    this.isBusBusy = false;
 
     // Hardware & Logic Engines
     this.bleTransport = new WebBleTransport();
@@ -178,6 +189,8 @@ class VibesApp {
     this.pendingWrite = null;
     this.lastVibrateTime = 0;
     this.activeTab = 'tab-cockpit';
+    this.isSimulated = false;
+    this.simProfileId = 'transporter_t51';
   }
 
   async init() {
@@ -185,6 +198,7 @@ class VibesApp {
     await this.loadCustomFeatures();
     this.setupTabs();
     this.setupBluetooth();
+    this.setupSimulator();
     this.setupWakeLock();
     this.setupGauges();
     this.setupTelemetryGraphControls();
@@ -198,12 +212,23 @@ class VibesApp {
     this.setupUnitToggle();
     this.setupFuelEconomy();
     this.setupEditRegModal();
+    this.setupIgnitionHandlers();
 
     // Initial state: Disconnected, waiting for BLE
     this.renderTelemetry(this.telemetryEngine.getInitialMetrics());
     this.updateConnectionStatus(false);
     this.updateVehicleRegUI();
     await this.renderBackupsList();
+
+    // Auto-detect URL parameter for simulator mode (?sim=1 or ?simulator=1)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('sim') || urlParams.has('simulator') || urlParams.has('mock')) {
+      const profile = urlParams.get('profile') || 'transporter_t51';
+      const engine = urlParams.get('engine') !== 'off';
+      setTimeout(() => {
+        this.startSimulation(profile, engine);
+      }, 300);
+    }
   }
 
   async loadCustomFeatures() {
@@ -231,8 +256,20 @@ class VibesApp {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('vibesODB2 SW registered with scope:', reg.scope))
+          .then(reg => {
+            console.log('vibesODB2 SW registered with scope:', reg.scope);
+            // Proactively check for an updated service worker script
+            reg.update().catch(() => {});
+          })
           .catch(err => console.warn('vibesODB2 SW registration error:', err));
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing && (!this.bleTransport || !this.bleTransport.isConnected)) {
+          refreshing = true;
+          window.location.reload();
+        }
       });
     }
   }
@@ -424,6 +461,11 @@ class VibesApp {
 
     if (bleBtn) {
       bleBtn.addEventListener('click', async () => {
+        if (this.isSimulated) {
+          await this.stopSimulation();
+          return;
+        }
+
         if (!WebBleTransport.isSupported()) {
           this.openBleHelpModal();
           return;
@@ -454,9 +496,12 @@ class VibesApp {
           <p style="font-size: 0.82rem; color: #cbd5e1; margin-top: 2px;">
             Google Chrome on Linux requires enabling experimental platform features to communicate with BLE adapters.
           </p>
-          <div style="margin-top: 8px;">
+          <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
             <button id="btn-show-linux-help" type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.78rem;">
               🛠️ View Chrome Flag Instructions
+            </button>
+            <button id="btn-notice-launch-sim" type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.78rem; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8;">
+              🎮 Launch Vehicle Simulator
             </button>
           </div>
         </div>
@@ -464,18 +509,128 @@ class VibesApp {
       document.getElementById('btn-show-linux-help')?.addEventListener('click', () => {
         this.openBleHelpModal();
       });
+      document.getElementById('btn-notice-launch-sim')?.addEventListener('click', () => {
+        const modal = document.getElementById('modal-simulator');
+        if (modal) modal.classList.add('active');
+      });
       return;
     }
 
     noticeEl.innerHTML = `
       <span style="font-size: 1.4rem;">⚡</span>
-      <div>
+      <div style="flex:1;">
         <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24;">Bluetooth Disconnected</h4>
         <p style="font-size: 0.82rem; color: #cbd5e1; margin-top: 2px;">
-          Tap <strong>Connect BLE</strong> above to pair with your OBD-II adapter and stream live powertrain telemetry.
+          Tap <strong>Connect BLE</strong> above to pair with your OBD-II adapter, or launch the <strong>Vehicle Simulator</strong> to test all features offline.
         </p>
+        <div style="margin-top: 8px;">
+          <button id="btn-notice-launch-sim" type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.78rem; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8;">
+            🎮 Launch Vehicle Simulator
+          </button>
+        </div>
       </div>
     `;
+    document.getElementById('btn-notice-launch-sim')?.addEventListener('click', () => {
+      const modal = document.getElementById('modal-simulator');
+      if (modal) modal.classList.add('active');
+    });
+  }
+
+  setupSimulator() {
+    const openBtn = document.getElementById('btn-open-sim-modal');
+    const closeBtn = document.getElementById('btn-close-sim');
+    const modal = document.getElementById('modal-simulator');
+    const form = document.getElementById('form-simulator');
+    const disconnectBtn = document.getElementById('btn-disconnect-sim');
+    const toggleEngineBtn = document.getElementById('btn-sim-toggle-engine');
+
+    const openModal = () => {
+      if (!modal) return;
+      modal.classList.add('active');
+      const activeControls = document.getElementById('sim-active-controls');
+      const startBtn = document.getElementById('btn-start-sim');
+      if (this.isSimulated && this.bleTransport && this.bleTransport.isConnected) {
+        if (activeControls) activeControls.style.display = 'block';
+        if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
+        if (startBtn) startBtn.textContent = 'Switch Profile / Reconnect';
+        const nameEl = document.getElementById('sim-active-profile-name');
+        if (nameEl) nameEl.textContent = SIM_PROFILES[this.simProfileId]?.name || this.simProfileId;
+      } else {
+        if (activeControls) activeControls.style.display = 'none';
+        if (disconnectBtn) disconnectBtn.style.display = 'none';
+        if (startBtn) startBtn.textContent = 'Connect Virtual Vehicle';
+      }
+    };
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+
+    disconnectBtn?.addEventListener('click', async () => {
+      await this.stopSimulation();
+      modal?.classList.remove('active');
+    });
+
+    toggleEngineBtn?.addEventListener('click', () => {
+      if (this.isSimulated && this.bleTransport && typeof this.bleTransport.setEngineRunning === 'function') {
+        const nextState = !this.bleTransport.engineRunning;
+        this.bleTransport.setEngineRunning(nextState);
+        this.showToast(`Simulated engine is now: ${nextState ? 'RUNNING (Live Driving Telemetry)' : 'OFF (Ignition ON / Ready for Coding)'}`);
+      }
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const profileSelect = document.getElementById('sim-profile-select');
+      const engineSelect = document.getElementById('sim-engine-state');
+      const profileId = profileSelect ? profileSelect.value : 'transporter_t5';
+      const engineRunning = engineSelect ? engineSelect.value === 'running' : false;
+
+      modal?.classList.remove('active');
+      await this.startSimulation(profileId, engineRunning);
+    });
+  }
+
+  async startSimulation(profileId = 'transporter_t5', engineRunning = false) {
+    if (this.bleTransport && this.bleTransport.isConnected) {
+      await this.bleTransport.disconnect();
+      this.telemetryEngine.stop();
+    }
+
+    this.isSimulated = true;
+    this.simProfileId = profileId;
+    this.bleTransport = new SimulatedBleTransport(profileId);
+    this.bleTransport.setEngineRunning(engineRunning);
+
+    // Bind simulated transport to engine components
+    this.udsClient.transport = this.bleTransport;
+    this.safetyPipeline.transport = this.bleTransport;
+    this.telemetryEngine.bleTransport = this.bleTransport;
+    this.maintenanceManager.bleTransport = this.bleTransport;
+
+    this.showToast(`🎮 Virtual Simulator Activated: ${SIM_PROFILES[profileId]?.name || profileId}`);
+    await this.handleBleConnect();
+
+    // Update status badge
+    const statusText = document.getElementById('status-text');
+    if (statusText) {
+      const prof = SIM_PROFILES[profileId] || {};
+      statusText.innerHTML = `🎮 Sim: <strong style="color:#38bdf8;">${prof.platform || 'VAG'}</strong>`;
+    }
+  }
+
+  async stopSimulation() {
+    if (this.bleTransport) {
+      await this.bleTransport.disconnect();
+    }
+    this.telemetryEngine.stop();
+    this.isSimulated = false;
+    this.bleTransport = new WebBleTransport();
+    this.udsClient.transport = this.bleTransport;
+    this.safetyPipeline.transport = this.bleTransport;
+    this.telemetryEngine.bleTransport = this.bleTransport;
+    this.maintenanceManager.bleTransport = this.bleTransport;
+    this.updateConnectionStatus(false);
+    this.showToast('Simulator disconnected. Standard Bluetooth mode active.');
   }
 
   showVehicleLoading(step, title, text) {
@@ -512,22 +667,31 @@ class VibesApp {
     if (modal) modal.classList.remove('active');
   }
 
-  getVehicleReg(vin) {
-    if (!vin) return '';
+  getVehicleReg(vin = null) {
+    const targetVin = vin || this.vin;
     try {
-      return localStorage.getItem('vibesodb2_reg_' + vin) || '';
+      if (targetVin && targetVin !== 'Unassigned Vehicles' && targetVin !== 'UNKNOWN') {
+        const stored = localStorage.getItem('vibesodb2_reg_' + targetVin);
+        if (stored) return stored;
+      }
+      return localStorage.getItem('vibesodb2_last_reg') || '';
     } catch (e) {
       return '';
     }
   }
 
   setVehicleReg(vin, reg) {
-    if (!vin) return;
+    const cleanReg = (reg || '').toUpperCase().trim();
     try {
-      if (reg) {
-        localStorage.setItem('vibesodb2_reg_' + vin, reg.toUpperCase().trim());
-      } else {
-        localStorage.removeItem('vibesodb2_reg_' + vin);
+      if (vin && vin !== 'Unassigned Vehicles' && vin !== 'UNKNOWN') {
+        if (cleanReg) {
+          localStorage.setItem('vibesodb2_reg_' + vin, cleanReg);
+        } else {
+          localStorage.removeItem('vibesodb2_reg_' + vin);
+        }
+      }
+      if (cleanReg) {
+        localStorage.setItem('vibesodb2_last_reg', cleanReg);
       }
     } catch (e) {}
     this.updateVehicleRegUI();
@@ -540,25 +704,49 @@ class VibesApp {
       regBadge.textContent = reg || 'Enter Reg';
       regBadge.style.opacity = reg ? '1' : '0.6';
     }
+    const infoVin = document.getElementById('info-vehicle-vin');
+    if (infoVin && this.vin) {
+      infoVin.textContent = this.vin.startsWith('REG_') ? 'Manually Assigned' : this.vin;
+    }
   }
 
-  openEditRegModal(vin) {
-    const targetVin = vin || this.vin;
-    if (!targetVin) {
-      alert('Connect to a vehicle first to set its registration.');
-      return;
-    }
+  openEditRegModal(vin = null) {
     const modal = document.getElementById('modal-edit-reg');
-    const vinEl = document.getElementById('modal-reg-vin');
-    const input = document.getElementById('input-vehicle-reg');
+    const inputReg = document.getElementById('input-vehicle-reg');
+    const inputVin = document.getElementById('input-vehicle-vin');
+    const vinStatus = document.getElementById('modal-reg-vin-status');
+    const descEl = document.getElementById('modal-reg-desc');
     if (!modal) return;
 
-    if (vinEl) vinEl.textContent = targetVin;
-    if (input) {
-      input.value = this.getVehicleReg(targetVin);
-      setTimeout(() => input.focus(), 150);
+    let targetVin = vin || this.vin;
+    if (targetVin === 'Unassigned Vehicles' || targetVin === 'UNKNOWN') {
+      targetVin = '';
     }
+
     this._targetRegVin = targetVin;
+
+    if (inputVin) {
+      inputVin.value = targetVin || '';
+      if (targetVin && targetVin.length === 17) {
+        if (vinStatus) vinStatus.textContent = '• Auto-detected';
+      } else {
+        if (vinStatus) vinStatus.textContent = '• Optional or manual entry';
+      }
+    }
+
+    if (inputReg) {
+      inputReg.value = this.getVehicleReg(targetVin);
+      setTimeout(() => inputReg.focus(), 150);
+    }
+
+    if (descEl) {
+      if (targetVin) {
+        descEl.innerHTML = `Assign a registration number (e.g. <strong style="color:#fbbf24;">AB12 CDE</strong>) to VIN (<span style="font-family:var(--font-mono); color:#38bdf8;">${targetVin}</span>) to organize backups and identify this vehicle.`;
+      } else {
+        descEl.innerHTML = `Assign a registration number (e.g. <strong style="color:#fbbf24;">AB12 CDE</strong>) to identify this vehicle and organize backups.`;
+      }
+    }
+
     modal.classList.add('active');
   }
 
@@ -581,14 +769,64 @@ class VibesApp {
     if (form && modal) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const input = document.getElementById('input-vehicle-reg');
-        const val = input ? input.value.trim().toUpperCase() : '';
-        const vin = this._targetRegVin || this.vin;
-        if (vin) {
-          this.setVehicleReg(vin, val);
-          this.showToast(`Vehicle registration saved: ${val || '(None)'}`);
+        const inputReg = document.getElementById('input-vehicle-reg');
+        const inputVin = document.getElementById('input-vehicle-vin');
+        const regVal = inputReg ? inputReg.value.trim().toUpperCase() : '';
+        const vinVal = inputVin ? inputVin.value.trim().toUpperCase() : '';
+
+        // Determine effective VIN/Vehicle ID
+        let effectiveVin = vinVal || this._targetRegVin || this.vin;
+        if (!effectiveVin || effectiveVin === 'Unassigned Vehicles' || effectiveVin === 'UNKNOWN') {
+          effectiveVin = regVal ? 'REG_' + regVal.replace(/[^A-Z0-9]/g, '') : 'MANUAL_VEHICLE';
+        }
+
+        this.vin = effectiveVin;
+        this._targetRegVin = effectiveVin;
+        try {
+          localStorage.setItem('vibesodb2_last_vehicle_id', effectiveVin);
+        } catch (_) {}
+
+        if (regVal) {
+          this.setVehicleReg(effectiveVin, regVal);
+
+          // If a full 17-character VIN was entered, decode platform and specs
+          if (effectiveVin.length === 17) {
+            const decoded = decodeVin(effectiveVin);
+            if (decoded) {
+              this.detectedPlatform = decoded.platform;
+              this.detectedModel = decoded.model;
+
+              let targetSchemaKey = null;
+              if (decoded.platform === 'PQ25') {
+                targetSchemaKey = 'pq25_bcm_0x09';
+              } else if (decoded.platform === 'PQ35' || decoded.platform === 'PQ46') {
+                targetSchemaKey = 'pq35_bcm_0x09';
+              } else if (decoded.platform.startsWith('MQB')) {
+                targetSchemaKey = 'mqb_bcm_0x09';
+              }
+
+              if (targetSchemaKey && BUNDLED_SCHEMAS[targetSchemaKey]) {
+                this.selectedSchemaKey = targetSchemaKey;
+                this.currentSchema = BUNDLED_SCHEMAS[this.selectedSchemaKey];
+                const sel = document.getElementById('schema-select');
+                if (sel) sel.value = this.selectedSchemaKey;
+              }
+              this.checkPlatformCompatibility();
+            }
+          }
+
+          this.showToast(`Vehicle registration saved: ${regVal}`);
+        } else {
+          this.setVehicleReg(effectiveVin, '');
+          this.showToast('Registration cleared');
+        }
+
+        // Update UI displays
+        this.updateVehicleRegUI();
+        if (typeof this.renderBackupsList === 'function') {
           this.renderBackupsList();
         }
+
         modal.classList.remove('active');
       });
     }
@@ -628,8 +866,21 @@ class VibesApp {
       if (result) {
         this.updateConnectionStatus(true);
         this.vibrate([50, 50, 50]);
+
+        // Check vehicle ignition state and battery voltage
+        await this.checkIgnitionState();
+
+        if (this.ignitionState === 'off') {
+          this.showVehicleLoading('ignition', 'Vehicle Ignition is OFF', 'Bluetooth connected, but vehicle ECUs are powered down. Turn ignition key to Position 2 (dash lights ON, engine OFF) to communicate.');
+          await new Promise(r => setTimeout(r, 1200));
+        }
+
         // Run vehicle identification, specs interrogation, and automatic Long Coding read
         await this.handlePostConnectSetup();
+
+        // Start background ignition monitoring interval
+        this.startIgnitionPolling();
+
         // Start telemetry
         this.telemetryEngine.start();
       } else {
@@ -675,6 +926,26 @@ class VibesApp {
           } catch (ue) {
             console.warn(`UDS VIN query error on ${mod}:`, ue);
           }
+        }
+      }
+
+      if (!vin) {
+        // Fallback for older VAG KWP2000 vehicles (Transporter T5, Golf Mk4/Mk5 pre-UDS)
+        const kwpModules = ['0x17', '0x19', '0x01'];
+        for (const mod of kwpModules) {
+          try {
+            await this.udsClient.setModuleAddress(mod);
+            const kwpRes90 = await this.udsClient.sendUdsRequest(new Uint8Array([0x1A, 0x90]), 1500).catch(() => null);
+            if (kwpRes90) {
+              vin = this._extractVinFromBytes(kwpRes90);
+              if (vin) break;
+            }
+            const kwpRes9B = await this.udsClient.sendUdsRequest(new Uint8Array([0x1A, 0x9B]), 1500).catch(() => null);
+            if (kwpRes9B) {
+              vin = this._extractVinFromBytes(kwpRes9B);
+              if (vin) break;
+            }
+          } catch (_) {}
         }
       }
 
@@ -792,8 +1063,8 @@ class VibesApp {
       this.showVehicleLoading('done', 'Vehicle Connected & Ready!', 'Vehicle platform detected and live coding synchronized.');
       await new Promise(r => setTimeout(r, 600));
 
-      // 4. If this vehicle VIN does not have a license plate / reg registered, prompt user!
-      if (this.vin && !this.getVehicleReg(this.vin)) {
+      // 4. If this vehicle does not have a license plate / reg registered, prompt user!
+      if (!this.getVehicleReg(this.vin)) {
         setTimeout(() => {
           this.openEditRegModal(this.vin);
         }, 400);
@@ -915,6 +1186,8 @@ class VibesApp {
     let bytes = rawBytes;
     if (bytes.length >= 20 && bytes[0] === 0x62 && bytes[1] === 0xF1 && bytes[2] === 0x90) {
       bytes = bytes.subarray(3);
+    } else if (bytes.length >= 18 && bytes[0] === 0x5A) {
+      bytes = bytes.subarray(1);
     }
     const str = bytesToAscii(bytes);
     const match = str.match(/[A-HJ-NPR-Z0-9]{17}/i);
@@ -1120,6 +1393,187 @@ class VibesApp {
     this.closeModal('modal-ble-help');
   }
 
+  setupIgnitionHandlers() {
+    const recheckBtn1 = document.getElementById('btn-recheck-ignition');
+    const recheckBtn2 = document.getElementById('btn-recheck-ignition-coding');
+    const recheckBtn3 = document.getElementById('btn-recheck-ignition-dtcs');
+
+    const handleRecheck = async (btn) => {
+      if (btn) {
+        btn.textContent = 'Checking...';
+        btn.disabled = true;
+      }
+      await this.checkIgnitionState();
+      if (btn) {
+        btn.textContent = '🔄 Check Ignition';
+        btn.disabled = false;
+      }
+    };
+
+    if (recheckBtn1) recheckBtn1.addEventListener('click', () => handleRecheck(recheckBtn1));
+    if (recheckBtn2) recheckBtn2.addEventListener('click', () => handleRecheck(recheckBtn2));
+    if (recheckBtn3) recheckBtn3.addEventListener('click', () => handleRecheck(recheckBtn3));
+  }
+
+  startIgnitionPolling() {
+    this.stopIgnitionPolling();
+    this._ignitionPollTimer = setInterval(async () => {
+      if (this.bleTransport && this.bleTransport.isConnected && !this.isBusBusy) {
+        await this.checkIgnitionState(true);
+      }
+    }, 3500);
+  }
+
+  stopIgnitionPolling() {
+    if (this._ignitionPollTimer) {
+      clearInterval(this._ignitionPollTimer);
+      this._ignitionPollTimer = null;
+    }
+  }
+
+  async checkIgnitionState(suppressUi = false) {
+    if (!this.bleTransport || !this.bleTransport.isConnected) {
+      this.ignitionState = 'disconnected';
+      this.batteryVoltage = null;
+      this.updateIgnitionUI();
+      return 'disconnected';
+    }
+
+    if (this.isSimulated) {
+      const sim = this.bleTransport;
+      this.batteryVoltage = sim.batteryVoltage || 12.4;
+      this.ignitionState = sim.engineRunning ? 'running' : 'on';
+      this.updateIgnitionUI();
+      return this.ignitionState;
+    }
+
+    const wasOff = this.ignitionState === 'off';
+
+    try {
+      // 1. Read battery voltage from adapter via ATRV
+      try {
+        const vResp = await this.bleTransport.sendCommand('ATRV', 1200);
+        const vMatch = (vResp || '').match(/(\d+\.?\d*)\s*V/i);
+        if (vMatch) {
+          this.batteryVoltage = parseFloat(vMatch[1]);
+        }
+      } catch (_) {}
+
+      // 2. Query OBD-II RPM (01 0C) with broad 7DF header to test Terminal 15 response
+      await this.bleTransport.setHeader('7DF');
+      const rpmResp = await this.bleTransport.sendCommand('01 0C', 2000);
+      const clean = (rpmResp || '').toUpperCase();
+
+      if (clean.includes('41 0C') || clean.includes('410C')) {
+        // ECU responded! Parse RPM
+        const tokens = clean.replace(/41\s*0C/g, '410C').split(/\s+/);
+        let rpm = 0;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].startsWith('410C') && tokens[i].length >= 8) {
+            const rawHex = tokens[i].substring(4, 8);
+            rpm = parseInt(rawHex, 16) / 4;
+            break;
+          } else if (tokens[i] === '410C' && i + 2 < tokens.length) {
+            const a = parseInt(tokens[i + 1], 16);
+            const b = parseInt(tokens[i + 2], 16);
+            rpm = ((a * 256) + b) / 4;
+            break;
+          }
+        }
+
+        if (rpm > 300) {
+          this.ignitionState = 'running';
+        } else {
+          this.ignitionState = 'on';
+        }
+
+        if (wasOff && this.ignitionState === 'on') {
+          this.showToast('🔑 Vehicle Ignition Detected: ECUs are active and ready!');
+          // Trigger live coding read if we haven't read authentic coding yet
+          if (!this.hasCapturedBaseline) {
+            this.readLiveCodingFromVehicle(true).catch(() => {});
+          }
+        }
+      } else {
+        // No response from engine ECU -> Ignition is OFF
+        this.ignitionState = 'off';
+      }
+    } catch (err) {
+      this.ignitionState = 'off';
+    }
+
+    this.updateIgnitionUI();
+    return this.ignitionState;
+  }
+
+  updateIgnitionUI() {
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const bannerIgnitionOff = document.getElementById('banner-ignition-off');
+    const codingIgnitionNotice = document.getElementById('coding-ignition-notice');
+    const dtcsIgnitionNotice = document.getElementById('dtcs-ignition-notice');
+    const applyHexBtn = document.getElementById('btn-apply-hex');
+    const clearDtcsBtn = document.getElementById('btn-clear-dtcs');
+    const liveCodingBtn = document.getElementById('btn-read-live-coding');
+
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    if (!isConnected) {
+      if (bannerIgnitionOff) bannerIgnitionOff.style.display = 'none';
+      if (codingIgnitionNotice) codingIgnitionNotice.style.display = 'none';
+      if (dtcsIgnitionNotice) dtcsIgnitionNotice.style.display = 'none';
+      return;
+    }
+
+    const vStr = this.batteryVoltage ? `${this.batteryVoltage.toFixed(1)}V • ` : '';
+
+    if (this.ignitionState === 'off') {
+      if (statusDot) statusDot.className = 'dot dot-ignition-off';
+      if (statusText) statusText.innerHTML = `<span style="color:#f59e0b; font-weight:700;">🔴 ${vStr}Ignition OFF</span>`;
+      if (bannerIgnitionOff) bannerIgnitionOff.style.display = 'flex';
+      if (codingIgnitionNotice) codingIgnitionNotice.style.display = 'flex';
+      if (dtcsIgnitionNotice) dtcsIgnitionNotice.style.display = 'flex';
+
+      // Lock write actions
+      if (applyHexBtn) {
+        applyHexBtn.disabled = true;
+        applyHexBtn.title = 'Vehicle ignition must be switched ON to write coding.';
+      }
+      if (clearDtcsBtn) {
+        clearDtcsBtn.disabled = true;
+        clearDtcsBtn.title = 'Vehicle ignition must be switched ON to clear fault codes.';
+      }
+      if (liveCodingBtn) {
+        liveCodingBtn.title = 'Switch ignition to ON (Position 2) before reading ECU coding.';
+      }
+    } else if (this.ignitionState === 'running') {
+      if (statusDot) statusDot.className = 'dot connected';
+      if (statusText) statusText.innerHTML = `<span style="color:#10b981; font-weight:700;">🚗 ${vStr}Engine Running</span>`;
+      if (bannerIgnitionOff) bannerIgnitionOff.style.display = 'none';
+      if (codingIgnitionNotice) codingIgnitionNotice.style.display = 'none';
+      if (dtcsIgnitionNotice) dtcsIgnitionNotice.style.display = 'none';
+
+      // Lock writes because engine is running (Engine Running Interlock)
+      if (applyHexBtn) {
+        applyHexBtn.disabled = true;
+        applyHexBtn.title = 'Engine is running. Turn engine OFF (Ignition ON only) to write coding.';
+      }
+      if (clearDtcsBtn) clearDtcsBtn.disabled = false;
+    } else { // 'on'
+      if (statusDot) statusDot.className = 'dot connected';
+      if (statusText) statusText.innerHTML = `<span style="color:#34d399; font-weight:700;">🟢 ${vStr}Ignition ON</span>`;
+      if (bannerIgnitionOff) bannerIgnitionOff.style.display = 'none';
+      if (codingIgnitionNotice) codingIgnitionNotice.style.display = 'none';
+      if (dtcsIgnitionNotice) dtcsIgnitionNotice.style.display = 'none';
+
+      // Enable write actions
+      if (applyHexBtn) {
+        applyHexBtn.disabled = false;
+        applyHexBtn.title = 'Audit & Write Hex to Vehicle ECU';
+      }
+      if (clearDtcsBtn) clearDtcsBtn.disabled = false;
+    }
+  }
+
   updateConnectionStatus(connected) {
     const bleBtn = document.getElementById('btn-ble-connect');
     const statusDot = document.getElementById('status-dot');
@@ -1142,13 +1596,18 @@ class VibesApp {
     if (connected) {
       if (bleBtn) {
         bleBtn.classList.add('connected');
-        bleBtn.textContent = 'Disconnect BLE';
+        bleBtn.textContent = this.isSimulated ? 'Disconnect Sim' : 'Disconnect BLE';
       }
       if (statusDot) {
         statusDot.className = 'dot connected';
       }
       if (statusText) {
-        statusText.textContent = this.bleTransport.device?.name || 'BLE Connected';
+        if (this.isSimulated) {
+          const prof = SIM_PROFILES[this.simProfileId] || {};
+          statusText.innerHTML = `🎮 <span style="color:#38bdf8; font-weight:700;">Sim: ${prof.name || 'Virtual Vehicle'}</span>`;
+        } else {
+          statusText.textContent = this.bleTransport.device?.name || 'BLE Connected';
+        }
       }
       if (cockpitNotice) cockpitNotice.style.display = 'none';
       if (codingNotice) codingNotice.style.display = 'none';
@@ -1195,6 +1654,12 @@ class VibesApp {
       // Clear cockpit telemetry metrics & vehicle specs when disconnected
       this.renderTelemetry({});
       this.clearVehicleSpecsDisplay();
+
+      // Reset ignition state & stop polling
+      this.stopIgnitionPolling();
+      this.ignitionState = 'disconnected';
+      this.batteryVoltage = null;
+      this.updateIgnitionUI();
     }
 
     // Refresh UI components to reflect updated disabled/enabled interactive states
@@ -2480,7 +2945,7 @@ class VibesApp {
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:0.5rem;">
-          ${!isUnassigned ? `<button type="button" class="btn btn-secondary btn-edit-group-reg" data-vin="${vinKey}" style="font-size:0.72rem; padding:3px 8px;">✏️ ${reg ? 'Edit Reg' : 'Set Reg'}</button>` : ''}
+          <button type="button" class="btn btn-secondary btn-edit-group-reg" data-vin="${isUnassigned ? '' : vinKey}" style="font-size:0.72rem; padding:3px 8px;">✏️ ${reg ? 'Edit Reg' : 'Set Reg'}</button>
           <span class="group-toggle-icon" style="font-size:0.9rem; color:#94a3b8;">▼</span>
         </div>
       `;
@@ -3230,5 +3695,6 @@ if (typeof window !== 'undefined') {
     const app = new VibesApp();
     app.init();
     window.__VIBES_APP__ = app;
+    window.app = app;
   });
 }

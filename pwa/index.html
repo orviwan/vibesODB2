@@ -38,6 +38,9 @@
       <button id="btn-ble-connect" class="btn-ble">
         <span>⚡</span> Connect BLE
       </button>
+      <button id="btn-open-sim-modal" class="btn-ble" style="background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Virtual Vehicle Simulator">
+        <span>🎮</span> Simulator
+      </button>
     </div>
   </header>
 
@@ -62,6 +65,18 @@
           Currently viewing offline baseline demo. Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter, read live ECU parameters, and stream real-time vehicle telemetry.
         </p>
       </div>
+    </div>
+
+    <!-- Vehicle Ignition OFF Warning Banner -->
+    <div id="banner-ignition-off" class="ble-notice-banner" style="display:none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); margin-bottom: 1.25rem;">
+      <span style="font-size: 1.5rem;">🔑</span>
+      <div style="flex:1;">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24; margin:0;">Vehicle Ignition is OFF (Terminal 15 Inactive)</h4>
+        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
+          OBD-II Pin 16 provides permanent 12V battery power so your adapter is connected, but vehicle ECUs are powered down. <strong>Turn vehicle ignition key to Position 2 (dash lights ON, engine OFF)</strong> to communicate with the vehicle.
+        </p>
+      </div>
+      <button id="btn-recheck-ignition" type="button" class="btn" style="font-size:0.75rem; padding:5px 12px; background:#fbbf24; color:#000; font-weight:700; border:none; border-radius:6px; cursor:pointer;">🔄 Check Ignition</button>
     </div>
 
     <!-- Automatic Cockpit DTC Fault Codes Alert Panel -->
@@ -287,6 +302,18 @@
           Currently showing offline mock buffer. Connect Bluetooth to your vehicle to automatically read live factory Long Coding from your Central Electrics module (BCM 0x09).
         </p>
       </div>
+    </div>
+
+    <!-- Feature Coding Ignition OFF Banner -->
+    <div id="coding-ignition-notice" class="ble-notice-banner" style="display:none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); margin-bottom: 1.25rem;">
+      <span style="font-size: 1.5rem;">🔒</span>
+      <div style="flex:1;">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24; margin:0;">Feature Coding Locked: Vehicle Ignition is OFF</h4>
+        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
+          Writing long-coding EEPROM configuration requires active Terminal 15 power. Turn vehicle ignition key to Position 2 (dash lights ON, engine OFF) before reading or writing controller configurations.
+        </p>
+      </div>
+      <button id="btn-recheck-ignition-coding" type="button" class="btn" style="font-size:0.75rem; padding:5px 12px; background:#fbbf24; color:#000; font-weight:700; border:none; border-radius:6px; cursor:pointer;">🔄 Check Ignition</button>
     </div>
 
     <div class="card" style="margin-bottom: 1.25rem;">
@@ -637,6 +664,18 @@
       </div>
     </div>
 
+    <!-- Diagnostic Hub Ignition OFF Banner -->
+    <div id="dtcs-ignition-notice" class="ble-notice-banner" style="display:none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); margin-bottom: 1.25rem;">
+      <span style="font-size: 1.5rem;">🔑</span>
+      <div style="flex:1;">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24; margin:0;">Vehicle Ignition is OFF</h4>
+        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 3px;">
+          Interrogating controllers requires active Terminal 15 power. Turn vehicle ignition key to Position 2 (dash lights ON, engine OFF) to communicate with installed ECUs.
+        </p>
+      </div>
+      <button id="btn-recheck-ignition-dtcs" type="button" class="btn" style="font-size:0.75rem; padding:5px 12px; background:#fbbf24; color:#000; font-weight:700; border:none; border-radius:6px; cursor:pointer;">🔄 Check Ignition</button>
+    </div>
+
     <!-- Diagnostic Hub Header & Controls -->
     <div class="card" style="margin-bottom: 1.25rem;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
@@ -917,22 +956,78 @@
 
   <!-- Edit Vehicle Registration / License Plate Modal -->
   <div id="modal-edit-reg" class="modal-overlay">
-    <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-box" style="max-width: 440px;">
       <div class="modal-title">
         <span style="font-size: 1.3rem;">🚗</span>
-        <h3 style="font-size: 1.05rem;">Vehicle License Plate / Registration</h3>
+        <h3 style="font-size: 1.05rem;">Vehicle License Plate &amp; Identity</h3>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
-        Assign a registration number (e.g. <strong style="color:#fbbf24;">AB12 CDE</strong>) to VIN (<span id="modal-reg-vin" style="font-family:var(--font-mono); color:#38bdf8;">--</span>) to organize backups.
+      <p id="modal-reg-desc" style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
+        Assign a registration number (e.g. <strong style="color:#fbbf24;">AB12 CDE</strong>) to identify this vehicle and organize backups.
       </p>
       <form id="form-edit-reg">
-        <div style="margin-bottom: 1.25rem;">
+        <div style="margin-bottom: 1rem;">
           <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">License Plate / Registration *</label>
-          <input type="text" id="input-vehicle-reg" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:1.1rem; font-weight:700; letter-spacing:1px;" placeholder="e.g. AB12 CDE" required maxlength="12" />
+          <input type="text" id="input-vehicle-reg" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:1.15rem; font-weight:800; letter-spacing:1.5px; background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.4);" placeholder="e.g. AB12 CDE" required maxlength="12" />
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">
+            Vehicle VIN / Chassis ID
+            <span id="modal-reg-vin-status" style="font-size:0.75rem; color:#38bdf8; font-weight:normal; margin-left:4px;"></span>
+          </label>
+          <input type="text" id="input-vehicle-vin" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:0.92rem; font-weight:600; letter-spacing:1px;" placeholder="e.g. WV1ZZZ7HZ7H061325 (17 chars)" maxlength="17" />
+          <span style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:block;">Enter 17-digit VIN to unlock automatic chassis platform &amp; factory specs decoding.</span>
         </div>
         <div class="modal-actions">
           <button type="button" id="btn-cancel-edit-reg" class="btn btn-secondary">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Registration</button>
+          <button type="submit" class="btn btn-primary">Save Vehicle Details</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Virtual Vehicle Simulator Modal -->
+  <div id="modal-simulator" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-title">
+        <span style="font-size: 1.4rem;">🎮</span>
+        <h3 style="font-size: 1.15rem;">Virtual VAG Vehicle Simulator</h3>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
+        Connect to a virtual multi-module VAG vehicle to test diagnostics, long coding, telemetry, and service tools without physical OBD-II hardware.
+      </p>
+      
+      <form id="form-simulator">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Vehicle Profile</label>
+          <select id="sim-profile-select" class="select-box" style="width: 100%; box-sizing: border-box;">
+            <option value="transporter_t5">VW Transporter T5 (2007 2.5 TDI - KWP2000 TP2.0)</option>
+            <option value="transporter_t51" selected>VW Transporter T5.1 (2012 2.0 TDI - UDS ISO 14229)</option>
+            <option value="golf_mqb">VW Golf Mk7 (2017 2.0 TDI - MQB Platform)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Initial Engine State</label>
+          <select id="sim-engine-state" class="select-box" style="width: 100%; box-sizing: border-box;">
+            <option value="off" selected>Ignition ON / Engine OFF (Required for Coding)</option>
+            <option value="running">Engine Running (Live Telemetry / Interlock Test)</option>
+          </select>
+        </div>
+
+        <div id="sim-active-controls" style="display: none; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 0.85rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">Status: Connected</span>
+            <button type="button" id="btn-sim-toggle-engine" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;">Toggle Engine</button>
+          </div>
+          <div style="font-size: 0.78rem; color: #cbd5e1;">
+            Active Profile: <strong id="sim-active-profile-name">Transporter T5.1</strong>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-close-sim" class="btn btn-secondary">Close</button>
+          <button type="button" id="btn-disconnect-sim" class="btn btn-danger" style="display: none;">Disconnect Simulator</button>
+          <button type="submit" id="btn-start-sim" class="btn btn-primary">Connect Virtual Vehicle</button>
         </div>
       </form>
     </div>

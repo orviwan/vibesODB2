@@ -382,13 +382,8 @@ export class UdsClient {
 
       try {
         await this.setTargetModule(modHex);
-        const [info, dtcs] = await Promise.allSettled([
-          this.readModuleInfo(modHex),
-          this.readModuleDTCs(modHex)
-        ]);
-
-        const modInfo = info.status === 'fulfilled' ? info.value : null;
-        const modDtcs = dtcs.status === 'fulfilled' ? dtcs.value : [];
+        const modInfo = await this.readModuleInfo(modHex).catch(() => null);
+        const modDtcs = await this.readModuleDTCs(modHex).catch(() => []);
 
         // If module responded with info or DTCs, consider it installed
         const isResponding = !!(modInfo?.partNumber || modInfo?.component || modDtcs.length > 0);

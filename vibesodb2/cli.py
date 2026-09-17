@@ -32,11 +32,11 @@ from vibesodb2.uds.constants import DID_BCM_LONG_CODING, DID_VIN
 console = Console()
 
 
-def get_transport(mac: Optional[str], mock: bool, rpm: int = 0) -> Transport:
+def get_transport(mac: Optional[str], mock: bool, rpm: int = 0, profile: str = "transporter_t51") -> Transport:
     if mock or not mac:
         if not mock and not mac:
             console.print("[dim yellow]No --mac provided. Operating in Simulated Mock Mode (--mock).[/dim yellow]")
-        return MockTransport(engine_rpm=rpm)
+        return MockTransport(engine_rpm=rpm, profile_id=profile)
     return BleNordicUartTransport(mac_or_uuid=mac)
 
 
@@ -67,7 +67,7 @@ async def cmd_scan(args) -> int:
 
 async def cmd_dump(args) -> int:
     module_addr = int(args.module, 16)
-    transport = get_transport(args.mac, args.mock, args.rpm)
+    transport = get_transport(args.mac, args.mock, args.rpm, getattr(args, "profile", "transporter_t51"))
     safety = SafetyEngine()
     schema_loader = SchemaLoader(safety.storage)
 
@@ -149,7 +149,7 @@ async def cmd_set(args) -> int:
 
     safety = SafetyEngine()
     schema_loader = SchemaLoader(safety.storage)
-    transport = get_transport(args.mac, args.mock, args.rpm)
+    transport = get_transport(args.mac, args.mock, args.rpm, getattr(args, "profile", "transporter_t51"))
 
     try:
         safety.validate_module_allowed(module_addr)
@@ -265,7 +265,7 @@ async def cmd_backups(args) -> int:
                 console.print("[yellow]Rollback aborted.[/yellow]")
                 return 0
 
-        transport = get_transport(args.mac, args.mock, args.rpm)
+        transport = get_transport(args.mac, args.mock, args.rpm, getattr(args, "profile", "transporter_t51"))
         safety = SafetyEngine(storage)
         try:
             safety.validate_module_allowed(module_addr)
@@ -322,7 +322,7 @@ async def cmd_backups(args) -> int:
 
 async def cmd_dtc(args) -> int:
     module_addr = int(args.module, 16)
-    transport = get_transport(args.mac, args.mock, args.rpm)
+    transport = get_transport(args.mac, args.mock, args.rpm, getattr(args, "profile", "transporter_t51"))
 
     try:
         await transport.connect()
@@ -420,7 +420,7 @@ async def cmd_live(args) -> int:
     from rich.live import Live
     from vibesodb2.telemetry.engine import TelemetryEngine
 
-    transport = get_transport(args.mac, args.mock, args.rpm)
+    transport = get_transport(args.mac, args.mock, args.rpm, getattr(args, "profile", "transporter_t51"))
     if isinstance(transport, MockTransport):
         transport.simulate_drive_cycle = True
         if hasattr(args, "drive_mode") and args.drive_mode:
@@ -547,10 +547,39 @@ def cmd_web(args) -> int:
     return 0
 
 
+async def cmd_sim(args) -> int:
+    from vibesodb2.sim.server import VehicleSimulationServer
+    console.print(f"[bold green]Starting VAG Vehicle Simulator Server[/bold green] on [cyan]{args.host}:{args.port}[/cyan]")
+    console.print(f"Profile: [bold white]{args.profile}[/bold white] | Engine RPM: {args.rpm} | Drive Mode: {args.drive_mode}")
+    console.print("[dim]Connect external OBD-II diagnostic tools, telnet, or browser bridges to this port.[/dim]")
+    server = VehicleSimulationServer(
+        host=args.host,
+        port=args.port,
+        profile_id=args.profile,
+        engine_rpm=args.rpm,
+        drive_cycle_mode=args.drive_mode,
+    )
+    await server.start()
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        await server.stop()
+        console.print("\n[yellow]Vehicle Simulator Server stopped.[/yellow]")
+    return 0
+
+
 def main():
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument("--mac", type=str, default=None, help="BLE adapter MAC / Address")
     common_parser.add_argument("--mock", action="store_true", help="Run against simulated ECU & vLinker adapter")
+    common_parser.add_argument(
+        "--profile",
+        type=str,
+        default="transporter_t51",
+        choices=["transporter_t5", "transporter_t51", "golf_mqb"],
+        help="Simulated vehicle profile (default: transporter_t51)",
+    )
     common_parser.add_argument("--rpm", type=int, default=0, help="Simulated engine RPM for mock testing")
     common_parser.add_argument("--platform", type=str, default=None, choices=["PQ25", "PQ35", "MQB"], help="VAG Platform architecture override")
     common_parser.add_argument("--skip-safety", action="store_true", help="Skip engine-off verification (test benches only)")
@@ -624,6 +653,12 @@ def main():
     p_web.add_argument("--online", action="store_true", help="Launch the official cloud PWA (https://orviwan.github.io/vibesODB2/)")
     p_web.add_argument("--no-browser", action="store_true", help="Do not automatically launch system browser")
 
+    # sim
+    p_sim = subparsers.add_parser("sim", parents=[common_parser], help="Start standalone Vehicle Simulation TCP/Socket server")
+    p_sim.add_argument("--host", type=str, default="127.0.0.1", help="Host interface (default: 127.0.0.1)")
+    p_sim.add_argument("--port", type=int, default=35000, help="Port (default: 35000)")
+    p_sim.add_argument("--drive-mode", type=str, default="city", choices=["idle", "city", "highway", "spirited"], help="Simulated drive cycle mode")
+
     args = parser.parse_args()
 
     if args.command == "scan":
@@ -642,6 +677,8 @@ def main():
         sys.exit(asyncio.run(cmd_live(args)))
     elif args.command == "web":
         sys.exit(cmd_web(args))
+    elif args.command == "sim":
+        sys.exit(asyncio.run(cmd_sim(args)))
 
 
 if __name__ == "__main__":

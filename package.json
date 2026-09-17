@@ -1,0 +1,22 @@
+{
+  "name": "transporter-odb",
+  "version": "0.1.0",
+  "description": "vibesODB2 VAG vehicle configuration, diagnostic, and telemetry engine with comprehensive virtual simulator",
+  "scripts": {
+    "test": "npm run test:syntax && npm run test:cli && npm run test:pwa",
+    "test:syntax": "node --check pwa/js/*.js",
+    "test:cli": "pytest -v",
+    "test:pwa": "python3 scripts/test_pwa_sim.py",
+    "test:all": "npm test",
+    "sim": "python3 -m vibesodb2.cli sim"
+  },
+  "keywords": [
+    "obd2",
+    "elm327",
+    "vag",
+    "uds",
+    "kwp2000",
+    "simulator"
+  ],
+  "license": "MIT"
+}

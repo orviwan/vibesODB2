@@ -48,35 +48,48 @@ export class SafetyPipeline {
 
     // Guardrail 2: Engine Running Interlock (PID 01 0C)
     let rpm = 0;
+    let busResponsive = false;
     if (isSimulation) {
       rpm = simulatedRpm;
+      busResponsive = true;
     } else {
       try {
         await this.transport.setHeader('7DF'); // Functional broadcast for OBD-II Mode 01
         const res = await this.transport.sendCommand('01 0C', 2000);
+        const clean = (res || '').toUpperCase();
         // Format: 41 0C A B -> RPM = ((A * 256) + B) / 4
-        const parts = res.split(/\s+/);
+        const parts = clean.split(/\s+/);
         const idx = parts.indexOf('41');
         if (idx !== -1 && parts[idx + 1] === '0C') {
           const a = parseInt(parts[idx + 2], 16);
           const b = parseInt(parts[idx + 3], 16);
           rpm = ((a * 256) + b) / 4.0;
+          busResponsive = true;
+        } else if (!clean.includes('NO DATA') && !clean.includes('UNABLE') && !clean.includes('ERROR') && !clean.includes('?')) {
+          busResponsive = true;
         }
       } catch (e) {
-        // Fallback: assume 0 if unreadable or check connection
+        busResponsive = false;
       }
+    }
+
+    if (!busResponsive) {
+      const reason = 'Ignition State Interlock: Vehicle bus did not respond. Vehicle ignition is OFF (Terminal 15 inactive). Switch ignition key to ON (Position 2, dash lights on, engine OFF) before modifying vehicle coding.';
+      auditReport.checks.push({ name: 'Ignition & Engine State Interlock', passed: false, detail: reason });
+      auditReport.error = reason;
+      return auditReport;
     }
 
     if (rpm > 0) {
       const reason = `Engine Running Interlock: Vehicle RPM is ${Math.round(rpm)} RPM. Writing configuration while engine is running is strictly prohibited! Turn engine OFF (Ignition ON only).`;
-      auditReport.checks.push({ name: 'Engine State Interlock', passed: false, detail: reason });
+      auditReport.checks.push({ name: 'Ignition & Engine State Interlock', passed: false, detail: reason });
       auditReport.error = reason;
       return auditReport;
     }
     auditReport.checks.push({
-      name: 'Engine State Interlock',
+      name: 'Ignition & Engine State Interlock',
       passed: true,
-      detail: 'Engine is OFF (0 RPM / Ignition ON confirmed).'
+      detail: 'Ignition is ON and Engine is OFF (0 RPM confirmed).'
     });
 
     // Guardrail 3: Strict Byte Payload Sizing

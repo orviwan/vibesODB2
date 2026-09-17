@@ -1,7 +1,9 @@
-name: Deploy vibesODB2 PWA to GitHub Pages
+name: Test & Deploy vibesODB2 PWA
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
@@ -15,7 +17,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    name: Automated Vehicle Simulator & Diagnostics Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate PWA JavaScript Syntax
+        run: |
+          node --check pwa/js/*.js
+
+      - name: Run Python Simulator & Diagnostics Pytest Suite
+        run: |
+          pytest -v
+
+      - name: Run Headless Chrome PWA End-to-End Simulation Test
+        run: |
+          python scripts/test_pwa_sim.py
+
   deploy:
+    name: Deploy to GitHub Pages
+    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
