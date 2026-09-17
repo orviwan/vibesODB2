@@ -55,11 +55,11 @@
   <main id="tab-cockpit" class="tab-content active">
     <!-- Bluetooth Connection Notice Banner -->
     <div id="cockpit-ble-notice" class="ble-notice-banner">
-      <span style="font-size: 1.3rem;">⚡</span>
+      <span style="font-size: 1.3rem;">🟡</span>
       <div>
-        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Offline Demo Mode (Disconnected)</h4>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-          Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter and stream live powertrain telemetry.
+          Currently viewing offline baseline demo. Tap <strong>Connect BLE</strong> to pair with your OBD-II adapter, read live ECU parameters, and stream real-time vehicle telemetry.
         </p>
       </div>
     </div>
@@ -131,6 +131,30 @@
         </div>
       </div>
 
+      <!-- Live Fuel Economy & Consumption -->
+      <div class="card" id="card-fuel-economy">
+        <div class="card-title">
+          <span>⛽ Live Fuel Economy &amp; Efficiency</span>
+          <span id="fuel-state-badge" class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px;">Live</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px;">Instant Economy</div>
+            <div id="val-cockpit-mpg" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: #38bdf8;">-- MPG</div>
+            <div id="val-cockpit-l100" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">-- L/100km</div>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px;">Fuel Rate (Idle / Flow)</div>
+            <div id="val-cockpit-fuel-rate" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: #f59e0b;">-- L/h</div>
+            <div id="val-cockpit-fuel-sub" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Engine Fuel Flow</div>
+          </div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.72rem; color: var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+          <span>Mode: <strong id="lbl-fuel-status" style="color:#cbd5e1;">Awaiting Telemetry</strong></span>
+          <button id="btn-toggle-fuel-unit" type="button" class="btn" style="font-size:0.7rem; padding:2px 8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:#94a3b8; border-radius:4px; cursor:pointer;">Units: UK MPG</button>
+        </div>
+      </div>
+
       <!-- Thermal & Emission Diagnostics -->
       <div class="card">
         <div class="card-title">
@@ -144,7 +168,7 @@
           <div id="progress-coolant" class="progress-bar-fill thermal" style="width: 0%;"></div>
         </div>
 
-        <div class="metric-row" style="margin-top: 1.25rem;">
+        <div class="metric-row" style="margin-top: 1rem;">
           <span class="metric-label">Engine Oil Temp</span>
           <span class="metric-value" id="metric-oil-val">-- °C</span>
         </div>
@@ -159,11 +183,16 @@
         </div>
 
         <div class="metric-row" style="margin-top: 0.5rem;">
-          <span class="metric-label">DPF Soot Load</span>
-          <span class="metric-value" id="metric-soot-val" style="color: var(--text-muted);">-- g</span>
+          <span class="metric-label">DPF Soot Calculated</span>
+          <span class="metric-value" id="metric-soot-val" style="color: #fbbf24;">-- g</span>
         </div>
         <div class="progress-bar-bg">
-          <div id="progress-soot" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #10b981, #f59e0b);"></div>
+          <div id="progress-soot" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">
+          <span>DPF Soot Measured: <strong id="metric-soot-meas-val" style="color:#cbd5e1; font-family:var(--font-mono);">-- g</strong></span>
+          <span>Oil Ash: <strong id="metric-ash-val" style="color:#cbd5e1; font-family:var(--font-mono);">-- g</strong></span>
         </div>
       </div>
 
@@ -175,6 +204,13 @@
         </div>
         
         <div class="specs-grid">
+          <div class="spec-box">
+            <div class="spec-label">License Plate / Reg</div>
+            <div class="spec-val highlight" style="display:flex; align-items:center; gap:6px;">
+              <span id="display-vehicle-reg" class="plate-badge" style="background:#fbbf24; color:#000; font-weight:800; font-family:var(--font-mono); padding:1px 7px; border-radius:4px; border:1px solid #d97706; letter-spacing:1px; font-size:0.82rem;">--</span>
+              <button id="btn-edit-vehicle-reg" type="button" class="btn" style="padding:2px 6px; font-size:0.68rem; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#cbd5e1; border-radius:3px; cursor:pointer;" title="Set vehicle registration / license plate">✏️ Edit</button>
+            </div>
+          </div>
           <div class="spec-box">
             <div class="spec-label">Model &amp; Chassis</div>
             <div class="spec-val highlight" id="info-vehicle-model">--</div>
@@ -244,11 +280,11 @@
   <!-- Tab 2: Schema-Driven Feature Coding -->
   <main id="tab-coding" class="tab-content">
     <div id="coding-ble-notice" class="ble-notice-banner">
-      <span style="font-size: 1.3rem;">⚡</span>
+      <span style="font-size: 1.3rem;">🟡</span>
       <div>
-        <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
+        <h4 style="font-size: 0.92rem; font-weight: 700;">Offline Demo Mode (Mock Buffer Loaded)</h4>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-          Connect to your OBD-II adapter to read live vehicle coding and toggle features.
+          Currently showing offline mock buffer. Connect Bluetooth to your vehicle to automatically read live factory Long Coding from your Central Electrics module (BCM 0x09).
         </p>
       </div>
     </div>
@@ -405,12 +441,13 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
           <div>
             <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Capacity (Ah)</label>
-            <input type="number" id="battery-capacity" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" value="70" min="30" max="120" />
+            <input type="number" id="battery-capacity" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 70" min="30" max="130" />
           </div>
           <div>
             <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Technology</label>
             <select id="battery-tech" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;">
-              <option value="AGM" selected>AGM / Fleece</option>
+              <option value="" disabled selected>-- Select Technology --</option>
+              <option value="AGM">AGM / Fleece</option>
               <option value="EFB">EFB (Enhanced Flooded)</option>
               <option value="Wet">Wet / Standard Flooded</option>
             </select>
@@ -420,11 +457,11 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div>
             <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Vendor Code</label>
-            <input type="text" id="battery-vendor" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" value="JCB" maxlength="4" />
+            <input type="text" id="battery-vendor" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. JCB or VAO" maxlength="4" />
           </div>
           <div>
             <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Serial Number (10 digits)</label>
-            <input type="text" id="battery-serial" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" value="1111111111" maxlength="10" />
+            <input type="text" id="battery-serial" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="10-digit serial" maxlength="10" />
           </div>
         </div>
 
@@ -470,8 +507,11 @@
         </p>
 
         <div style="margin-bottom: 0.75rem;">
-          <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Dashboard Odometer Display (km - optional)</label>
-          <input type="number" id="input-dash-mileage" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 85400" />
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+            <label id="label-dash-mileage" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin: 0;">Dashboard Odometer Display (Miles - optional)</label>
+            <button id="btn-toggle-mileage-unit" type="button" class="btn btn-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:4px;" title="Toggle distance unit between Miles and KM">🇬🇧 Units: Miles</button>
+          </div>
+          <input type="number" id="input-dash-mileage" class="select-box" style="width: 100%; padding: 4px 8px; font-size: 0.82rem;" placeholder="e.g. 53000" />
         </div>
 
         <button id="btn-check-ecu-mileage" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 600;">
@@ -797,6 +837,53 @@
         <div class="modal-actions">
           <button type="button" id="btn-cancel-custom-feat" class="btn btn-secondary">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Setting</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vehicle Connection & Data Loading Overlay Modal -->
+  <div id="modal-vehicle-loading" class="modal-overlay">
+    <div class="modal-box" style="max-width: 440px; text-align: center; padding: 2rem 1.5rem;">
+      <div style="width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1.25rem;"></div>
+      <h3 id="loading-vehicle-title" style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem; color: #f8fafc;">Connecting to Vehicle...</h3>
+      <p id="loading-vehicle-step" style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 1.25rem;">Establishing Bluetooth connection and interrogating ECUs...</p>
+      
+      <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 0.85rem; text-align: left; font-size: 0.8rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
+        <div id="step-ble" style="display: flex; align-items: center; gap: 8px; color: #38bdf8;">
+          <span id="icon-step-ble">⏳</span> <span>1. Bluetooth GATT Handshake</span>
+        </div>
+        <div id="step-vin" style="display: flex; align-items: center; gap: 8px; color: #64748b;">
+          <span id="icon-step-vin">⚪</span> <span>2. Detect Vehicle VIN & Platform</span>
+        </div>
+        <div id="step-specs" style="display: flex; align-items: center; gap: 8px; color: #64748b;">
+          <span id="icon-step-specs">⚪</span> <span>3. Interrogate ECU Specifications</span>
+        </div>
+        <div id="step-coding" style="display: flex; align-items: center; gap: 8px; color: #64748b;">
+          <span id="icon-step-coding">⚪</span> <span>4. Read Central Electrics Coding (BCM 0x09)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Vehicle Registration / License Plate Modal -->
+  <div id="modal-edit-reg" class="modal-overlay">
+    <div class="modal-box" style="max-width: 420px;">
+      <div class="modal-title">
+        <span style="font-size: 1.3rem;">🚗</span>
+        <h3 style="font-size: 1.05rem;">Vehicle License Plate / Registration</h3>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
+        Assign a registration number (e.g. <strong style="color:#fbbf24;">AB12 CDE</strong>) to VIN (<span id="modal-reg-vin" style="font-family:var(--font-mono); color:#38bdf8;">--</span>) to organize backups.
+      </p>
+      <form id="form-edit-reg">
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">License Plate / Registration *</label>
+          <input type="text" id="input-vehicle-reg" class="select-box" style="width:100%; box-sizing:border-box; text-transform:uppercase; font-family:var(--font-mono); font-size:1.1rem; font-weight:700; letter-spacing:1px;" placeholder="e.g. AB12 CDE" required maxlength="12" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-edit-reg" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Registration</button>
         </div>
       </form>
     </div>

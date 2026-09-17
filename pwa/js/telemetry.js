@@ -32,7 +32,15 @@ export class TelemetryEngine {
       throttle_position_pct: null,
       intake_air_temp_c: null,
       fuel_rail_pressure_bar: null,
+      fuel_rate_l_per_h: null,
+      instant_l_per_100km: null,
+      instant_mpg_uk: null,
+      instant_mpg_us: null,
+      maf_g_per_s: null,
       dpf_soot_load_g: null,
+      dpf_soot_measured_g: null,
+      dpf_ash_mass_g: null,
+      dpf_dist_since_regen_km: null,
       exhaust_gas_temp_c: null,
       engine_load_pct: null,
       oil_temp_c: null,
@@ -95,7 +103,7 @@ export class TelemetryEngine {
           );
         }
 
-        // 2. MEDIUM TIER (Every 3 cycles: Boost/MAP, Throttle / Accelerator Pedal, Engine Load)
+        // 2. MEDIUM TIER (Every 3 cycles: Boost/MAP, Throttle / Accelerator Pedal, Engine Load, Fuel Rate)
         if (loopCycle % 3 === 0) {
           const resMap = await this.transport.sendCommand('010B', 800);
           this.parsePidResponse(resMap);
@@ -110,9 +118,17 @@ export class TelemetryEngine {
 
           const resLoad = await this.transport.sendCommand('0104', 800);
           this.parsePidResponse(resLoad);
+
+          // Live Fuel Rate (015E) or MAF Airflow fallback (0110)
+          const resFuelRate = await this.transport.sendCommand('015E', 800);
+          this.parsePidResponse(resFuelRate);
+          if (this.latestMetrics.fuel_rate_l_per_h === null) {
+            const resMaf = await this.transport.sendCommand('0110', 800);
+            this.parsePidResponse(resMaf);
+          }
         }
 
-        // 3. SLOW TIER (Every 8 cycles: Coolant, IAT, Fuel Rail, DPF Soot, EGT, Oil Temp, Voltage)
+        // 3. SLOW TIER (Every 8 cycles: Coolant, IAT, Fuel Rail, DPF Soot & Ash, EGT, Oil Temp, Voltage)
         if (loopCycle % 8 === 0) {
           const resClt = await this.transport.sendCommand('0105', 900);
           this.parsePidResponse(resClt);
@@ -123,12 +139,25 @@ export class TelemetryEngine {
           const resFuel = await this.transport.sendCommand('0123', 900);
           this.parsePidResponse(resFuel);
 
-          // EGT (0178) & DPF Soot (017C) for VAG TDI
+          // EGT (0178)
           const resEgt = await this.transport.sendCommand('0178', 900);
           this.parsePidResponse(resEgt);
 
+          // DPF: Try standard SAE J1979 PID 017C first
           const resSoot = await this.transport.sendCommand('017C', 900);
           this.parsePidResponse(resSoot);
+
+          // If generic 017C returned no soot data (typical on VAG TDI EDC17/DCM6.2), query VAG UDS Mode 22 DIDs
+          if (this.latestMetrics.dpf_soot_load_g === null) {
+            const resUdsSoot = await this.transport.sendCommand('22115E', 900);
+            this.parsePidResponse(resUdsSoot);
+
+            const resUdsSootMeas = await this.transport.sendCommand('22115F', 900);
+            this.parsePidResponse(resUdsSootMeas);
+
+            const resUdsAsh = await this.transport.sendCommand('22114E', 900);
+            this.parsePidResponse(resUdsAsh);
+          }
 
           // Engine Oil Temp (015C)
           const resOil = await this.transport.sendCommand('015C', 900);
@@ -234,6 +263,32 @@ export class TelemetryEngine {
               this.latestMetrics.fuel_rail_pressure_bar = Number((((a * 256) + b) * 10 / 100.0).toFixed(1));
             }
             cursor += 3;
+          } else if (pid === '5E' && cursor + 2 < parts.length) {
+            // Engine Fuel Rate: ((A * 256) + B) * 0.05 L/h
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              const l_per_h = Number((((a * 256) + b) * 0.05).toFixed(2));
+              this.latestMetrics.fuel_rate_l_per_h = l_per_h;
+              this._computeFuelEconomy(l_per_h);
+            }
+            cursor += 3;
+          } else if (pid === '10' && cursor + 2 < parts.length) {
+            // Mass Air Flow (MAF): ((A * 256) + B) / 100.0 g/s
+            const a = parseInt(parts[cursor + 1], 16);
+            const b = parseInt(parts[cursor + 2], 16);
+            if (!isNaN(a) && !isNaN(b)) {
+              const maf = Number((((a * 256) + b) / 100.0).toFixed(2));
+              this.latestMetrics.maf_g_per_s = maf;
+              // If fuel rate was not provided by PID 5E, estimate from MAF:
+              // Diesel stoichiometric AFR ~14.5, density ~832 g/L -> L/h = (MAF / (14.5 * 832)) * 3600 ~= MAF * 0.2984
+              if (this.latestMetrics.fuel_rate_l_per_h === null) {
+                const l_per_h = Number((maf * 0.2984).toFixed(2));
+                this.latestMetrics.fuel_rate_l_per_h = l_per_h;
+                this._computeFuelEconomy(l_per_h);
+              }
+            }
+            cursor += 3;
           } else if (pid === '5C' && cursor + 1 < parts.length) {
             // Engine Oil Temp: A - 40 °C
             const ot = parseInt(parts[cursor + 1], 16);
@@ -262,6 +317,65 @@ export class TelemetryEngine {
           }
         }
       }
+
+      // Parse UDS Mode 22 (ReadDataByIdentifier) responses: 62 <DID_HI> <DID_LO> <DATA...>
+      if (parts[i] === '62' && i + 3 < parts.length) {
+        const did = parts[i + 1] + parts[i + 2];
+        if (did === '115E' && i + 4 < parts.length) {
+          // VAG TDI DPF Soot Mass Calculated (0.01g scale on EDC17)
+          const a = parseInt(parts[i + 3], 16);
+          const b = parseInt(parts[i + 4], 16);
+          if (!isNaN(a) && !isNaN(b)) {
+            const soot = Number((((a * 256) + b) * 0.01).toFixed(2));
+            this.latestMetrics.dpf_soot_load_g = soot;
+          }
+        } else if (did === '115F' && i + 4 < parts.length) {
+          // VAG TDI DPF Soot Mass Measured
+          const a = parseInt(parts[i + 3], 16);
+          const b = parseInt(parts[i + 4], 16);
+          if (!isNaN(a) && !isNaN(b)) {
+            const sootM = Number((((a * 256) + b) * 0.01).toFixed(2));
+            this.latestMetrics.dpf_soot_measured_g = sootM;
+          }
+        } else if (did === '114E' && i + 4 < parts.length) {
+          // VAG TDI DPF Oil Ash Volume / Mass
+          const a = parseInt(parts[i + 3], 16);
+          const b = parseInt(parts[i + 4], 16);
+          if (!isNaN(a) && !isNaN(b)) {
+            const ash = Number((((a * 256) + b) * 0.01).toFixed(2));
+            this.latestMetrics.dpf_ash_mass_g = ash;
+          }
+        } else if (did === '1153' && i + 4 < parts.length) {
+          // Distance since last DPF regeneration (km)
+          const a = parseInt(parts[i + 3], 16);
+          const b = parseInt(parts[i + 4], 16);
+          if (!isNaN(a) && !isNaN(b)) {
+            this.latestMetrics.dpf_dist_since_regen_km = (a * 256) + b;
+          }
+        }
+      }
+    }
+  }
+
+  _computeFuelEconomy(l_per_h) {
+    const spd = this.latestMetrics.vehicle_speed_kmh;
+    if (spd !== null && spd > 3 && l_per_h > 0) {
+      // In motion: L/100km = (L/h / spd) * 100
+      const l_100km = Number(((l_per_h / spd) * 100.0).toFixed(1));
+      this.latestMetrics.instant_l_per_100km = l_100km;
+      if (l_100km > 0.5 && l_100km < 99) {
+        this.latestMetrics.instant_mpg_uk = Number((282.481 / l_100km).toFixed(1));
+        this.latestMetrics.instant_mpg_us = Number((235.215 / l_100km).toFixed(1));
+      } else {
+        this.latestMetrics.instant_mpg_uk = null;
+        this.latestMetrics.instant_mpg_us = null;
+      }
+    } else {
+      // Stationary / Idling (speed <= 3 km/h):
+      // When stationary, L/100km and MPG are undefined/infinite; display L/h directly
+      this.latestMetrics.instant_l_per_100km = null;
+      this.latestMetrics.instant_mpg_uk = null;
+      this.latestMetrics.instant_mpg_us = null;
     }
   }
 
@@ -305,6 +419,9 @@ export class TelemetryEngine {
       'Speed_KMH',
       'Speed_MPH',
       'Engaged_Gear',
+      'Fuel_Rate_L_H',
+      'Instant_L_100KM',
+      'Instant_MPG_UK',
       'Boost_Bar',
       'Throttle_Pct',
       'Engine_Load_Pct',
@@ -312,7 +429,9 @@ export class TelemetryEngine {
       'Oil_Temp_C',
       'IAT_C',
       'EGT_C',
-      'DPF_Soot_G',
+      'DPF_Soot_Calculated_G',
+      'DPF_Soot_Measured_G',
+      'DPF_Ash_G',
       'Fuel_Rail_Bar',
       'Battery_Voltage_V'
     ];
@@ -324,6 +443,9 @@ export class TelemetryEngine {
       s.vehicle_speed_kmh ?? '',
       s.vehicle_speed_kmh != null ? Math.round(s.vehicle_speed_kmh * 0.621371) : '',
       s.engaged_gear ?? '',
+      s.fuel_rate_l_per_h != null ? s.fuel_rate_l_per_h.toFixed(2) : '',
+      s.instant_l_per_100km != null ? s.instant_l_per_100km.toFixed(1) : '',
+      s.instant_mpg_uk != null ? s.instant_mpg_uk.toFixed(1) : '',
       s.boost_pressure_bar != null ? s.boost_pressure_bar.toFixed(2) : '',
       s.throttle_position_pct != null ? s.throttle_position_pct.toFixed(1) : '',
       s.engine_load_pct != null ? s.engine_load_pct.toFixed(1) : '',
@@ -332,6 +454,8 @@ export class TelemetryEngine {
       s.intake_air_temp_c != null ? Math.round(s.intake_air_temp_c) : '',
       s.exhaust_gas_temp_c != null ? Math.round(s.exhaust_gas_temp_c) : '',
       s.dpf_soot_load_g != null ? s.dpf_soot_load_g.toFixed(2) : '',
+      s.dpf_soot_measured_g != null ? s.dpf_soot_measured_g.toFixed(2) : '',
+      s.dpf_ash_mass_g != null ? s.dpf_ash_mass_g.toFixed(2) : '',
       s.fuel_rail_pressure_bar != null ? s.fuel_rail_pressure_bar.toFixed(1) : '',
       s.battery_voltage != null ? s.battery_voltage.toFixed(2) : ''
     ].join(','));

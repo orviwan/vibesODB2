@@ -134,10 +134,22 @@ export class MaintenanceManager {
           this.showToast('Battery registration parameters loaded from Gateway.');
         } catch (err) {
           if (statusEl) {
-            const isUnsupported = err.unsupported || err.message?.includes('J367') || err.message?.includes('0x31');
+            const isUnsupported = err.unsupported || err.message?.includes('J367') || err.message?.includes('0x31') || err.message?.includes('0x11') || err.message?.includes('not supported') || err.message?.includes('RequestOutOfRange');
             if (isUnsupported) {
-              statusEl.textContent = 'ℹ️ Battery monitoring channels not found on Gateway (0x19). Your vehicle does not have a J367 Battery Monitoring Sensor (normal for models without Start/Stop).';
+              statusEl.textContent = 'ℹ️ Battery monitoring channels not found on Gateway (0x19). Your vehicle is not equipped with a J367 Battery Monitoring Sensor (normal for models without Start/Stop).';
               statusEl.style.color = '#94a3b8';
+              const capInput = document.getElementById('battery-capacity');
+              const techSelect = document.getElementById('battery-tech');
+              const vendorInput = document.getElementById('battery-vendor');
+              const serialInput = document.getElementById('battery-serial');
+              if (capInput) capInput.disabled = true;
+              if (techSelect) techSelect.disabled = true;
+              if (vendorInput) vendorInput.disabled = true;
+              if (serialInput) serialInput.disabled = true;
+              if (btnApply) {
+                btnApply.disabled = true;
+                btnApply.title = 'Battery monitoring is unsupported on this vehicle.';
+              }
             } else {
               statusEl.textContent = '⚠️ Could not read existing battery parameters: ' + (err.message || err);
               statusEl.style.color = '#fbbf24';
@@ -157,10 +169,32 @@ export class MaintenanceManager {
           return;
         }
 
-        const capacityAh = parseInt(document.getElementById('battery-capacity')?.value || '70', 10);
-        const tech = document.getElementById('battery-tech')?.value || 'AGM';
-        const vendor = (document.getElementById('battery-vendor')?.value || 'JCB').trim().toUpperCase();
-        let serial = (document.getElementById('battery-serial')?.value || '1111111111').trim();
+        const capInput = document.getElementById('battery-capacity');
+        const techSelect = document.getElementById('battery-tech');
+        const vendorInput = document.getElementById('battery-vendor');
+        const serialInput = document.getElementById('battery-serial');
+
+        const capacityAh = parseInt(capInput?.value || '0', 10);
+        const tech = techSelect?.value || '';
+        const vendor = (vendorInput?.value || '').trim().toUpperCase();
+        let serial = (serialInput?.value || '').trim();
+
+        if (!capacityAh || capacityAh < 30 || capacityAh > 130) {
+          alert('Please enter a valid battery capacity (30 - 130 Ah).');
+          return;
+        }
+        if (!tech) {
+          alert('Please select a battery technology (AGM, EFB, or Wet).');
+          return;
+        }
+        if (!vendor || vendor.length < 3) {
+          alert('Please enter a 3 to 4 character vendor code (e.g. JCB, VAO, TU3).');
+          return;
+        }
+        if (!serial || serial.length < 5) {
+          alert('Please enter a valid battery serial number (up to 10 characters).');
+          return;
+        }
 
         if (serial.length < 10) {
           serial = serial.padEnd(10, '0');
@@ -288,6 +322,94 @@ export class MaintenanceManager {
     const dashKmEl = document.getElementById('val-dash-mileage');
     const diffKmEl = document.getElementById('val-diff-mileage');
     const verdictEl = document.getElementById('val-mileage-verdict');
+    const btnToggleUnit = document.getElementById('btn-toggle-mileage-unit');
+    const labelDash = document.getElementById('label-dash-mileage');
+    const dashInput = document.getElementById('input-dash-mileage');
+
+    this.mileageUnit = 'miles';
+    try {
+      this.mileageUnit = localStorage.getItem('vibesodb2_mileage_unit') || 'miles';
+    } catch (e) {}
+    this.lastEcuMileageKm = null;
+
+    const renderMileageComparison = () => {
+      const isMiles = this.mileageUnit === 'miles';
+      const unitLabel = isMiles ? 'mi' : 'km';
+
+      if (btnToggleUnit) {
+        btnToggleUnit.textContent = isMiles ? '🇬🇧 Units: Miles' : '🇪🇺 Units: KM';
+      }
+      if (labelDash) {
+        labelDash.textContent = isMiles ? 'Dashboard Odometer Display (Miles - optional)' : 'Dashboard Odometer Display (KM - optional)';
+      }
+      if (dashInput) {
+        dashInput.placeholder = isMiles ? 'e.g. 53000' : 'e.g. 85400';
+      }
+
+      if (this.lastEcuMileageKm !== null && this.lastEcuMileageKm > 0) {
+        const ecuDisplay = isMiles
+          ? Math.round(this.lastEcuMileageKm * 0.621371)
+          : this.lastEcuMileageKm;
+        const altDisplay = isMiles
+          ? this.lastEcuMileageKm
+          : Math.round(this.lastEcuMileageKm * 0.621371);
+        const altUnit = isMiles ? 'km' : 'mi';
+
+        if (ecuKmEl) {
+          ecuKmEl.textContent = `${ecuDisplay.toLocaleString()} ${unitLabel} (${altDisplay.toLocaleString()} ${altUnit})`;
+        }
+
+        const dashVal = parseInt(dashInput?.value || '0', 10);
+        if (dashVal > 0) {
+          if (dashKmEl) dashKmEl.textContent = `${dashVal.toLocaleString()} ${unitLabel}`;
+          const diff = Math.abs(ecuDisplay - dashVal);
+          const pctDiff = (diff / Math.max(ecuDisplay, dashVal)) * 100;
+
+          if (diffKmEl) diffKmEl.textContent = `${diff.toLocaleString()} ${unitLabel} (${pctDiff.toFixed(1)}%)`;
+
+          if (verdictEl) {
+            if (pctDiff <= 5.0) {
+              verdictEl.textContent = `✅ Authentic Mileage: Engine ECU and Dashboard match within normal tolerance (${pctDiff.toFixed(1)}% difference).`;
+              verdictEl.style.color = '#34d399';
+            } else if (ecuDisplay > dashVal) {
+              verdictEl.textContent = `🚨 MILEAGE TAMPERING SUSPECTED: Engine ECU records ${diff.toLocaleString()} ${unitLabel} MORE than odometer display!`;
+              verdictEl.style.color = '#f87171';
+            } else {
+              verdictEl.textContent = `⚠️ Discrepancy detected: Engine ECU and Dashboard differ by ${diff.toLocaleString()} ${unitLabel}.`;
+              verdictEl.style.color = '#fbbf24';
+            }
+          }
+        } else {
+          if (dashKmEl) dashKmEl.textContent = 'Enter dash value above to compare';
+          if (diffKmEl) diffKmEl.textContent = '--';
+          if (verdictEl) {
+            verdictEl.textContent = `✅ Engine ECU Odometer Logged: ${ecuDisplay.toLocaleString()} ${unitLabel}.`;
+            verdictEl.style.color = '#34d399';
+          }
+        }
+      }
+    };
+
+    if (btnToggleUnit) {
+      btnToggleUnit.addEventListener('click', () => {
+        this.mileageUnit = this.mileageUnit === 'miles' ? 'km' : 'miles';
+        try {
+          localStorage.setItem('vibesodb2_mileage_unit', this.mileageUnit);
+        } catch (e) {}
+        renderMileageComparison();
+      });
+    }
+
+    if (dashInput) {
+      dashInput.addEventListener('input', () => {
+        if (this.lastEcuMileageKm !== null) {
+          renderMileageComparison();
+        }
+      });
+    }
+
+    // Initialize UI labels
+    renderMileageComparison();
 
     if (btnCheck) {
       btnCheck.addEventListener('click', async () => {
@@ -301,41 +423,15 @@ export class MaintenanceManager {
 
         try {
           const ecuMileage = await this.udsClient.readEcuMileage();
-          const dashInput = document.getElementById('input-dash-mileage');
-          const dashMileage = parseInt(dashInput?.value || '0', 10);
+          this.lastEcuMileageKm = ecuMileage;
 
           if (resultBox) resultBox.style.display = 'block';
 
           if (ecuMileage !== null && ecuMileage > 0) {
-            if (ecuKmEl) ecuKmEl.textContent = `${ecuMileage.toLocaleString()} km (${Math.round(ecuMileage * 0.621371).toLocaleString()} mi)`;
-
-            if (dashMileage > 0) {
-              if (dashKmEl) dashKmEl.textContent = `${dashMileage.toLocaleString()} km`;
-              const diff = Math.abs(ecuMileage - dashMileage);
-              const pctDiff = (diff / Math.max(ecuMileage, dashMileage)) * 100;
-
-              if (diffKmEl) diffKmEl.textContent = `${diff.toLocaleString()} km (${pctDiff.toFixed(1)}%)`;
-
-              if (verdictEl) {
-                if (pctDiff <= 5.0) {
-                  verdictEl.textContent = '✅ Authentic Mileage: Engine ECU and Dashboard match within normal tolerance.';
-                  verdictEl.style.color = '#34d399';
-                } else if (ecuMileage > dashMileage) {
-                  verdictEl.textContent = `🚨 MILEAGE TAMPERING SUSPECTED: Engine ECU records ${diff.toLocaleString()} km MORE than odometer display!`;
-                  verdictEl.style.color = '#f87171';
-                } else {
-                  verdictEl.textContent = `⚠️ Discrepancy detected: Engine ECU and Dashboard differ by ${diff.toLocaleString()} km.`;
-                  verdictEl.style.color = '#fbbf24';
-                }
-              }
-            } else {
-              if (dashKmEl) dashKmEl.textContent = 'Enter dash value above to compare';
-              if (verdictEl) {
-                verdictEl.textContent = `✅ Engine ECU Odometer Logged: ${ecuMileage.toLocaleString()} km.`;
-                verdictEl.style.color = '#34d399';
-              }
-            }
-            this.showToast(`Engine ECU true mileage: ${ecuMileage.toLocaleString()} km`);
+            renderMileageComparison();
+            const isMiles = this.mileageUnit === 'miles';
+            const disp = isMiles ? `${Math.round(ecuMileage * 0.621371).toLocaleString()} mi` : `${ecuMileage.toLocaleString()} km`;
+            this.showToast(`Engine ECU true mileage: ${disp}`);
           } else {
             if (ecuKmEl) ecuKmEl.textContent = 'Not exposed via standard UDS on this engine variant';
             if (verdictEl) {

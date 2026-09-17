@@ -193,10 +193,13 @@ class VibesApp {
     this.setupDtcsTab();
     this.maintenanceManager.init();
     this.setupUnitToggle();
+    this.setupFuelEconomy();
+    this.setupEditRegModal();
 
     // Initial state: Disconnected, waiting for BLE
     this.renderTelemetry(this.telemetryEngine.getInitialMetrics());
     this.updateConnectionStatus(false);
+    this.updateVehicleRegUI();
     await this.renderBackupsList();
   }
 
@@ -472,9 +475,149 @@ class VibesApp {
     `;
   }
 
+  showVehicleLoading(step, title, text) {
+    const modal = document.getElementById('modal-vehicle-loading');
+    const titleEl = document.getElementById('loading-vehicle-title');
+    const stepEl = document.getElementById('loading-vehicle-step');
+    if (modal) modal.classList.add('active');
+    if (titleEl && title) titleEl.textContent = title;
+    if (stepEl && text) stepEl.textContent = text;
+
+    const steps = ['ble', 'vin', 'specs', 'coding', 'done'];
+    const stepIdx = steps.indexOf(step);
+
+    ['ble', 'vin', 'specs', 'coding'].forEach((s, idx) => {
+      const el = document.getElementById('step-' + s);
+      const icon = document.getElementById('icon-step-' + s);
+      if (!el || !icon) return;
+
+      if (idx < stepIdx || step === 'done') {
+        el.style.color = '#34d399';
+        icon.textContent = '✅';
+      } else if (idx === stepIdx) {
+        el.style.color = '#38bdf8';
+        icon.textContent = '⏳';
+      } else {
+        el.style.color = '#64748b';
+        icon.textContent = '⚪';
+      }
+    });
+  }
+
+  hideVehicleLoading() {
+    const modal = document.getElementById('modal-vehicle-loading');
+    if (modal) modal.classList.remove('active');
+  }
+
+  getVehicleReg(vin) {
+    if (!vin) return '';
+    try {
+      return localStorage.getItem('vibesodb2_reg_' + vin) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  setVehicleReg(vin, reg) {
+    if (!vin) return;
+    try {
+      if (reg) {
+        localStorage.setItem('vibesodb2_reg_' + vin, reg.toUpperCase().trim());
+      } else {
+        localStorage.removeItem('vibesodb2_reg_' + vin);
+      }
+    } catch (e) {}
+    this.updateVehicleRegUI();
+  }
+
+  updateVehicleRegUI() {
+    const reg = this.getVehicleReg(this.vin);
+    const regBadge = document.getElementById('display-vehicle-reg');
+    if (regBadge) {
+      regBadge.textContent = reg || 'Enter Reg';
+      regBadge.style.opacity = reg ? '1' : '0.6';
+    }
+  }
+
+  openEditRegModal(vin) {
+    const targetVin = vin || this.vin;
+    if (!targetVin) {
+      alert('Connect to a vehicle first to set its registration.');
+      return;
+    }
+    const modal = document.getElementById('modal-edit-reg');
+    const vinEl = document.getElementById('modal-reg-vin');
+    const input = document.getElementById('input-vehicle-reg');
+    if (!modal) return;
+
+    if (vinEl) vinEl.textContent = targetVin;
+    if (input) {
+      input.value = this.getVehicleReg(targetVin);
+      setTimeout(() => input.focus(), 150);
+    }
+    this._targetRegVin = targetVin;
+    modal.classList.add('active');
+  }
+
+  setupEditRegModal() {
+    const modal = document.getElementById('modal-edit-reg');
+    const form = document.getElementById('form-edit-reg');
+    const cancelBtn = document.getElementById('btn-cancel-edit-reg');
+    const editCockpitBtn = document.getElementById('btn-edit-vehicle-reg');
+
+    if (editCockpitBtn) {
+      editCockpitBtn.addEventListener('click', () => {
+        this.openEditRegModal(this.vin);
+      });
+    }
+
+    if (cancelBtn && modal) {
+      cancelBtn.addEventListener('click', () => modal.classList.remove('active'));
+    }
+
+    if (form && modal) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-vehicle-reg');
+        const val = input ? input.value.trim().toUpperCase() : '';
+        const vin = this._targetRegVin || this.vin;
+        if (vin) {
+          this.setVehicleReg(vin, val);
+          this.showToast(`Vehicle registration saved: ${val || '(None)'}`);
+          this.renderBackupsList();
+        }
+        modal.classList.remove('active');
+      });
+    }
+  }
+
+  setupFuelEconomy() {
+    this.fuelEconomyUnit = 'mpg_uk';
+    try {
+      this.fuelEconomyUnit = localStorage.getItem('vibesodb2_fuel_unit') || 'mpg_uk';
+    } catch (e) {}
+
+    const toggleBtn = document.getElementById('btn-toggle-fuel-unit');
+    if (toggleBtn) {
+      toggleBtn.textContent = this.fuelEconomyUnit === 'mpg_uk' ? 'Units: UK MPG' : 'Units: US MPG';
+      toggleBtn.addEventListener('click', () => {
+        this.fuelEconomyUnit = this.fuelEconomyUnit === 'mpg_uk' ? 'mpg_us' : 'mpg_uk';
+        try {
+          localStorage.setItem('vibesodb2_fuel_unit', this.fuelEconomyUnit);
+        } catch (e) {}
+        toggleBtn.textContent = this.fuelEconomyUnit === 'mpg_uk' ? 'Units: UK MPG' : 'Units: US MPG';
+        if (this.telemetryEngine && this.telemetryEngine.latestMetrics) {
+          this.renderTelemetry(this.telemetryEngine.latestMetrics);
+        }
+      });
+    }
+  }
+
   async handleBleConnect() {
     const bleBtn = document.getElementById('btn-ble-connect');
     if (bleBtn) bleBtn.textContent = 'Connecting...';
+
+    this.showVehicleLoading('ble', 'Connecting to Bluetooth Adapter...', 'Requesting BLE device and establishing GATT connection...');
 
     try {
       const result = await this.bleTransport.connect();
@@ -482,7 +625,7 @@ class VibesApp {
       if (result) {
         this.updateConnectionStatus(true);
         this.vibrate([50, 50, 50]);
-        // Run vehicle identification and automatic baseline snapshot
+        // Run vehicle identification, specs interrogation, and automatic Long Coding read
         await this.handlePostConnectSetup();
         // Start telemetry
         this.telemetryEngine.start();
@@ -495,11 +638,13 @@ class VibesApp {
         alert('Bluetooth connection cancelled or failed:\n\n' + (err.message || err));
       }
       this.updateConnectionStatus(false);
+    } finally {
+      this.hideVehicleLoading();
     }
   }
 
   async handlePostConnectSetup() {
-    this.showToast("Connected to adapter! Reading vehicle identification & ECU specs...");
+    this.showVehicleLoading('vin', 'Detecting Vehicle Platform...', 'Reading Vehicle Identification Number (VIN) via OBD-II & UDS...');
 
     try {
       // 1. Query VIN via OBD-II Mode 09 PID 02, with UDS DID 0xF190 fallback
@@ -556,9 +701,11 @@ class VibesApp {
           }
         }
         this.checkPlatformCompatibility();
+        this.updateVehicleRegUI();
       }
 
       // 2. Query ECU Specifications (Part No, Hardware, Software, Serial No) via UDS
+      this.showVehicleLoading('specs', 'Interrogating ECU Specs...', 'Reading part numbers, hardware revisions, and software versions...');
       let ecuPartNo = '--';
       let ecuHwNo = '--';
       let ecuSwVer = '--';
@@ -629,14 +776,27 @@ class VibesApp {
         ecuSerial
       });
 
-      // 3. Read live Long Coding from target module (BCM 0x09)
+      // 3. Read live Long Coding from target module (BCM 0x09) automatically!
+      const targetMod = this.currentSchema.module_address || '0x09';
+      this.showVehicleLoading('coding', 'Reading Vehicle Long Coding...', `Retrieving authentic EEPROM configuration from module ${targetMod}...`);
       try {
         await this.readLiveCodingFromVehicle(true);
       } catch (ce) {
         console.warn('Post-connect live coding read fallback:', ce);
       }
 
-      // 4. Automatic Background Diagnostic Trouble Code (DTC) Scan
+      // All connection steps complete!
+      this.showVehicleLoading('done', 'Vehicle Connected & Ready!', 'Vehicle platform detected and live coding synchronized.');
+      await new Promise(r => setTimeout(r, 600));
+
+      // 4. If this vehicle VIN does not have a license plate / reg registered, prompt user!
+      if (this.vin && !this.getVehicleReg(this.vin)) {
+        setTimeout(() => {
+          this.openEditRegModal(this.vin);
+        }, 400);
+      }
+
+      // 5. Automatic Background Diagnostic Trouble Code (DTC) Scan
       try {
         const dtcs = await this.udsClient.readDTCs();
         this.updateCockpitDtcAlert(dtcs);
@@ -657,6 +817,8 @@ class VibesApp {
         });
         this.renderBackupsList();
       } catch (e) {}
+    } finally {
+      this.hideVehicleLoading();
     }
   }
 
@@ -1302,7 +1464,73 @@ class VibesApp {
         : '-- V';
     }
 
-    // 13. Draw Real-Time Telemetry Graph
+    // 13. Live Fuel Economy & Consumption
+    const mpgEl = document.getElementById('val-cockpit-mpg');
+    const l100El = document.getElementById('val-cockpit-l100');
+    const rateEl = document.getElementById('val-cockpit-fuel-rate');
+    const subEl = document.getElementById('val-cockpit-fuel-sub');
+    const statusEl = document.getElementById('lbl-fuel-status');
+
+    const isUK = this.fuelEconomyUnit !== 'mpg_us';
+    const instantMpg = isUK ? data.instant_mpg_uk : data.instant_mpg_us;
+    const mpgUnit = isUK ? 'MPG' : 'MPG (US)';
+
+    if (mpgEl) {
+      if (instantMpg != null && instantMpg > 0) {
+        mpgEl.textContent = `${instantMpg.toFixed(1)} ${mpgUnit}`;
+      } else {
+        mpgEl.textContent = `-- ${mpgUnit}`;
+      }
+    }
+
+    if (l100El) {
+      if (data.instant_l_per_100km != null && data.instant_l_per_100km > 0) {
+        l100El.textContent = `${data.instant_l_per_100km.toFixed(1)} L/100km`;
+      } else {
+        l100El.textContent = '-- L/100km';
+      }
+    }
+
+    if (rateEl) {
+      if (data.fuel_rate_l_per_h != null && data.fuel_rate_l_per_h > 0) {
+        rateEl.textContent = `${data.fuel_rate_l_per_h.toFixed(2)} L/h`;
+      } else {
+        rateEl.textContent = '-- L/h';
+      }
+    }
+
+    if (subEl && statusEl) {
+      const spd = data.vehicle_speed_kmh;
+      if (spd != null && spd > 3) {
+        subEl.textContent = `In Motion (${Math.round(spd)} km/h)`;
+        statusEl.textContent = 'Cruising Consumption';
+        statusEl.style.color = '#38bdf8';
+      } else if (data.engine_rpm != null && data.engine_rpm > 400) {
+        subEl.textContent = 'Stationary Idling';
+        statusEl.textContent = 'Idle Fuel Flow';
+        statusEl.style.color = '#f59e0b';
+      } else {
+        subEl.textContent = 'Engine Fuel Flow';
+        statusEl.textContent = 'Awaiting Telemetry';
+        statusEl.style.color = '#cbd5e1';
+      }
+    }
+
+    // 14. DPF Soot Measured & Ash Volume
+    const sootMeasEl = document.getElementById('metric-soot-meas-val');
+    if (sootMeasEl) {
+      sootMeasEl.textContent = data.dpf_soot_measured_g != null 
+        ? `${data.dpf_soot_measured_g.toFixed(1)} g` 
+        : '-- g';
+    }
+    const ashEl = document.getElementById('metric-ash-val');
+    if (ashEl) {
+      ashEl.textContent = data.dpf_ash_mass_g != null 
+        ? `${data.dpf_ash_mass_g.toFixed(1)} g` 
+        : '-- g';
+    }
+
+    // 15. Draw Real-Time Telemetry Graph
     this.drawTelemetryChart(data);
   }
 
@@ -2207,147 +2435,211 @@ class VibesApp {
 
     const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
 
-    container.innerHTML = '';
+    // Group backups by VIN
+    const groups = {};
     backups.slice().reverse().forEach(b => {
-      const item = document.createElement('div');
-      item.className = 'backup-card';
+      const vin = b.vin || (this.vin && this.vin !== 'UNKNOWN' ? this.vin : 'Unassigned Vehicles');
+      if (!groups[vin]) groups[vin] = [];
+      groups[vin].push(b);
+    });
 
-      const dateStr = new Date(b.timestamp).toLocaleString();
-      const rawHex = b.raw_hex_data || b.baselineHex || '';
-      const modAddr = b.module_address || b.targetModule || '0x09';
-      const backupBytes = hexStringToBytes(rawHex);
-      const diffs = computeByteDiff(this.currentBytes, backupBytes);
+    container.innerHTML = '';
 
-      let diffBadgeHtml = '';
-      if (diffs.length === 0) {
-        diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(16,185,129,0.15); color:#34d399; font-weight:600; border:1px solid rgba(16,185,129,0.3);">✓ Matches Active Buffer</span>`;
-      } else {
-        diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4);">⚠️ ${diffs.length} Byte${diffs.length > 1 ? 's' : ''} Differs from Active</span>`;
-      }
+    Object.entries(groups).forEach(([vinKey, items]) => {
+      const reg = this.getVehicleReg(vinKey);
+      const isTransporter = vinKey.includes('7H') || vinKey.includes('7E') || vinKey.includes('7J') || vinKey.startsWith('WV2');
+      const vehicleIcon = isTransporter ? '🚐' : '🚗';
+      const isUnassigned = vinKey === 'Unassigned Vehicles';
 
-      let diffRowsHtml = '';
-      if (diffs.length > 0) {
-        diffRowsHtml = `
-          <table class="diff-table">
-            <thead>
-              <tr>
-                <th>Location</th>
-                <th>Active Buffer</th>
-                <th>Snapshot Backup</th>
-                <th>Bit Alterations</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${diffs.map(d => {
-                const bitNotes = d.bitFlips.map(f => `Bit ${f.bit}: ${f.oldVal ? '1' : '0'} ➔ ${f.newVal ? '1' : '0'}`).join(', ');
-                return `
-                  <tr>
-                    <td style="font-weight:700; color:var(--primary-light);">Byte ${d.byteIndex}</td>
-                    <td style="font-family:var(--font-mono); color:#94a3b8;">0x${d.oldHex}</td>
-                    <td style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">0x${d.newHex}</td>
-                    <td style="color:#fbbf24;">${bitNotes}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        `;
-      } else {
-        diffRowsHtml = `<p style="font-size:0.8rem; color:#94a3b8; margin:0.35rem 0;">No byte differences detected between this snapshot and your active buffer.</p>`;
-      }
+      const groupCard = document.createElement('div');
+      groupCard.className = 'vin-group-card';
 
-      item.innerHTML = `
-        <div class="backup-header">
+      const headerEl = document.createElement('div');
+      headerEl.className = 'vin-group-header';
+      headerEl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+          <span style="font-size:1.4rem;">${vehicleIcon}</span>
           <div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
-              <h4 style="font-size:0.95rem; font-weight:700; margin:0;">${b.featureName || 'ECU Coding Snapshot'}</h4>
-              ${diffBadgeHtml}
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <span class="plate-badge" style="font-size:0.85rem;">${reg || (isUnassigned ? 'NO VIN' : 'NO REG')}</span>
+              <strong style="font-family:var(--font-mono); font-size:0.9rem; color:#f8fafc;">${vinKey}</strong>
             </div>
-            <div style="font-size:0.75rem; color:#64748b;">
-              VIN: <span style="font-family:var(--font-mono); color:#94a3b8;">${b.vin || this.vin}</span> • Module ${modAddr} • DID ${b.did || '0x0600'} • ${dateStr}
+            <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">
+              ${items.length} Snapshot${items.length > 1 ? 's' : ''} • Latest: ${new Date(items[0].timestamp).toLocaleString()}
             </div>
-          </div>
-          <div class="backup-actions">
-            <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-diff-${b.id}">🔍 Diff Explorer</button>
-            <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-download-${b.id}" title="Download JSON file for this backup">💾 Download</button>
-            <button class="btn btn-primary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}" ${!isConnected ? 'disabled title="Connect Bluetooth to restore snapshot"' : ''}>↺ Restore</button>
-            <button class="btn btn-danger" style="font-size:0.75rem; padding:4px 8px;" id="btn-delete-${b.id}" title="Delete this snapshot">🗑️</button>
           </div>
         </div>
-        
-        <div style="font-family:var(--font-mono); font-size:0.73rem; color:#94a3b8; word-break:break-all; background:#070a12; padding:6px 10px; border-radius:6px; margin-bottom:0.5rem;">
-          ${rawHex}
-        </div>
-
-        <div class="backup-diff-container" id="diff-panel-${b.id}">
-          <div style="font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-            <span>Differential Comparison: Active vs Snapshot</span>
-            <span style="font-size:0.72rem; color:#64748b;">Snapshot #${b.id}</span>
-          </div>
-          ${diffRowsHtml}
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          ${!isUnassigned ? `<button type="button" class="btn btn-secondary btn-edit-group-reg" data-vin="${vinKey}" style="font-size:0.72rem; padding:3px 8px;">✏️ ${reg ? 'Edit Reg' : 'Set Reg'}</button>` : ''}
+          <span class="group-toggle-icon" style="font-size:0.9rem; color:#94a3b8;">▼</span>
         </div>
       `;
 
-      container.appendChild(item);
+      const bodyEl = document.createElement('div');
+      bodyEl.className = 'vin-group-body';
 
-      // Diff Toggle
-      const diffBtn = item.querySelector(`#btn-diff-${b.id}`);
-      const diffPanel = item.querySelector(`#diff-panel-${b.id}`);
-      if (diffBtn && diffPanel) {
-        diffBtn.addEventListener('click', () => {
-          diffPanel.classList.toggle('active');
-          diffBtn.classList.toggle('active');
-        });
-      }
+      items.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'backup-card';
 
-      // Download Single Backup
-      const downloadBtn = item.querySelector(`#btn-download-${b.id}`);
-      if (downloadBtn) {
-        downloadBtn.addEventListener('click', () => {
-          const jsonStr = JSON.stringify(b, null, 2);
-          const blob = new Blob([jsonStr], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          const safeDate = (b.timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
-          a.href = url;
-          a.download = `vibesodb2_snapshot_${b.vin || 'vehicle'}_${safeDate}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        });
-      }
+        const dateStr = new Date(b.timestamp).toLocaleString();
+        const rawHex = b.raw_hex_data || b.baselineHex || '';
+        const modAddr = b.module_address || b.targetModule || '0x09';
+        const backupBytes = hexStringToBytes(rawHex);
+        const diffs = computeByteDiff(this.currentBytes, backupBytes);
 
-      // Restore
-      const restoreBtn = item.querySelector(`#btn-restore-${b.id}`);
-      if (restoreBtn) {
-        restoreBtn.addEventListener('click', () => {
-          const modBytes = hexStringToBytes(rawHex);
-          this.promptSafetyAudit({
-            featureName: `Restore Snapshot from ${dateStr}`,
-            modifiedBytes: modBytes,
-            onSuccess: () => {
-              this.currentBytes = modBytes;
-              this.renderFeatureList();
-              this.renderByteGrid();
-              this.renderBitSwitches();
-              this.renderBackupsList();
-              this.vibrate([40, 20, 40]);
-            },
-            onCancel: () => {}
+        let diffBadgeHtml = '';
+        if (diffs.length === 0) {
+          diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(16,185,129,0.15); color:#34d399; font-weight:600; border:1px solid rgba(16,185,129,0.3);">✓ Matches Active Buffer</span>`;
+        } else {
+          diffBadgeHtml = `<span style="font-size:0.72rem; padding:2px 7px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:700; border:1px solid rgba(245,158,11,0.4);">⚠️ ${diffs.length} Byte${diffs.length > 1 ? 's' : ''} Differs from Active</span>`;
+        }
+
+        let diffRowsHtml = '';
+        if (diffs.length > 0) {
+          diffRowsHtml = `
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Active Buffer</th>
+                  <th>Snapshot Backup</th>
+                  <th>Bit Alterations</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${diffs.map(d => {
+                  const bitNotes = d.bitFlips.map(f => `Bit ${f.bit}: ${f.oldVal ? '1' : '0'} ➔ ${f.newVal ? '1' : '0'}`).join(', ');
+                  return `
+                    <tr>
+                      <td style="font-weight:700; color:var(--primary-light);">Byte ${d.byteIndex}</td>
+                      <td style="font-family:var(--font-mono); color:#94a3b8;">0x${d.oldHex}</td>
+                      <td style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">0x${d.newHex}</td>
+                      <td style="color:#fbbf24;">${bitNotes}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `;
+        } else {
+          diffRowsHtml = `<p style="font-size:0.8rem; color:#94a3b8; margin:0.35rem 0;">No byte differences detected between this snapshot and your active buffer.</p>`;
+        }
+
+        item.innerHTML = `
+          <div class="backup-header">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                <h4 style="font-size:0.95rem; font-weight:700; margin:0;">${b.featureName || 'ECU Coding Snapshot'}</h4>
+                ${diffBadgeHtml}
+              </div>
+              <div style="font-size:0.75rem; color:#64748b;">
+                Module ${modAddr} • DID ${b.did || '0x0600'} • ${dateStr}
+              </div>
+            </div>
+            <div class="backup-actions">
+              <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-diff-${b.id}">🔍 Diff Explorer</button>
+              <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" id="btn-download-${b.id}" title="Download JSON file for this backup">💾 Download</button>
+              <button class="btn btn-primary" style="font-size:0.75rem; padding:4px 8px;" id="btn-restore-${b.id}" ${!isConnected ? 'disabled title="Connect Bluetooth to restore snapshot"' : ''}>↺ Restore</button>
+              <button class="btn btn-danger" style="font-size:0.75rem; padding:4px 8px;" id="btn-delete-${b.id}" title="Delete this snapshot">🗑️</button>
+            </div>
+          </div>
+          
+          <div style="font-family:var(--font-mono); font-size:0.73rem; color:#94a3b8; word-break:break-all; background:#070a12; padding:6px 10px; border-radius:6px; margin-bottom:0.5rem;">
+            ${rawHex}
+          </div>
+
+          <div class="backup-diff-container" id="diff-panel-${b.id}">
+            <div style="font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+              <span>Differential Comparison: Active vs Snapshot</span>
+              <span style="font-size:0.72rem; color:#64748b;">Snapshot #${b.id}</span>
+            </div>
+            ${diffRowsHtml}
+          </div>
+        `;
+
+        bodyEl.appendChild(item);
+
+        // Diff Toggle
+        const diffBtn = item.querySelector(`#btn-diff-${b.id}`);
+        const diffPanel = item.querySelector(`#diff-panel-${b.id}`);
+        if (diffBtn && diffPanel) {
+          diffBtn.addEventListener('click', () => {
+            diffPanel.classList.toggle('active');
+            diffBtn.classList.toggle('active');
           });
+        }
+
+        // Download Single Backup
+        const downloadBtn = item.querySelector(`#btn-download-${b.id}`);
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            const jsonStr = JSON.stringify(b, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeDate = (b.timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
+            a.href = url;
+            a.download = `vibesodb2_snapshot_${b.vin || 'vehicle'}_${safeDate}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          });
+        }
+
+        // Restore
+        const restoreBtn = item.querySelector(`#btn-restore-${b.id}`);
+        if (restoreBtn) {
+          restoreBtn.addEventListener('click', () => {
+            const modBytes = hexStringToBytes(rawHex);
+            this.promptSafetyAudit({
+              featureName: `Restore Snapshot from ${dateStr}`,
+              modifiedBytes: modBytes,
+              onSuccess: () => {
+                this.currentBytes = modBytes;
+                this.renderFeatureList();
+                this.renderByteGrid();
+                this.renderBitSwitches();
+                this.renderBackupsList();
+                this.vibrate([40, 20, 40]);
+              },
+              onCancel: () => {}
+            });
+          });
+        }
+
+        // Delete
+        const deleteBtn = item.querySelector(`#btn-delete-${b.id}`);
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', async () => {
+            if (confirm(`Are you sure you want to permanently delete snapshot #${b.id} (${b.featureName || dateStr})?`)) {
+              await deleteBackup(b.id);
+              this.showToast(`Snapshot #${b.id} deleted.`);
+              this.renderBackupsList();
+            }
+          });
+        }
+      });
+
+      // Toggle group collapse
+      headerEl.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-edit-group-reg')) return;
+        bodyEl.classList.toggle('collapsed');
+        const icon = headerEl.querySelector('.group-toggle-icon');
+        if (icon) icon.textContent = bodyEl.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      // Edit Registration button on group header
+      const editBtn = headerEl.querySelector('.btn-edit-group-reg');
+      if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openEditRegModal(vinKey);
         });
       }
 
-      // Delete
-      const deleteBtn = item.querySelector(`#btn-delete-${b.id}`);
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-          if (confirm(`Are you sure you want to permanently delete snapshot #${b.id} (${b.featureName || dateStr})?`)) {
-            await deleteBackup(b.id);
-            this.showToast(`Snapshot #${b.id} deleted.`);
-            this.renderBackupsList();
-          }
-        });
-      }
+      groupCard.appendChild(headerEl);
+      groupCard.appendChild(bodyEl);
+      container.appendChild(groupCard);
     });
   }
 

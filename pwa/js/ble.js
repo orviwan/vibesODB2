@@ -131,12 +131,23 @@ export class WebBleTransport {
       device = await navigator.bluetooth.requestDevice({
         filters: [
           { namePrefix: 'vLinker' },
+          { namePrefix: 'VLinker' },
           { namePrefix: 'OBD' },
+          { namePrefix: 'OBDII' },
+          { namePrefix: 'OBD2' },
+          { namePrefix: 'KIWI' },
+          { namePrefix: 'Kiwi' },
+          { namePrefix: 'kiwi' },
           { namePrefix: 'IOS-Vlink' },
           { namePrefix: 'Viecar' },
           { namePrefix: 'Carista' },
           { namePrefix: 'STN' },
           { namePrefix: 'Veepeak' },
+          { namePrefix: 'VEEPEAK' },
+          { namePrefix: 'VGATE' },
+          { namePrefix: 'Vgate' },
+          { namePrefix: 'TONWON' },
+          { namePrefix: 'LELINK' },
           { namePrefix: 'iCar' },
           { namePrefix: 'Konnwei' },
           { namePrefix: 'V-LINK' }
