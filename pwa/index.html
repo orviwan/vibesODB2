@@ -632,22 +632,71 @@
       <div>
         <h4 style="font-size: 0.92rem; font-weight: 700;">Bluetooth Disconnected</h4>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-          Connect to your OBD-II adapter to scan and clear ECU fault codes.
+          Connect to your OBD-II adapter to perform a multi-module vehicle diagnostic Auto-Scan.
         </p>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
-      <div>
-        <h3 style="font-size: 1.05rem; font-weight:700;">Diagnostic Trouble Codes (ISO 14229 Service 0x19 / 0x14)</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted);">Query confirmed DTCs across ECUs and clear emission fault codes.</p>
+    <!-- Diagnostic Hub Header & Controls -->
+    <div class="card" style="margin-bottom: 1.25rem;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+        <div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.3rem;">🔍</span>
+            <h3 style="font-size: 1.15rem; font-weight:700; margin:0;">Vehicle Diagnostic Hub & Auto-Scan</h3>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
+            Scan installed ECUs (Engine, ABS, Airbags, Central Electrics, Instruments, Gateway) with embedded mechanical fixes.
+          </p>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <button id="btn-scan-dtcs" class="btn btn-primary" style="font-weight:600; display:flex; align-items:center; gap:0.4rem;" disabled title="Connect Bluetooth to scan DTCs">
+            <span>🚀</span> <span>Full Auto-Scan</span>
+          </button>
+          <button id="btn-quick-scan-dtcs" class="btn btn-secondary" style="font-weight:600; display:flex; align-items:center; gap:0.4rem;" disabled title="Scan Engine, BCM & Airbags">
+            <span>⚡</span> <span>Quick Scan</span>
+          </button>
+          <button id="btn-clear-dtcs" class="btn btn-danger" style="font-weight:600; display:flex; align-items:center; gap:0.4rem;" disabled title="Connect Bluetooth to clear DTCs">
+            <span>🗑️</span> <span>Clear All</span>
+          </button>
+          <button id="btn-export-dtcs" class="btn btn-secondary" style="font-weight:600; display:flex; align-items:center; gap:0.4rem;" disabled title="Copy diagnostic scan report">
+            <span>📋</span> <span>Export Report</span>
+          </button>
+        </div>
       </div>
-      <div style="display:flex; gap:0.5rem;">
-        <button id="btn-scan-dtcs" class="btn btn-primary" disabled title="Connect Bluetooth to scan DTCs">Scan Fault Codes</button>
-        <button id="btn-clear-dtcs" class="btn btn-danger" disabled title="Connect Bluetooth to clear DTCs">Clear All DTCs (0x14)</button>
+
+      <!-- Live Scan Progress Bar (Active during scan) -->
+      <div id="dtc-scan-progress" style="display:none; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:600; margin-bottom:0.4rem;">
+          <span id="dtc-scan-status-text" style="color:var(--primary);">Initializing CAN Auto-Scan...</span>
+          <span id="dtc-scan-percent" style="color:var(--text-muted);">0%</span>
+        </div>
+        <div style="height: 6px; width: 100%; background: var(--bg-main); border-radius: 3px; overflow: hidden;">
+          <div id="dtc-scan-progressbar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.2s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Stats Banner & Search Filter -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <div id="dtc-stats-banner" style="display:flex; gap:0.75rem; flex-wrap:wrap; font-size:0.8rem;">
+          <div style="background:var(--bg-main); padding:4px 10px; border-radius:15px; border:1px solid var(--border-color);">
+            📦 <strong id="dtc-stat-scanned">0</strong> Modules Scanned
+          </div>
+          <div style="background:var(--bg-main); padding:4px 10px; border-radius:15px; border:1px solid var(--border-color);">
+            ⚠️ <strong id="dtc-stat-faults" style="color:var(--danger);">0</strong> Faults Detected
+          </div>
+          <div style="background:var(--bg-main); padding:4px 10px; border-radius:15px; border:1px solid var(--border-color);">
+            ✅ <strong id="dtc-stat-healthy" style="color:var(--success);">0</strong> Healthy Modules
+          </div>
+        </div>
+        <div style="flex:1; min-width:240px; max-width:400px;">
+          <input type="text" id="dtc-search-input" placeholder="🔍 Filter by code, module, symptom, or keyword..." 
+                 style="width:100%; padding:6px 12px; font-size:0.82rem; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; color:var(--text-main);">
+        </div>
       </div>
     </div>
 
+    <!-- Diagnostic Results (Populated with Module Cards & Faults) -->
     <div id="dtc-list-container">
       <!-- Populated dynamically -->
     </div>

@@ -1,6 +1,7 @@
-// vibesODB2 Client-Side UDS (ISO 14229) Client
+// vibesODB2 Client-Side UDS (ISO 14229) & KWP2000 Diagnostic Client
 
 import { IsoTpAssembler } from './isotp.js';
+import { lookupDtc } from './dtc_db.js';
 
 function bytesToAscii(bytes) {
   if (!bytes || bytes.length === 0) return '';
@@ -39,15 +40,35 @@ export const NRC_DESCRIPTIONS = {
 
 // VAG CAN arbitration addresses
 export const MODULE_ARBITRATION = {
+  '0x01': { tx: '7E0', rx: '7E8', name: 'Engine (ECM)' },
+  '0x02': { tx: '7E1', rx: '7E9', name: 'Transmission (TCM)' },
+  '0x03': { tx: '713', rx: '77D', name: 'ABS Brakes' },
+  '0x08': { tx: '714', rx: '77E', name: 'Climatronic / HVAC' },
   '0x09': { tx: '70E', rx: '778', name: 'Cent. Elect. (BCM)' },
+  '0x10': { tx: '744', rx: '7AE', name: 'Park Distance Control' },
+  '0x15': { tx: '715', rx: '77F', name: 'Airbags (SRS)' },
   '0x17': { tx: '714', rx: '77E', name: 'Instrument Cluster' },
   '0x19': { tx: '710', rx: '77A', name: 'CAN Gateway' },
-  '0x08': { tx: '714', rx: '77E', name: 'Climatronic' },
-  '0x10': { tx: '714', rx: '77E', name: 'Park Distance Control' },
-  '0x01': { tx: '7E0', rx: '7E8', name: 'Engine ECU' },
+  '0x25': { tx: '714', rx: '77E', name: 'Immobilizer' },
+  '0x44': { tx: '712', rx: '77C', name: 'Steering Assist' },
   '0x53': { tx: '746', rx: '7B0', name: 'Parking Brake (EPB)' },
-  '0x61': { tx: '761', rx: '769', name: 'Battery Regulation' }
+  '0x56': { tx: '775', rx: '76E', name: 'Radio / Navigation' },
+  '0x61': { tx: '761', rx: '769', name: 'Battery Regulation' },
+  '0x76': { tx: '744', rx: '7AE', name: 'Park Distance Control' }
 };
+
+export const STANDARD_SCAN_MODULES = [
+  '0x01', // Engine
+  '0x02', // Transmission
+  '0x03', // ABS Brakes
+  '0x08', // Auto HVAC
+  '0x09', // Cent. Elect. (BCM)
+  '0x15', // Airbags
+  '0x17', // Instrument Cluster
+  '0x19', // CAN Gateway
+  '0x44', // Steering Assist
+  '0x53'  // Parking Brake (EPB)
+];
 
 export class UdsClient {
   constructor(bleTransport) {
@@ -162,35 +183,259 @@ export class UdsClient {
     return true;
   }
 
-  async readDtcs() {
-    // 0x19 02 09 (Read DTCs matching status mask 0x09: confirmed + pending)
-    const res = await this.sendUdsRequest(new Uint8Array([0x19, 0x02, 0x09]));
-    const dtcs = [];
-    if (res.length >= 3 && res[0] === 0x59) {
-      // DTC format: 3 bytes DTC code + 1 byte status
-      for (let i = 3; i + 3 < res.length; i += 4) {
-        const d1 = res[i].toString(16).padStart(2, '0');
-        const d2 = res[i + 1].toString(16).padStart(2, '0');
-        const d3 = res[i + 2].toString(16).padStart(2, '0');
-        const status = res[i + 3];
-        dtcs.push({
-          code: `0x${d1}${d2}${d3}`.toUpperCase(),
-          status: `0x${status.toString(16).padStart(2, '0')}`,
-          description: 'Stored fault code'
-        });
-      }
+  /**
+   * Reads identification data (Part Number, Component name) from target module.
+   */
+  async readModuleInfo(moduleHex = null) {
+    if (moduleHex) {
+      await this.setTargetModule(moduleHex);
     }
+    const info = {
+      address: this.activeModule,
+      name: MODULE_ARBITRATION[this.activeModule]?.name || `Module ${this.activeModule}`,
+      partNumber: null,
+      component: null,
+      coding: null,
+      protocol: 'UDS'
+    };
+
+    // 1. Try UDS DID 0xF187 (Spare Part Number)
+    try {
+      const partRes = await this.readDataById('F187');
+      if (partRes && partRes.length > 0) {
+        info.partNumber = bytesToAscii(partRes);
+      }
+    } catch (_) {}
+
+    // Fallback: Try DID 0xF191 (ECU Hardware Number)
+    if (!info.partNumber) {
+      try {
+        const hwRes = await this.readDataById('F191');
+        if (hwRes && hwRes.length > 0) {
+          info.partNumber = bytesToAscii(hwRes);
+        }
+      } catch (_) {}
+    }
+
+    // Try DID 0xF197 (System Name / Component)
+    try {
+      const sysRes = await this.readDataById('F197');
+      if (sysRes && sysRes.length > 0) {
+        info.component = bytesToAscii(sysRes);
+      }
+    } catch (_) {}
+
+    // Fallback: Try DID 0xF189 (Software Version)
+    if (!info.component) {
+      try {
+        const swRes = await this.readDataById('F189');
+        if (swRes && swRes.length > 0) {
+          info.component = `SW: ${bytesToAscii(swRes)}`;
+        }
+      } catch (_) {}
+    }
+
+    // 2. Older KWP2000 identification fallback (if UDS returned nothing)
+    if (!info.partNumber) {
+      try {
+        // KWP Service 0x1A 9B (Read ECU Identification)
+        const kwpRes = await this.sendUdsRequest(new Uint8Array([0x1A, 0x9B]), 1200);
+        if (kwpRes && kwpRes.length >= 2 && kwpRes[0] === 0x5A) {
+          info.protocol = 'KWP2000';
+          info.partNumber = bytesToAscii(kwpRes.slice(2));
+        }
+      } catch (_) {}
+    }
+
+    return info;
+  }
+
+  /**
+   * Reads Diagnostic Trouble Codes from target module using dual UDS & KWP2000 protocols.
+   */
+  async readModuleDTCs(moduleHex = null) {
+    if (moduleHex) {
+      await this.setTargetModule(moduleHex);
+    }
+    const dtcs = [];
+
+    // Protocol 1: Modern UDS Service 0x19 02 09 (or 0x19 02 FF)
+    try {
+      const res = await this.sendUdsRequest(new Uint8Array([0x19, 0x02, 0x09]), 1500);
+      if (res && res.length >= 3 && res[0] === 0x59) {
+        // DTC format: 3 bytes DTC code + 1 byte status
+        for (let i = 3; i + 3 < res.length; i += 4) {
+          const d1 = res[i].toString(16).padStart(2, '0');
+          const d2 = res[i + 1].toString(16).padStart(2, '0');
+          const d3 = res[i + 2].toString(16).padStart(2, '0');
+          const status = res[i + 3];
+
+          // Check if this is a standard 16-bit VAG code or SAE P-code
+          const hex16 = (res[i] << 8) | res[i + 1];
+          const rawCode = `0x${d1}${d2}${d3}`.toUpperCase();
+          const parsed = lookupDtc(hex16 <= 0xFFFF ? hex16 : rawCode, status, res[i + 2]);
+
+          dtcs.push({
+            code: parsed.code,
+            rawHex: rawCode,
+            title: parsed.title,
+            system: parsed.system,
+            meaning: parsed.meaning,
+            causes: parsed.causes,
+            fixes: parsed.fixes,
+            severity: parsed.severity,
+            symptom: parsed.symptom,
+            symptomDetail: parsed.symptomDetail,
+            statusMask: `0x${status.toString(16).padStart(2, '0').toUpperCase()}`,
+            isConfirmed: (status & 0x08) !== 0,
+            isPending: (status & 0x04) !== 0,
+            isStatic: (status & 0x01) !== 0,
+            protocol: 'UDS'
+          });
+        }
+        return dtcs;
+      }
+    } catch (udsErr) {
+      // If UDS is rejected or unsupported, proceed to KWP2000
+    }
+
+    // Protocol 2: Older KWP2000 Service 0x18 00 FF 00 (Read DTCs by Status)
+    try {
+      const kwpRes = await this.sendUdsRequest(new Uint8Array([0x18, 0x00, 0xFF, 0x00]), 1500);
+      if (kwpRes && kwpRes.length >= 2 && kwpRes[0] === 0x58) {
+        const dtcCount = kwpRes[1];
+        // Each DTC in KWP is 3 bytes: 2 bytes VAG Decimal Code + 1 byte Symptom/Status
+        for (let i = 2; i + 2 < kwpRes.length && (dtcs.length < dtcCount || dtcCount === 0xFF); i += 3) {
+          const high = kwpRes[i];
+          const low = kwpRes[i + 1];
+          const symptom = kwpRes[i + 2];
+          const decCode = (high << 8) | low;
+
+          if (decCode > 0) {
+            const parsed = lookupDtc(decCode, null, symptom);
+            dtcs.push({
+              code: parsed.code,
+              rawHex: `0x${high.toString(16).padStart(2, '0')}${low.toString(16).padStart(2, '0')}`.toUpperCase(),
+              title: parsed.title,
+              system: parsed.system,
+              meaning: parsed.meaning,
+              causes: parsed.causes,
+              fixes: parsed.fixes,
+              severity: parsed.severity,
+              symptom: parsed.symptom,
+              symptomDetail: parsed.symptomDetail,
+              statusMask: `0x${symptom.toString(16).padStart(2, '0').toUpperCase()}`,
+              isConfirmed: true,
+              isPending: false,
+              isStatic: (symptom & 0x80) !== 0 || !parsed.symptom?.includes('Intermittent'),
+              protocol: 'KWP2000'
+            });
+          }
+        }
+        return dtcs;
+      }
+    } catch (kwpErr) {}
+
     return dtcs;
+  }
+
+  /**
+   * Backwards compatible readDTCs
+   */
+  async readDtcs() {
+    return await this.readModuleDTCs(this.activeModule);
   }
 
   async readDTCs() {
     return await this.readDtcs();
   }
 
+  /**
+   * Sweeps across standard vehicle modules to perform a comprehensive Auto-Scan.
+   * 
+   * @param {Function} [onProgress] - Callback: ({ moduleHex, moduleName, index, total, status })
+   * @param {Array<string>} [moduleList] - List of hex module addresses to scan
+   * @returns {Promise<object>} Auto-Scan summary with detected modules and faults
+   */
+  async autoScanVehicle(onProgress = null, moduleList = null) {
+    const targets = moduleList && moduleList.length > 0 ? moduleList : STANDARD_SCAN_MODULES;
+    const results = {
+      modules: [],
+      totalDtcCount: 0,
+      scannedCount: 0,
+      timestamp: new Date().toISOString()
+    };
+
+    for (let i = 0; i < targets.length; i++) {
+      const modHex = targets[i];
+      const modMeta = MODULE_ARBITRATION[modHex] || { name: `Module ${modHex}` };
+
+      if (onProgress) {
+        onProgress({
+          moduleHex: modHex,
+          moduleName: modMeta.name,
+          index: i + 1,
+          total: targets.length,
+          status: `Scanning ${modMeta.name}...`
+        });
+      }
+
+      try {
+        await this.setTargetModule(modHex);
+        const [info, dtcs] = await Promise.allSettled([
+          this.readModuleInfo(modHex),
+          this.readModuleDTCs(modHex)
+        ]);
+
+        const modInfo = info.status === 'fulfilled' ? info.value : null;
+        const modDtcs = dtcs.status === 'fulfilled' ? dtcs.value : [];
+
+        // If module responded with info or DTCs, consider it installed
+        const isResponding = !!(modInfo?.partNumber || modInfo?.component || modDtcs.length > 0);
+
+        if (isResponding) {
+          results.modules.push({
+            address: modHex,
+            name: modMeta.name,
+            partNumber: modInfo?.partNumber || 'Available',
+            component: modInfo?.component || 'VAG Electronic Control Unit',
+            coding: modInfo?.coding || null,
+            protocol: modInfo?.protocol || 'ISO 15765-4',
+            dtcs: modDtcs
+          });
+          results.totalDtcCount += modDtcs.length;
+        }
+      } catch (err) {
+        // Module not installed or did not respond on bus
+      }
+      results.scannedCount++;
+    }
+
+    return results;
+  }
+
+  /**
+   * Clears diagnostic trouble codes for a specific module.
+   */
+  async clearModuleDTCs(moduleHex) {
+    await this.setTargetModule(moduleHex);
+    // 1. Try UDS Service 0x14 FF FF FF
+    try {
+      const res = await this.sendUdsRequest(new Uint8Array([0x14, 0xFF, 0xFF, 0xFF]));
+      if (res.length >= 1 && res[0] === 0x54) return true;
+    } catch (_) {}
+
+    // 2. Try KWP2000 Service 0x14 FF 00
+    try {
+      const kwpRes = await this.sendUdsRequest(new Uint8Array([0x14, 0xFF, 0x00]));
+      if (kwpRes.length >= 1 && kwpRes[0] === 0x54) return true;
+    } catch (_) {}
+
+    return false;
+  }
+
   async clearDtcs() {
-    // 0x14 FF FF FF (Clear all DTCs)
-    const res = await this.sendUdsRequest(new Uint8Array([0x14, 0xFF, 0xFF, 0xFF]));
-    return res.length >= 1 && res[0] === 0x54;
+    return await this.clearModuleDTCs(this.activeModule);
   }
 
   async clearDTCs() {

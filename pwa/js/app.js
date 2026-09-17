@@ -6,6 +6,7 @@ import { UdsClient } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 import { MaintenanceManager } from './maintenance.js';
+import { lookupDtc } from './dtc_db.js';
 
 export function bytesToAscii(bytes) {
   if (!bytes || bytes.length === 0) return '';
@@ -151,6 +152,8 @@ class VibesApp {
     this.featureFilter = 'all'; // 'all' | 'active' | 'inactive' | 'unsupported'
     this._pendingFeatConfirm = null;
     this._toastTimeout = null;
+    this.lastDtcScanResults = null;
+    this.dtcFilterText = '';
 
     // Hardware & Logic Engines
     this.bleTransport = new WebBleTransport();
@@ -1129,7 +1132,9 @@ class VibesApp {
     const dtcsNotice = document.getElementById('dtcs-ble-notice');
 
     const scanBtn = document.getElementById('btn-scan-dtcs');
+    const quickScanBtn = document.getElementById('btn-quick-scan-dtcs');
     const clearBtn = document.getElementById('btn-clear-dtcs');
+    const exportBtn = document.getElementById('btn-export-dtcs');
     const applyHexBtn = document.getElementById('btn-apply-hex');
     const resetHexBtn = document.getElementById('btn-reset-hex');
     const rawHexInput = document.getElementById('raw-hex-input');
@@ -1151,8 +1156,10 @@ class VibesApp {
       if (serviceNotice) serviceNotice.style.display = 'none';
       if (dtcsNotice) dtcsNotice.style.display = 'none';
 
-      if (scanBtn) { scanBtn.disabled = false; scanBtn.title = 'Scan ECU Fault Codes'; }
+      if (scanBtn) { scanBtn.disabled = false; scanBtn.title = 'Full Vehicle Auto-Scan'; }
+      if (quickScanBtn) { quickScanBtn.disabled = false; quickScanBtn.title = 'Quick Scan (Engine & Electrics)'; }
       if (clearBtn) { clearBtn.disabled = false; clearBtn.title = 'Clear All DTCs'; }
+      if (exportBtn) { exportBtn.disabled = false; }
       if (applyHexBtn) { applyHexBtn.disabled = false; applyHexBtn.title = 'Audit & Write Hex'; }
       if (resetHexBtn) { resetHexBtn.disabled = false; resetHexBtn.title = 'Reset to Baseline'; }
       if (rawHexInput) rawHexInput.readOnly = false;
@@ -1176,8 +1183,11 @@ class VibesApp {
       if (serviceNotice) serviceNotice.style.display = 'block';
       if (dtcsNotice) dtcsNotice.style.display = 'block';
 
-      if (scanBtn) { scanBtn.disabled = true; scanBtn.title = 'Connect Bluetooth to scan DTCs'; }
-      if (clearBtn) { clearBtn.disabled = true; clearBtn.title = 'Connect Bluetooth to clear DTCs'; }
+      // Keep scan buttons active in demo mode to allow offline exploration of the diagnostic knowledge base
+      if (scanBtn) { scanBtn.disabled = false; scanBtn.title = 'Run Simulated Auto-Scan (Demo Mode)'; }
+      if (quickScanBtn) { quickScanBtn.disabled = false; quickScanBtn.title = 'Run Simulated Quick Scan (Demo Mode)'; }
+      if (clearBtn) { clearBtn.disabled = false; clearBtn.title = 'Clear DTCs'; }
+      if (exportBtn) { exportBtn.disabled = false; }
       if (applyHexBtn) { applyHexBtn.disabled = true; applyHexBtn.title = 'Connect Bluetooth to write hex'; }
       if (resetHexBtn) { resetHexBtn.disabled = true; resetHexBtn.title = 'Connect Bluetooth to reset baseline'; }
       if (rawHexInput) rawHexInput.readOnly = true;
@@ -2643,92 +2653,574 @@ class VibesApp {
     });
   }
 
-  // --- Diagnostic Trouble Codes (DTC) Tab ---
+  // --- Diagnostic Trouble Codes (DTC) Tab & Multi-Module Auto-Scan ---
   setupDtcsTab() {
     const scanBtn = document.getElementById('btn-scan-dtcs');
+    const quickScanBtn = document.getElementById('btn-quick-scan-dtcs');
     const clearBtn = document.getElementById('btn-clear-dtcs');
+    const exportBtn = document.getElementById('btn-export-dtcs');
+    const searchInput = document.getElementById('dtc-search-input');
 
     if (scanBtn) {
-      scanBtn.addEventListener('click', async () => {
-        if (!this.bleTransport.isConnected) {
-          alert('Cannot scan DTCs: Bluetooth OBD-II adapter is not connected. Please connect your adapter first.');
-          return;
-        }
-
-        scanBtn.disabled = true;
-        scanBtn.textContent = 'Scanning ECU...';
-
-        try {
-          const dtcs = await this.udsClient.readDTCs();
-          this.renderDtcsList(dtcs);
-          this.updateCockpitDtcAlert(dtcs);
-          this.vibrate([30]);
-        } catch (err) {
-          alert('Failed to read DTCs: ' + (err.message || err));
-        } finally {
-          scanBtn.disabled = false;
-          scanBtn.textContent = 'Scan Fault Codes';
-        }
+      scanBtn.addEventListener('click', () => this.runDtcAutoScan(false));
+    }
+    if (quickScanBtn) {
+      quickScanBtn.addEventListener('click', () => this.runDtcAutoScan(true));
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearAllDtcFaults());
+    }
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportDtcScanReport());
+    }
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.dtcFilterText = e.target.value.toLowerCase().trim();
+        this.renderDtcsList(this.lastDtcScanResults);
       });
     }
 
-    if (clearBtn) {
-      clearBtn.addEventListener('click', async () => {
-        if (!this.bleTransport.isConnected) {
-          alert('Cannot clear DTCs: Bluetooth OBD-II adapter is not connected. Please connect your adapter first.');
-          return;
+    // Render initial empty or cached state
+    this.renderDtcsList(this.lastDtcScanResults);
+  }
+
+  async runDtcAutoScan(isQuick = false) {
+    const scanBtn = document.getElementById('btn-scan-dtcs');
+    const quickScanBtn = document.getElementById('btn-quick-scan-dtcs');
+    const progressBox = document.getElementById('dtc-scan-progress');
+    const progressBar = document.getElementById('dtc-scan-progressbar');
+    const statusText = document.getElementById('dtc-scan-status-text');
+    const percentText = document.getElementById('dtc-scan-percent');
+
+    if (scanBtn) scanBtn.disabled = true;
+    if (quickScanBtn) quickScanBtn.disabled = true;
+    if (progressBox) progressBox.style.display = 'block';
+
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+
+    try {
+      let results = null;
+
+      if (isConnected) {
+        // Live hardware vehicle Auto-Scan
+        const targetModules = isQuick ? ['0x01', '0x09', '0x15'] : null;
+        results = await this.udsClient.autoScanVehicle((p) => {
+          const pct = Math.round((p.index / p.total) * 100);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          if (percentText) percentText.textContent = `${pct}%`;
+          if (statusText) statusText.textContent = `Scanning ${p.moduleName} (${p.moduleHex})...`;
+        }, targetModules);
+      } else {
+        // Realistic Demo Mode Auto-Scan matching the Transporter T5 scenario
+        const demoModules = isQuick
+          ? ['0x01', '0x09', '0x15']
+          : ['0x01', '0x03', '0x08', '0x09', '0x15', '0x17', '0x19'];
+
+        const modNames = {
+          '0x01': 'Engine (ECM)',
+          '0x03': 'ABS Brakes',
+          '0x08': 'Climatronic / HVAC',
+          '0x09': 'Cent. Elect. (BCM)',
+          '0x15': 'Airbags (SRS)',
+          '0x17': 'Instrument Cluster',
+          '0x19': 'CAN Gateway'
+        };
+
+        for (let i = 0; i < demoModules.length; i++) {
+          const mod = demoModules[i];
+          const pct = Math.round(((i + 1) / demoModules.length) * 100);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          if (percentText) percentText.textContent = `${pct}%`;
+          if (statusText) statusText.textContent = `[Demo Mode] Scanning ${modNames[mod] || mod}...`;
+          await new Promise(r => setTimeout(r, 140));
         }
 
-        if (confirm('Clear all stored and pending DTCs across ECUs? This will reset emission readiness monitors.')) {
-          clearBtn.disabled = true;
-          clearBtn.textContent = 'Clearing...';
+        const dtc01117 = lookupDtc('01117', 0x28, '008');
+        const dtc01598 = lookupDtc('01598', 0x29, '002');
+        const dtc00588 = lookupDtc('00588', 0x33, '033');
 
-          try {
-            await this.udsClient.clearDTCs();
-            this.renderDtcsList([]);
-            this.updateCockpitDtcAlert([]);
-            alert('Diagnostic Trouble Codes cleared successfully.');
-            this.vibrate([50, 50]);
-          } catch (err) {
-            alert('Failed to clear DTCs: ' + (err.message || err));
-          } finally {
-            clearBtn.disabled = false;
-            clearBtn.textContent = 'Clear All DTCs (Service 0x14)';
-          }
+        results = {
+          modules: [
+            {
+              address: '0x09',
+              name: 'Cent. Elect. (Bordnetz)',
+              partNumber: '7H0 937 049 T',
+              component: 'BORDNETZ SGVER 1.0 2001',
+              coding: '0000100',
+              protocol: 'KWP2000 / TP2.0',
+              dtcs: [
+                {
+                  code: dtc01117.code,
+                  title: dtc01117.title,
+                  system: dtc01117.system,
+                  meaning: dtc01117.meaning,
+                  causes: dtc01117.causes,
+                  fixes: dtc01117.fixes,
+                  severity: dtc01117.severity,
+                  symptom: '008 - Implausible Signal',
+                  isStatic: false,
+                  statusMask: '0x08'
+                },
+                {
+                  code: dtc01598.code,
+                  title: dtc01598.title,
+                  system: dtc01598.system,
+                  meaning: dtc01598.meaning,
+                  causes: dtc01598.causes,
+                  fixes: dtc01598.fixes,
+                  severity: dtc01598.severity,
+                  symptom: '002 - Lower Limit Exceeded',
+                  isStatic: true,
+                  statusMask: '0x02'
+                }
+              ]
+            },
+            {
+              address: '0x15',
+              name: 'Airbags (SRS)',
+              partNumber: '1C0 909 605 A',
+              component: '3B AIRBAG VW51 0009',
+              coding: '13122',
+              protocol: 'KWP2000 / TP2.0',
+              dtcs: [
+                {
+                  code: dtc00588.code,
+                  title: dtc00588.title,
+                  system: dtc00588.system,
+                  meaning: dtc00588.meaning,
+                  causes: dtc00588.causes,
+                  fixes: dtc00588.fixes,
+                  severity: dtc00588.severity,
+                  symptom: '33-00 - Resistance Too Low',
+                  isStatic: true,
+                  statusMask: '0x21'
+                }
+              ]
+            },
+            {
+              address: '0x01',
+              name: 'Engine (ECM)',
+              partNumber: '03L 906 022 JE',
+              component: 'R4 2.0L TDI G000AG 7967',
+              coding: '0111001A020400080000',
+              protocol: 'UDS (ISO 14229)',
+              dtcs: []
+            },
+            {
+              address: '0x03',
+              name: 'ABS Brakes',
+              partNumber: '7H0 907 379 S',
+              component: 'ABS/ESP FRONT5.3 0004',
+              coding: '0000068',
+              protocol: 'KWP2000 / TP2.0',
+              dtcs: []
+            },
+            {
+              address: '0x17',
+              name: 'Instrument Cluster',
+              partNumber: '7H0 920 951 T',
+              component: 'KOMBIINSTRUMENT VDO V01',
+              coding: '00101',
+              protocol: 'KWP2000 / TP2.0',
+              dtcs: []
+            },
+            {
+              address: '0x19',
+              name: 'CAN Gateway',
+              partNumber: '6N0 909 901',
+              component: 'GATEWAY-K-CAN 1S20',
+              coding: '00006',
+              protocol: 'KWP2000 / TP2.0',
+              dtcs: []
+            }
+          ],
+          totalDtcCount: 3,
+          scannedCount: demoModules.length,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      this.lastDtcScanResults = results;
+      this.renderDtcsList(results);
+
+      // Collect all DTCs across modules for Cockpit Alert
+      const allDtcs = [];
+      results.modules.forEach(m => {
+        if (m.dtcs && m.dtcs.length > 0) {
+          allDtcs.push(...m.dtcs);
         }
       });
+      this.updateCockpitDtcAlert(allDtcs);
+      this.vibrate([40]);
+
+      if (!isConnected) {
+        this.showToast('ℹ️ Offline Demo Mode: Simulated VAG Auto-Scan loaded.');
+      }
+    } catch (err) {
+      alert('Diagnostic Auto-Scan failed: ' + (err.message || err));
+    } finally {
+      if (progressBox) progressBox.style.display = 'none';
+      if (scanBtn) scanBtn.disabled = false;
+      if (quickScanBtn) quickScanBtn.disabled = false;
     }
   }
 
-  renderDtcsList(dtcs) {
+  renderDtcsList(scanResult) {
     const container = document.getElementById('dtc-list-container');
     if (!container) return;
 
-    if (dtcs.length === 0) {
+    const statScanned = document.getElementById('dtc-stat-scanned');
+    const statFaults = document.getElementById('dtc-stat-faults');
+    const statHealthy = document.getElementById('dtc-stat-healthy');
+
+    if (!scanResult || (!scanResult.modules && (!Array.isArray(scanResult) || scanResult.length === 0))) {
+      container.innerHTML = `
+        <div class="card" style="text-align:center; padding:2.5rem 1.5rem;">
+          <span style="font-size:2.5rem;">🔍</span>
+          <h4 style="margin-top:0.75rem; font-weight:700; font-size:1.05rem;">No Diagnostic Scan Active</h4>
+          <p class="text-muted" style="font-size:0.83rem; max-width:480px; margin:6px auto 0;">
+            Tap <strong>Full Auto-Scan</strong> above to interrogate all installed vehicle control modules, read confirmed and pending DTCs, and view mechanical fixes.
+          </p>
+        </div>
+      `;
+      if (statScanned) statScanned.textContent = '0';
+      if (statFaults) statFaults.textContent = '0';
+      if (statHealthy) statHealthy.textContent = '0';
+      return;
+    }
+
+    // Normalize input (wrap array into modules format if needed)
+    let modules = [];
+    if (Array.isArray(scanResult)) {
+      modules = [{
+        address: '0x09',
+        name: 'Target Control Module',
+        partNumber: 'Installed Module',
+        component: 'Electronic Control Unit',
+        protocol: 'UDS',
+        dtcs: scanResult
+      }];
+    } else {
+      modules = scanResult.modules || [];
+    }
+
+    // Calculate totals
+    const totalFaults = modules.reduce((sum, m) => sum + (m.dtcs ? m.dtcs.length : 0), 0);
+    const healthyModules = modules.filter(m => !m.dtcs || m.dtcs.length === 0).length;
+
+    if (statScanned) statScanned.textContent = modules.length;
+    if (statFaults) statFaults.textContent = totalFaults;
+    if (statHealthy) statHealthy.textContent = healthyModules;
+
+    // Apply search filter
+    const query = this.dtcFilterText || '';
+    let visibleModules = modules;
+    if (query) {
+      visibleModules = modules.filter(mod => {
+        const modMatch = mod.name.toLowerCase().includes(query) ||
+                         mod.address.toLowerCase().includes(query) ||
+                         (mod.partNumber && mod.partNumber.toLowerCase().includes(query));
+        const dtcMatch = mod.dtcs && mod.dtcs.some(d => 
+          (d.code && d.code.toLowerCase().includes(query)) ||
+          (d.title && d.title.toLowerCase().includes(query)) ||
+          (d.meaning && d.meaning.toLowerCase().includes(query)) ||
+          (d.symptom && d.symptom.toLowerCase().includes(query)) ||
+          (d.system && d.system.toLowerCase().includes(query))
+        );
+        return modMatch || dtcMatch;
+      });
+    }
+
+    if (visibleModules.length === 0) {
       container.innerHTML = `
         <div class="card" style="text-align:center; padding:2rem;">
-          <span style="font-size:2rem;">✅</span>
-          <h4 style="margin-top:0.5rem; font-weight:700;">No Fault Codes Detected</h4>
-          <p class="text-muted" style="font-size:0.85rem; margin-top:4px;">All monitored systems operating within nominal tolerances.</p>
+          <span style="font-size:2rem;">🔎</span>
+          <h4 style="margin-top:0.5rem; font-weight:700;">No Matches Found</h4>
+          <p class="text-muted" style="font-size:0.85rem; margin-top:4px;">No diagnostic fault codes or modules match "${query}".</p>
         </div>
       `;
       return;
     }
 
     container.innerHTML = '';
-    dtcs.forEach(dtc => {
-      const item = document.createElement('div');
-      item.className = 'feature-item';
-      item.style.borderLeft = '4px solid var(--danger)';
-      item.innerHTML = `
-        <div class="feature-info">
-          <h4 style="color:var(--danger); font-family:var(--font-mono);">${dtc.code}</h4>
-          <p style="color:var(--text-main); font-weight:600; margin-top:2px;">${dtc.description || 'Generic Powertrain Fault'}</p>
-          <span style="font-size:0.72rem; color:#64748b; font-family:var(--font-mono);">Status: 0x${dtc.statusHex || '00'} • Confirmed MIL</span>
+
+    visibleModules.forEach(mod => {
+      const modCard = document.createElement('div');
+      modCard.className = 'card';
+      modCard.style.marginBottom = '1.15rem';
+      modCard.style.border = '1px solid var(--border-color)';
+
+      const hasFaults = mod.dtcs && mod.dtcs.length > 0;
+      const badgeStyle = hasFaults
+        ? 'background:rgba(239,68,68,0.14); color:#ef4444; border:1px solid rgba(239,68,68,0.3);'
+        : 'background:rgba(16,185,129,0.14); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
+
+      const badgeText = hasFaults
+        ? `⚠️ ${mod.dtcs.length} Fault${mod.dtcs.length > 1 ? 's' : ''}`
+        : `✅ No Faults / OK`;
+
+      let headerHtml = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:0.75rem;">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <span style="font-size:1.1rem;">${hasFaults ? '🔴' : '🟢'}</span>
+              <h4 style="font-size:0.98rem; font-weight:700; margin:0; font-family:var(--font-mono);">
+                Address ${mod.address}: ${mod.name}
+              </h4>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; font-family:var(--font-mono);">
+              Part No: <strong>${mod.partNumber || 'N/A'}</strong> • Component: <strong>${mod.component || 'VAG ECU'}</strong>
+              ${mod.coding ? ` • Coding: <code>${mod.coding}</code>` : ''} • Protocol: <span style="color:var(--text-main);">${mod.protocol || 'ISO 15765'}</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="${badgeStyle} font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:12px;">
+              ${badgeText}
+            </span>
+            ${hasFaults ? `
+              <button class="btn btn-sm btn-outline-danger btn-clear-mod" data-mod="${mod.address}" 
+                      style="padding:3px 9px; font-size:0.72rem; font-weight:600; cursor:pointer;" title="Clear DTCs for this module only">
+                Clear Module
+              </button>
+            ` : ''}
+          </div>
         </div>
       `;
-      container.appendChild(item);
+
+      let bodyHtml = '';
+      if (!hasFaults) {
+        bodyHtml = `
+          <div style="padding:0.25rem 0; font-size:0.82rem; color:var(--text-muted);">
+            All monitored sub-systems and sensors in this module are reporting nominal tolerances.
+          </div>
+        `;
+      } else {
+        bodyHtml = '<div class="dtc-faults-wrapper" style="display:flex; flex-direction:column; gap:0.75rem;">';
+        mod.dtcs.forEach((dtc, idx) => {
+          bodyHtml += `
+            <div class="dtc-fault-card" style="border-left: 4px solid var(--danger); background: rgba(239, 68, 68, 0.04); border-radius: 8px; padding: 0.95rem; border: 1px solid var(--border-color); border-left-width: 4px; border-left-color: var(--danger);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                <div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--danger); letter-spacing:0.5px;">
+                      ${dtc.code}
+                    </span>
+                    <span style="font-weight:700; font-size:0.92rem; color:var(--text-main);">
+                      ${dtc.title || 'Diagnostic Trouble Code'}
+                    </span>
+                  </div>
+                  <div style="font-size:0.76rem; color:var(--text-muted); margin-top:3px;">
+                    System: <strong>${dtc.system || 'General'}</strong>
+                    ${dtc.statusMask ? ` • Status Mask: <code>${dtc.statusMask}</code>` : ''}
+                  </div>
+                </div>
+                <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                  ${dtc.symptom ? `
+                    <span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.74rem; font-weight:600; padding:2px 8px; border-radius:10px;">
+                      ↳ ${dtc.symptom}
+                    </span>
+                  ` : ''}
+                  <span style="${dtc.isStatic ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);' : 'background:rgba(100,116,139,0.15); color:#94a3b8; border:1px solid rgba(100,116,139,0.3);'} font-size:0.74rem; font-weight:600; padding:2px 8px; border-radius:10px;">
+                    ${dtc.isStatic ? 'Static / Active' : 'Intermittent'}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Collapsible Knowledge Base Accordion Drawer -->
+              <button class="dtc-drawer-toggle" style="width:100%; margin-top:0.65rem; padding:6px 12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:6px; color:var(--primary); font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s;">
+                <span>💡 What it means & suggested fix</span>
+                <span class="drawer-arrow" style="font-size:0.75rem; transition:transform 0.2s;">▾ Expand</span>
+              </button>
+
+              <div class="dtc-drawer-content" style="display:none; margin-top:0.65rem; background:rgba(0,0,0,0.22); border-radius:6px; padding:0.85rem; border:1px solid rgba(255,255,255,0.05);">
+                <div style="margin-bottom:0.75rem;">
+                  <strong style="font-size:0.82rem; color:var(--primary); display:flex; align-items:center; gap:0.3rem;">
+                    <span>📖</span> <span>What This Means:</span>
+                  </strong>
+                  <p style="font-size:0.82rem; color:var(--text-main); line-height:1.45; margin:4px 0 0 0;">
+                    ${dtc.meaning || 'Electronic control module detected operating parameters outside calibrated threshold.'}
+                  </p>
+                </div>
+
+                ${dtc.causes && dtc.causes.length > 0 ? `
+                  <div style="margin-bottom:0.75rem;">
+                    <strong style="font-size:0.82rem; color:#f59e0b; display:flex; align-items:center; gap:0.3rem;">
+                      <span>🔍</span> <span>Common Root Causes:</span>
+                    </strong>
+                    <ul style="margin:4px 0 0 1.25rem; padding:0; font-size:0.8rem; color:var(--text-main); line-height:1.45;">
+                      ${dtc.causes.map(c => `<li>${c}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+
+                ${dtc.fixes && dtc.fixes.length > 0 ? `
+                  <div>
+                    <strong style="font-size:0.82rem; color:var(--success); display:flex; align-items:center; gap:0.3rem;">
+                      <span>🛠️</span> <span>Suggested Action & Fixes:</span>
+                    </strong>
+                    <ul style="margin:4px 0 0 1.25rem; padding:0; font-size:0.8rem; color:var(--text-main); line-height:1.45;">
+                      ${dtc.fixes.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+
+                <div style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.06); font-size:0.72rem; color:var(--text-muted); font-style:italic;">
+                  ⚠️ Workshop Advice: Always disconnect vehicle battery negative terminal before servicing SRS airbag or high-voltage circuits.
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        bodyHtml += '</div>';
+      }
+
+      modCard.innerHTML = headerHtml + bodyHtml;
+      container.appendChild(modCard);
     });
+
+    // Wire up drawer toggle buttons
+    container.querySelectorAll('.dtc-drawer-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const drawer = btn.nextElementSibling;
+        const arrow = btn.querySelector('.drawer-arrow');
+        if (!drawer) return;
+        const isHidden = drawer.style.display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (arrow) arrow.textContent = isHidden ? '▴ Collapse' : '▾ Expand';
+        btn.style.background = isHidden ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.08)';
+      });
+    });
+
+    // Wire up single-module clear buttons
+    container.querySelectorAll('.btn-clear-mod').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const modAddr = btn.getAttribute('data-mod');
+        if (!modAddr) return;
+        if (confirm(`Clear diagnostic trouble codes stored in Address ${modAddr}?`)) {
+          await this.clearSingleModuleDTCs(modAddr);
+        }
+      });
+    });
+  }
+
+  async clearSingleModuleDTCs(moduleHex) {
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    try {
+      if (isConnected) {
+        await this.udsClient.clearModuleDTCs(moduleHex);
+      }
+      // Update in-memory results
+      if (this.lastDtcScanResults && this.lastDtcScanResults.modules) {
+        const mod = this.lastDtcScanResults.modules.find(m => m.address.toLowerCase() === moduleHex.toLowerCase());
+        if (mod) mod.dtcs = [];
+        this.renderDtcsList(this.lastDtcScanResults);
+      }
+      this.showToast(`Cleared fault codes for Address ${moduleHex}`);
+      this.vibrate([30, 30]);
+    } catch (err) {
+      alert(`Failed to clear module ${moduleHex}: ` + (err.message || err));
+    }
+  }
+
+  async clearAllDtcFaults() {
+    if (!confirm('Clear all Diagnostic Trouble Codes across all vehicle control units? This will clear active fault memories and reset emission readiness.')) {
+      return;
+    }
+
+    const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
+    const clearBtn = document.getElementById('btn-clear-dtcs');
+    if (clearBtn) {
+      clearBtn.disabled = true;
+      clearBtn.textContent = 'Clearing...';
+    }
+
+    try {
+      if (isConnected && this.lastDtcScanResults && this.lastDtcScanResults.modules) {
+        for (const mod of this.lastDtcScanResults.modules) {
+          if (mod.dtcs && mod.dtcs.length > 0) {
+            await this.udsClient.clearModuleDTCs(mod.address);
+          }
+        }
+      }
+
+      // Reset in-memory results
+      if (this.lastDtcScanResults && this.lastDtcScanResults.modules) {
+        this.lastDtcScanResults.modules.forEach(m => m.dtcs = []);
+        this.lastDtcScanResults.totalDtcCount = 0;
+      }
+
+      this.renderDtcsList(this.lastDtcScanResults);
+      this.updateCockpitDtcAlert([]);
+      this.showToast('✅ All Diagnostic Trouble Codes cleared successfully.');
+      this.vibrate([50, 50]);
+    } catch (err) {
+      alert('Failed to clear DTCs: ' + (err.message || err));
+    } finally {
+      if (clearBtn) {
+        clearBtn.disabled = false;
+        clearBtn.innerHTML = '<span>🗑️</span> <span>Clear All</span>';
+      }
+    }
+  }
+
+  exportDtcScanReport() {
+    if (!this.lastDtcScanResults || !this.lastDtcScanResults.modules) {
+      alert('Please run a diagnostic scan before exporting a report.');
+      return;
+    }
+
+    const res = this.lastDtcScanResults;
+    const dateStr = new Date(res.timestamp || Date.now()).toLocaleString();
+    const vinStr = this.vin || 'VIN Not Read';
+
+    let report = `====================================================\n`;
+    report += `vibesODB2 Vehicle Diagnostic Auto-Scan Report\n`;
+    report += `Generated: ${dateStr}\n`;
+    report += `Vehicle VIN: ${vinStr}\n`;
+    report += `Status: ${res.totalDtcCount || 0} Faults Detected across ${res.modules.length} Modules\n`;
+    report += `====================================================\n\n`;
+
+    res.modules.forEach(mod => {
+      const faultCount = mod.dtcs ? mod.dtcs.length : 0;
+      report += `[ Address ${mod.address}: ${mod.name} ] (${faultCount} Fault${faultCount === 1 ? '' : 's'})\n`;
+      report += `Part No: ${mod.partNumber || 'N/A'} | Component: ${mod.component || 'VAG ECU'}\n`;
+      if (mod.coding) report += `Coding: ${mod.coding}\n`;
+      report += `Protocol: ${mod.protocol || 'ISO 15765'}\n`;
+
+      if (faultCount === 0) {
+        report += `Status: ✅ No Faults Stored (Nominal)\n\n`;
+      } else {
+        mod.dtcs.forEach(dtc => {
+          report += `  - Code: ${dtc.code} - ${dtc.title}\n`;
+          if (dtc.symptom) report += `    Symptom: ${dtc.symptom}\n`;
+          report += `    Status: ${dtc.isStatic ? 'Static / Active' : 'Intermittent'}\n`;
+          if (dtc.meaning) report += `    What It Means: ${dtc.meaning}\n`;
+          if (dtc.causes && dtc.causes.length > 0) {
+            report += `    Common Causes:\n`;
+            dtc.causes.forEach(c => report += `      * ${c}\n`);
+          }
+          if (dtc.fixes && dtc.fixes.length > 0) {
+            report += `    Suggested Fixes:\n`;
+            dtc.fixes.forEach(f => report += `      * ${f}\n`);
+          }
+          report += `\n`;
+        });
+      }
+    });
+
+    report += `====================================================\n`;
+    report += `Generated by vibesODB2 • https://orviwan.github.io/vibesODB2/\n`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(() => {
+        this.showToast('📋 Diagnostic Report copied to clipboard!');
+      }).catch(() => {
+        alert(report);
+      });
+    } else {
+      alert(report);
+    }
   }
 }
 
