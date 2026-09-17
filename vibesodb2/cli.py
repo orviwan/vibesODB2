@@ -17,7 +17,7 @@ from rich.prompt import Confirm
 from rich.table import Table
 
 from vibesodb2.adapter.elm327 import ELM327Adapter, MODULE_REGISTRY
-from vibesodb2.ble.discovery import scan_for_adapters
+from vibesodb2.ble.discovery import scan_for_adapters, DiscoveredAdapter
 from vibesodb2.ble.mock_transport import MockTransport
 from vibesodb2.ble.transport import BleNordicUartTransport, Transport
 from vibesodb2.safety.bitwise import compute_byte_diff, format_hex_dump
@@ -43,7 +43,27 @@ def get_transport(mac: Optional[str], mock: bool, rpm: int = 0, profile: str = "
 async def cmd_scan(args) -> int:
     console.print("[bold cyan]Scanning for BLE OBD-II adapters...[/bold cyan]")
     try:
-        adapters = await scan_for_adapters(timeout=args.timeout)
+        if getattr(args, "mock", False):
+            adapters = [
+                DiscoveredAdapter(
+                    name="vLinker MC+ Simulated BLE",
+                    address="00:11:22:33:44:55",
+                    rssi=-52,
+                    is_recommended=True,
+                    details="Strong signal (-52 dBm)",
+                    is_obd=True,
+                ),
+                DiscoveredAdapter(
+                    name="OBDLink CX Mock",
+                    address="AA:BB:CC:DD:EE:FF",
+                    rssi=-68,
+                    is_recommended=True,
+                    details="Good signal (-68 dBm)",
+                    is_obd=True,
+                ),
+            ]
+        else:
+            adapters = await scan_for_adapters(timeout=args.timeout)
         if not adapters:
             console.print("[yellow]No compatible BLE adapters detected. Ensure adapter is powered and within range.[/yellow]")
             return 0
