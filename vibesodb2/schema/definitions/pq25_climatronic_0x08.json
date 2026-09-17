@@ -15,7 +15,8 @@
       "bit": 2,
       "name": "Air Recirculation Memory State",
       "description": "Retains manual recirculated air setting between ignition cycles.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     }
   ]
 }

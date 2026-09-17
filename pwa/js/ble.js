@@ -25,6 +25,9 @@ export class WebBleTransport {
     this.pendingQueue = [];
     this.currentTx = null;
     this.onDisconnectCallback = null;
+    // Set when a command timed out: the adapter's late reply (always terminated by '>') must be
+    // discarded rather than delivered to the next command.
+    this._discardNextResponse = false;
   }
 
   static isSupported() {
@@ -251,6 +254,12 @@ export class WebBleTransport {
       const completedResponse = parts[0].trim();
       this.rxBuffer = parts.slice(1).join('>');
 
+      if (this._discardNextResponse) {
+        this._discardNextResponse = false;
+        if (this.rxBuffer.includes('>')) this._handleNotification({ target: { value: new Uint8Array(0) } });
+        return;
+      }
+
       if (this.currentTx) {
         clearTimeout(this.currentTx.timer);
         this.currentTx.resolve(completedResponse);
@@ -286,6 +295,10 @@ export class WebBleTransport {
     tx.timer = setTimeout(() => {
       if (this.currentTx === tx) {
         this.currentTx = null;
+        this.rxBuffer = '';
+        // If the previous command also timed out the adapter is probably not answering at all;
+        // in that case do not arm the discard flag again or it would swallow the next real reply.
+        this._discardNextResponse = !this._discardNextResponse;
         tx.reject(new Error(`Command '${tx.cmd}' timed out after ${tx.timeoutMs}ms`));
         this._processQueue();
       }

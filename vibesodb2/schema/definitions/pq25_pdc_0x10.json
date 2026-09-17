@@ -15,7 +15,8 @@
       "bit": 4,
       "name": "Optical Parking System (OPS) Display",
       "description": "Enables graphic visual proximity vehicle silhouette on headunit screen.",
-      "prerequisites": "Compatible infotainment headunit."
+      "prerequisites": "Compatible infotainment headunit.",
+      "verified_on": []
     }
   ]
 }

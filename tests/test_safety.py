@@ -100,14 +100,18 @@ def test_sqlite_backup_storage():
         assert all_backups[0].id == 1
 
 
+def _sent_writes(transport):
+    return [c for c in transport.sent_commands if c.upper().startswith("2E")]
+
+
 @pytest.mark.asyncio
-async def test_atomic_rollback_on_nrc():
+async def test_nrc_is_reported_without_a_rollback_rewrite():
+    """A negative response means the ECU changed nothing, so re-writing the baseline is
+    pointless and only adds bus traffic to a module that is already refusing writes."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "rollback_test.db"
-        storage = StorageManager(db_path=db_path)
+        storage = StorageManager(db_path=Path(tmpdir) / "rollback_test.db")
         safety = SafetyEngine(storage=storage)
 
-        # Mock configured to fail on write with NRC 0x31 (RequestOutOfRange)
         transport = MockTransport(simulate_write_nrc="31")
         await transport.connect()
         adapter = ELM327Adapter(transport)
@@ -116,8 +120,8 @@ async def test_atomic_rollback_on_nrc():
 
         uds = UDSClient(adapter)
         async with uds:
-            orig_payload = bytes([0xAA] * 30)
-            mod_payload = bytes([0xBB] * 30)
+            orig_payload = bytes(transport.bcm_coding)
+            mod_payload = bytes([0xBB] * len(orig_payload))
 
             with pytest.raises(NegativeResponseError):
                 await safety.execute_safe_write(
@@ -130,9 +134,61 @@ async def test_atomic_rollback_on_nrc():
                     skip_engine_check=True,
                 )
 
-            # Ensure pre-write backup snapshot was nevertheless saved in SQLite
+            assert len(_sent_writes(transport)) == 1
             backups = storage.list_backups()
             assert len(backups) == 1
             assert backups[0].raw_hex_data == orig_payload.hex().upper()
 
+        await transport.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_successful_write_is_verified_by_reading_back():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        safety = SafetyEngine(storage=StorageManager(db_path=Path(tmpdir) / "v.db"))
+        transport = MockTransport()
+        await transport.connect()
+        adapter = ELM327Adapter(transport)
+        await adapter.initialize()
+        await adapter.set_module_address(0x09)
+        uds = UDSClient(adapter)
+        async with uds:
+            orig = bytes(transport.bcm_coding)
+            mod = bytearray(orig); mod[0] ^= 0x01
+            await safety.execute_safe_write(uds, 0x09, DID_BCM_LONG_CODING, orig, bytes(mod), vin="V", skip_engine_check=True)
+            reads = [c for c in transport.sent_commands if c.upper().startswith("220600")]
+            assert reads, "the DID must be read back after writing"
+            assert transport.bcm_coding == mod
+        await transport.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_readback_mismatch_restores_baseline_and_raises():
+    from vibesodb2.safety.guardrails import WriteVerificationError
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        safety = SafetyEngine(storage=StorageManager(db_path=Path(tmpdir) / "m.db"))
+        transport = MockTransport()
+        await transport.connect()
+        adapter = ELM327Adapter(transport)
+        await adapter.initialize()
+        await adapter.set_module_address(0x09)
+        uds = UDSClient(adapter)
+        async with uds:
+            orig = bytes(transport.bcm_coding)
+            mod = bytearray(orig); mod[0] ^= 0x01
+
+            real_read = uds.read_data_by_id
+
+            async def corrupted_read(did):
+                data = await real_read(did)
+                return bytes([data[0] ^ 0x80]) + data[1:]
+            uds.read_data_by_id = corrupted_read
+
+            with pytest.raises(WriteVerificationError):
+                await safety.execute_safe_write(uds, 0x09, DID_BCM_LONG_CODING, orig, bytes(mod), vin="V", skip_engine_check=True)
+
+            writes = _sent_writes(transport)
+            assert len(writes) == 2, "one write plus one baseline restore"
+            assert writes[-1].upper().endswith(orig.hex().upper())
         await transport.disconnect()

@@ -31,9 +31,10 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
                                      |
 +-------------------------------------------------------------------------+
 |                      Safety & State Engine                              |
-|   - Engine-off validation (PID 010C)     - Mandatory snapshot backup    |
-|   - Length-checking & bitwise masking    - Critical module write lock   |
-|   - Atomic rollback execution on NRC     - In-memory bitwise engine     |
+|   - Live baseline required               - Mandatory snapshot backup    |
+|   - Engine-off validation (PID 010C)     - Critical module write lock   |
+|   - Length check                         - Read-back verification       |
+|   - Module re-targeting after broadcast  - Bus lock for pollers         |
 +-------------------------------------------------------------------------+
                                      |
 +-------------------------------------------------------------------------+
@@ -67,7 +68,7 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
 
 ### 1. Unified Diagnostic Services (ISO 14229-1 UDS) & KWP2000
 * **Diagnostic Session Control (`0x10`)**: Switches between Default Session (`0x01`) and Extended Diagnostic Session (`0x03`).
-* **TesterPresent (`0x3E 0x80`)**: Asynchronous background keepalive loop dispatched every 2000 ms with suppressed positive responses to maintain extended sessions without timing out.
+* **TesterPresent**: background keepalive while a diagnostic operation holds the bus. The CLI sends `0x3E 0x80` (suppressed positive response) every 2000 ms; the PWA sends `0x3E 0x00` every 2500 ms and stops it when the operation releases the bus lock.
 * **Read Data By Identifier (`0x22`)**:
   * `0xF190`: Vehicle Identification Number (VIN)
   * `0xF187`: ECU Spare Part Number
@@ -75,10 +76,12 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
   * `0xF189`: ECU Software Version Number
   * `0xF18C`: ECU Serial Number
   * `0x0600`: Central Electric (BCM) Long Coding Payload (24–30 Bytes)
-* **Write Data By Identifier (`0x2E`)**: Writes modified long-coding payloads with verified session authorization and length checks.
-* **Dual-Protocol Diagnostic Auto-Scan**:
-  * **Modern UDS (`0x19 0x02 0x09`)**: Queries confirmed and pending DTC records (3-byte DTC + 1-byte status mask).
-  * **Older KWP2000 / TP2.0 (`0x18 0x00 0xFF 0x00`)**: Read DTCs by status mask on pre-facelift models (e.g. Transporter T5 7H). Parses 16-bit VAG 5-digit decimal codes (`DTC = (high << 8) | low`, e.g. `0x045D` = `01117`, `0x063E` = `01598`, `0x024C` = `00588`).
+* **Write Data By Identifier (`0x2E`)**: Writes a modified long-coding payload. Success means a `0x6E <DID>` positive response **and** a matching read-back of the identifier; anything else is reported as a failed write.
+* **SecurityAccess (`0x27`)**: not performed. No verified seed/key algorithm is bundled, and sending a login PIN as raw key bytes is wrong and can lock the ECU. The client refuses unless a real key-derivation function is supplied.
+* **Response pending (`0x7F <SID> 0x78`)**: the final message that follows it is used; a lone `0x78` is surfaced as a retryable negative response rather than a hard failure.
+* **Diagnostic Auto-Scan** over the modules whose CAN IDs are marked `verified` in `MODULE_ARBITRATION` (`pwa/js/uds.js`):
+  * **UDS (`0x19 0x02 0x09`)**: Queries confirmed and pending DTC records (3-byte DTC + 1-byte status mask).
+  * **KWP2000-style fallback (`0x18 0x00 0xFF 0x00`)**: attempted over ISO-TP only when `0x19` is rejected. This is experimental: VAG's KWP2000 generation uses the TP2.0 transport, which is **not implemented**, so pre-2008 vehicles are not supported. Parses 16-bit VAG 5-digit decimal codes (`DTC = (high << 8) | low`, e.g. `0x045D` = `01117`).
   * **Failure Type Byte (FTB) Decoding**: Decodes VAG symptom codes (`008` Implausible Signal, `002` Lower Limit Exceeded, `33-00` Resistance Too Low).
   * **Curated Knowledge Base (`dtc_db.js`)**: Maps fault codes to plain-English meanings, real-world physical failure causes (e.g. broken alternator loom wire near starter bracket, worn clockspring), and actionable repair steps.
 * **Clear Diagnostic Information (`0x14 FF FF FF` / `0x14 FF 00`)**: Resets DTCs across modules or targets specific ECUs.
@@ -94,17 +97,23 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
 
 ## Safety Guardrails Pipeline
 
-Before any configuration payload is written over UDS, vibesODB2 passes the operation through a five-stage defensive safety pipeline:
+Every long-coding write goes through one function: `executeCodingWrite` in `pwa/js/writeflow.js` (PWA) or `SafetyEngine.execute_safe_write` in `vibesodb2/safety/guardrails.py` (CLI). Feature code never calls the write service directly. The pipeline is:
 
-1. **Critical Module Coding Write Blacklist**: Rejects long-coding write operations (`0x2E`) to safety-critical controllers:
-   * `0x03`: ABS / ESP Braking & Stability Systems
-   * `0x15`: Airbag Deployment & Occupant Restraint Systems
-   * `0x44`: Electromechanical Power Steering (EPS)
-   *(Note: DTC reading and clearing via `0x19`/`0x14` is permitted across all modules).*
-2. **Engine Running Interlock**: Queries standard OBD-II Mode 01 PID `010C` (Engine RPM). If RPM $> 0$, all write operations are strictly aborted. The vehicle must be in an **Ignition ON / Engine OFF** state.
-3. **Immutable Pre-Write Snapshot**: Automatically captures an immutable snapshot of the existing raw hex configuration before writing. Snapshots are stored in IndexedDB (browser) or SQLite (CLI).
-4. **Strict Payload Length Verification**: Validates that the modified byte array exactly matches the ECU's expected byte length (e.g. 30 bytes). Truncated or padded payloads are rejected client-side.
-5. **Atomic Rollback on Negative Response (NRC)**: If the ECU returns `0x7F 0x2E [NRC]`, the session is terminated and the original baseline hex string is immediately re-flashed or queued for one-click restore.
+1. **Live baseline required** (PWA): the coding must have been read from this vehicle in this session. The bundled demo coding can never be written.
+2. **Critical module blacklist**: long-coding writes (`0x2E`) to `0x03` ABS/ESP, `0x15` airbag and `0x44` steering are rejected. Module addresses are normalised first, so `03`, `0X03` and `0x03` are all caught. *(DTC reading and clearing via `0x19`/`0x14` is permitted on all modules.)*
+3. **Ignition and engine interlock**: the RX filter is cleared and `01 0C` is requested on the functional `7DF` header. No reply, an unparseable reply, or RPM above zero blocks the write.
+4. **Strict payload length**: the modified payload must be exactly as long as the baseline.
+5. **Pre-write snapshot**: the baseline is stored in IndexedDB (browser) or SQLite (CLI) before anything is sent.
+6. **Re-target and write**: the adapter is re-addressed to the target module (`ATSH`/`ATCRA`/flow control) because the interlock left it on `7DF`; the extended session is opened; `0x2E` is sent and must be acknowledged with `0x6E <DID>`.
+7. **Read-back verification**: the identifier is read back and compared byte for byte. On mismatch the baseline is written back once and the result, including whether the restore was acknowledged, is reported.
+
+A negative response to the write is reported as a failure and **nothing is re-written**: an NRC means the ECU did not change anything.
+
+**Bus ownership (PWA).** Telemetry polling, the ignition poll and TesterPresent share the adapter's command queue with diagnostic operations. Every diagnostic operation runs under `app.withBusLock()`, which pauses telemetry, makes the ignition poll skip, and stops TesterPresent when the operation ends, so header and filter state cannot be changed underneath a read or write.
+
+**Verified CAN IDs.** `MODULE_ARBITRATION` carries a `verified` flag per module. Unverified modules are excluded from the default scan and `setTargetModule` refuses them unless explicit request/response IDs are supplied. The Python `MODULE_REGISTRY` must match the verified JS entries; `tests/test_module_table.py` enforces it.
+
+**Removed features.** Service-interval reset, battery registration, parking-brake service mode, one-click adaptations and the manufacturer-specific mileage read were removed because their identifiers were unverified and they bypassed this pipeline. See `docs/REMOVED_FEATURES.md`.
 
 ---
 
@@ -122,7 +131,7 @@ Because Bluetooth OBD-II operates on sequential request-response polling, vibesO
 
 ## Community Schema Specification
 
-Vehicle feature coordinates are decoupled into modular JSON schema files. Example definition for PQ25 / MQB Central Electric (`0x09`):
+Vehicle feature coordinates are decoupled into modular JSON schema files. Every feature carries a `verified_on` list of vehicles on which the coordinate was confirmed; an empty list is shown as **Unverified** in the UI. Descriptive text must be original (see `CONTRIBUTING.md`). Features in the `Daytime Running Lights` and `Exterior Lighting` categories automatically carry a road-legal warning. Example definition for PQ25 / MQB Central Electric (`0x09`):
 
 ```json
 {
@@ -142,7 +151,8 @@ Vehicle feature coordinates are decoupled into modular JSON schema files. Exampl
       "bit": 2,
       "name": "Acoustic Lock Confirmation",
       "description": "Sounds brief alarm siren chirp when vehicle is locked.",
-      "prerequisites": "OEM alarm siren installed."
+      "prerequisites": "OEM alarm siren installed.",
+      "verified_on": []
     }
   ]
 }
@@ -177,12 +187,16 @@ pip install -e ".[dev]"
 
 ### 2. Running Automated Tests
 ```bash
-# Run pytest test suite (45 unit & integration tests)
-pytest -v
+# Everything: syntax, JS unit tests, pytest, headless-Chrome end-to-end (needs Google Chrome)
+npm test
 
-# Run JavaScript syntax checks
-node --check pwa/js/app.js && node --check pwa/sw.js
+# Individually
+node --test --test-force-exit tests/js/    # PWA protocol/safety unit tests (node:test)
+pytest -v                                   # CLI, simulator, guardrails, JS/Python table parity
+python scripts/test_pwa_sim.py              # End-to-end against the in-browser simulator
 ```
+
+The project is test-first: write the failing test, watch it fail, then implement. See `CONTRIBUTING.md` and `AGENTS.md`.
 
 ---
 
@@ -199,13 +213,13 @@ vibesodb2 dump --mock
 vibesodb2 dump --mock --platform MQB
 vibesodb2 dump --mac "AA:BB:CC:11:22:33"
 
-# 3. Enable a feature with pre-write safety audit and confirmation
+# 3. Enable a feature with pre-write safety audit, confirmation and read-back verification
 vibesodb2 set --mock --feature cornering_fog_lights --enable
 
-# 4. View immutable backup snapshots
+# 4. View backup snapshots
 vibesodb2 backups
 
-# 5. One-click rollback to a previous backup snapshot
+# 5. Restore a previous backup snapshot (goes through the same audited write path)
 vibesodb2 backups --mock --restore 1
 
 # 6. Read and clear Diagnostic Trouble Codes (DTCs)

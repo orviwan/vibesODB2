@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Gauge Needle Sweep (Staging / Celebration)",
       "description": "Sweeps speedometer and tachometer needles from 0 to max and back upon turning ignition ON.",
-      "prerequisites": "MFA+ / Highline cluster instrument revision."
+      "prerequisites": "Cluster revision with multifunction display.",
+      "verified_on": []
     },
     {
       "id": "seatbelt_chime_warning",
@@ -24,7 +25,8 @@
       "bit": 1,
       "name": "Seatbelt Acoustic Warning Chime",
       "description": "Audible chime sounding if driver seatbelt is not buckled above 20 km/h.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "digital_speed_mfa",
@@ -33,7 +35,8 @@
       "bit": 3,
       "name": "Large Digital Speed Display in MFA",
       "description": "Shows large digital speedometer reading on central instrument cluster display.",
-      "prerequisites": "Highline multifunction display."
+      "prerequisites": "Multifunction display.",
+      "verified_on": []
     }
   ]
 }

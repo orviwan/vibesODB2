@@ -83,7 +83,7 @@ def create_transporter_t5_profile() -> VehicleProfile:
         ),
         0x08: SimulatedECU(
             address=0x08,
-            name="Air Conditioning / Climatronic",
+            name="Climate Control (HVAC)",
             part_number="7H0907040D",
             sw_version="0201",
             coding=bytearray(bytes.fromhex("000020")),
@@ -153,7 +153,7 @@ def create_transporter_t5_profile() -> VehicleProfile:
     return VehicleProfile(
         id="transporter_t5",
         name="VW Transporter T5 (2007 2.5 TDI)",
-        vin="WV1ZZZ7HZ7H061325",
+        vin="WV1ZZZ7HZ7H000001",
         platform="PQ35",
         protocol="KWP2000",
         engine_type="diesel_tdi",
@@ -194,7 +194,7 @@ def create_transporter_t51_profile() -> VehicleProfile:
         ),
         0x08: SimulatedECU(
             address=0x08,
-            name="Climatronic / Heating",
+            name="Climate Control (HVAC)",
             part_number="7E5907040E",
             sw_version="0402",
             coding=bytearray(bytes.fromhex("0000000002")),

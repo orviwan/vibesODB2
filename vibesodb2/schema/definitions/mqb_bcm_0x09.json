@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Passenger Mirror Dip on Reverse Gear",
       "description": "Automatically angles passenger exterior mirror downward when reverse gear is engaged to assist kerb parking.",
-      "prerequisites": "Power folding/memory exterior mirror motor."
+      "prerequisites": "Power folding/memory exterior mirror motor.",
+      "verified_on": []
     },
     {
       "id": "scandinavian_drl",
@@ -24,7 +25,8 @@
       "bit": 0,
       "name": "Scandinavian DRL (Rear Tail Lights Active with DRL)",
       "description": "Keeps rear LED/bulb taillights illuminated together with front Daytime Running Lights during daylight.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "acoustic_lock_infotainment_menu",
@@ -33,7 +35,8 @@
       "bit": 2,
       "name": "Acoustic Lock Confirmation (Infotainment Menu)",
       "description": "Enables lock/unlock acoustic beep setting inside the MIB / Discover Media vehicle settings menu.",
-      "prerequisites": "Factory alarm siren."
+      "prerequisites": "Factory alarm siren.",
+      "verified_on": []
     },
     {
       "id": "drl_off_with_handbrake",
@@ -42,7 +45,8 @@
       "bit": 1,
       "name": "Deactivate DRL when Electronic Parking Brake (EPB) Set",
       "description": "Switches off daytime running lights whenever vehicle is stationary with parking brake applied.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "cornering_lights_via_fogs",
@@ -51,7 +55,8 @@
       "bit": 4,
       "name": "Dynamic Cornering Lights via Fog Lamps",
       "description": "Fades fog lamp on and off smoothly during cornering maneuvers or indicator usage.",
-      "prerequisites": "Front fog lamps."
+      "prerequisites": "Front fog lamps.",
+      "verified_on": []
     },
     {
       "id": "comfort_turn_signals_5_flashes",
@@ -60,7 +65,8 @@
       "bit": 3,
       "name": "Highway Comfort Turn Signals",
       "description": "Cycles indicator flash pulses upon soft touch of indicator stalk.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "teardrop_wipe_front",
@@ -69,7 +75,8 @@
       "bit": 4,
       "name": "Front Windscreen Teardrop Wipe",
       "description": "Performs one delayed wipe across front screen 5 seconds after screenwash spray.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "rear_wiper_reverse_sync",
@@ -78,7 +85,8 @@
       "bit": 4,
       "name": "Rear Wiper on Reverse Gear",
       "description": "Automatically runs rear wiper when selecting reverse gear if front wipers are active.",
-      "prerequisites": "Rear wiper."
+      "prerequisites": "Rear wiper.",
+      "verified_on": []
     },
     {
       "id": "coming_home_fog_lights",
@@ -87,7 +95,8 @@
       "bit": 2,
       "name": "Coming Home / Leaving Home with Fog Lights",
       "description": "Uses fog lights instead of xenon/LED low beams for Coming Home lighting to extend bulb life.",
-      "prerequisites": "Front fog lamps."
+      "prerequisites": "Front fog lamps.",
+      "verified_on": []
     }
   ]
 }

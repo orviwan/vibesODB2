@@ -6,7 +6,7 @@ Tests commands across multiple VAG platforms (PQ25, PQ35, MQB):
 - set (enable & disable with bit manipulation)
 - dtc (read & clear across modules)
 - backups (list & rollback)
-- safety interlocks (engine running, blacklisted modules, atomic rollback on NRC)
+- safety interlocks (engine running, blacklisted modules, no rewrite on NRC, read-back verification)
 """
 
 from __future__ import annotations

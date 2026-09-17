@@ -8,6 +8,8 @@ export class TelemetryEngine {
 
     this.isRunning = false;
     this.bleLoopActive = false;
+    this.isPaused = false;
+    this._idle = true;
 
     this.packetCount = 0;
     this.sampleCount = 0;
@@ -49,18 +51,49 @@ export class TelemetryEngine {
     };
   }
 
-  start() {
+  /**
+   * @param {{paused?: boolean}} [opts] start paused when a diagnostic operation currently owns
+   *   the adapter; the loop then sends nothing (not even its header setup) until resume().
+   */
+  start(opts = {}) {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.isPaused = !!opts.paused;
     this.packetCount = 0;
     this.sampleCount = 0;
     this.lastRateCalc = Date.now();
     this._startBleLoop();
   }
 
+  /**
+   * Suspends polling so a diagnostic operation owns the adapter header/filter state.
+   * Resolves once the loop has finished its in-flight command.
+   */
+  async pause() {
+    this.isPaused = true;
+    while (this.isRunning && !this._idle) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+
+  resume() {
+    // A diagnostic operation may have re-targeted a module while we were paused.
+    this._needsHeaderReset = true;
+    this.isPaused = false;
+  }
+
+  async _applyBroadcastHeader() {
+    if (!this.transport || !this.transport.isConnected) return;
+    await this.transport.setHeader('7DF');
+    if (this.transport.setFilter) {
+      await this.transport.setFilter('7E8');
+    }
+  }
+
   stop() {
     this.isRunning = false;
     this.bleLoopActive = false;
+    this.isPaused = false;
     this.latestMetrics = this.getInitialMetrics();
     this.currentHz = 0;
     this.onRateUpdate({ hz: 0, packetCount: this.packetCount });
@@ -71,19 +104,23 @@ export class TelemetryEngine {
     this.bleLoopActive = true;
     let loopCycle = 0;
 
-    // Set OBD-II Functional Broadcast header (7DF) and Engine RX Filter (7E8) ONCE upon starting loop
-    try {
-      if (this.transport && this.transport.isConnected) {
-        await this.transport.setHeader('7DF');
-        if (this.transport.setFilter) {
-          await this.transport.setFilter('7E8');
-        }
-      }
-    } catch (e) {
-      console.warn('Could not set 7DF header:', e);
-    }
+    // The OBD-II functional broadcast header (7DF) and engine RX filter (7E8) are applied by the
+    // first loop iteration and again after every pause/resume cycle, always after the pause check,
+    // so a loop started while a diagnostic operation owns the adapter sends nothing.
+    this._needsHeaderReset = true;
+    this._idle = true;
 
     while (this.isRunning && this.bleLoopActive && this.transport && this.transport.isConnected) {
+      if (this.isPaused) {
+        this._idle = true;
+        await new Promise((r) => setTimeout(r, 50));
+        continue;
+      }
+      this._idle = false;
+      if (this._needsHeaderReset) {
+        this._needsHeaderReset = false;
+        try { await this._applyBroadcastHeader(); } catch (e) { console.warn('Could not set 7DF header:', e); }
+      }
       const startTime = performance.now();
       try {
         loopCycle++;
@@ -175,10 +212,12 @@ export class TelemetryEngine {
         await new Promise((r) => setTimeout(r, 40));
       }
 
+      this._idle = true;
       const elapsed = performance.now() - startTime;
       const waitTime = Math.max(10, 35 - elapsed);
       await new Promise((r) => setTimeout(r, waitTime));
     }
+    this._idle = true;
   }
 
   parseVoltageResponse(raw) {
@@ -197,7 +236,14 @@ export class TelemetryEngine {
   parsePidResponse(raw) {
     if (!raw) return;
     const clean = raw.replace(/>/g, ' ').toUpperCase().trim();
-    const parts = clean.split(/\s+/).filter(Boolean);
+    // Adapters configured with ATS0 (and the simulator) return contiguous hex such as "410C0C80";
+    // split those into byte tokens so the parser sees the same stream as with spaces enabled.
+    const parts = clean.split(/\s+/).filter(Boolean).flatMap((tok) => {
+      if (tok.length > 2 && tok.length % 2 === 0 && /^[0-9A-F]+$/.test(tok)) {
+        return tok.match(/.{2}/g);
+      }
+      return [tok];
+    });
 
     for (let i = 0; i < parts.length; i++) {
       if (parts[i] === '41' && i + 2 < parts.length) {

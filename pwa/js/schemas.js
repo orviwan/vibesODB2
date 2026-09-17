@@ -1,4 +1,11 @@
 // Bundled VAG Vehicle Platform Definitions for vibesODB2
+//
+// PROVENANCE & VERIFICATION POLICY
+// - Byte/bit coordinates are data, but every description below is text written for this project.
+//   Contributors must not paste text from proprietary label files, tool databases or wikis
+//   (see CONTRIBUTING.md).
+// - `verified_on` lists vehicles (model + year) on which a coordinate was confirmed to do what the
+//   description says. An empty list means UNVERIFIED and the UI labels it as such.
 export const BUNDLED_SCHEMAS = {
   "mqb_bcm_0x09": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30,7 +37,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Daytime Running Lights (DRL) Active",
         "description": "Enables primary front daytime running lights operation in ignition ON position.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "scandinavian_drl",
@@ -39,7 +47,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Scandinavian DRL (Rear Tail Lights Active with DRL)",
         "description": "Keeps rear LED/bulb taillights illuminated together with front Daytime Running Lights during daylight.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "drl_off_with_handbrake",
@@ -48,7 +57,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Deactivate DRL when Electronic Parking Brake (EPB) Set",
         "description": "Switches off daytime running lights whenever vehicle is stationary with parking brake applied.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_lock_speed",
@@ -57,7 +67,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Automatic Door Auto-Lock (>15 km/h)",
         "description": "Automatically locks all doors when driving speed exceeds 15 km/h for anti-carjacking protection.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_unlock_key_removal",
@@ -66,7 +77,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Automatic Door Auto-Unlock on Key Removal",
         "description": "Automatically unlocks all doors when ignition key is extracted or engine Start/Stop turned off.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "central_locking_remote_active",
@@ -75,7 +87,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Radio Remote Keyless Central Locking Active",
         "description": "Enables wireless RF receiver processing for factory remote key fobs.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "comfort_windows_remote",
@@ -84,7 +97,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Comfort Window Open / Close via Key Fob",
         "description": "Enables holding Lock/Unlock button on remote key fob to automatically roll all power windows up or down.",
-        "prerequisites": "Power electric windows."
+        "prerequisites": "Power electric windows.",
+        "verified_on": []
       },
       {
         "id": "sunroof_comfort_remote",
@@ -93,7 +107,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Panoramic Sunroof Comfort Open / Close via Key Fob",
         "description": "Enables opening and tilting panoramic electric glass sunroof together with comfort window operation.",
-        "prerequisites": "Panoramic sunroof."
+        "prerequisites": "Panoramic sunroof.",
+        "verified_on": []
       },
       {
         "id": "passenger_mirror_dip_reverse",
@@ -102,7 +117,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Passenger Mirror Dip on Reverse Gear",
         "description": "Automatically angles passenger exterior mirror downward when reverse gear is engaged to assist kerb parking.",
-        "prerequisites": "Power folding/memory exterior mirror motor."
+        "prerequisites": "Power folding/memory exterior mirror motor.",
+        "verified_on": []
       },
       {
         "id": "heated_exterior_mirrors",
@@ -111,7 +127,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 6,
         "name": "Heated Exterior Mirrors Active with Defroster",
         "description": "Powers electric exterior mirror heating elements when heated rear windscreen defroster is switched on.",
-        "prerequisites": "Heated exterior mirrors."
+        "prerequisites": "Heated exterior mirrors.",
+        "verified_on": []
       },
       {
         "id": "optical_lock_ack",
@@ -120,7 +137,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Turn Indicator Flash Acknowledgment on Lock",
         "description": "Flashes hazard/turn indicators once upon successful vehicle locking.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "optical_unlock_ack",
@@ -129,7 +147,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 7,
         "name": "Turn Indicator Flash Acknowledgment on Unlock",
         "description": "Flashes hazard/turn indicators twice upon remote unlocking.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "acoustic_lock_infotainment_menu",
@@ -138,7 +157,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Acoustic Lock Confirmation (Infotainment Menu)",
         "description": "Enables lock/unlock acoustic beep setting inside the MIB / Discover Media vehicle settings menu.",
-        "prerequisites": "Factory alarm siren."
+        "prerequisites": "Factory alarm siren.",
+        "verified_on": []
       },
       {
         "id": "cornering_lights_via_fogs",
@@ -147,7 +167,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Dynamic Cornering Lights via Fog Lamps",
         "description": "Fades fog lamp on and off smoothly during cornering maneuvers or indicator usage.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "front_fog_lights_installed",
@@ -156,7 +177,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Front Fog Lamps Installed",
         "description": "Enables BCM output stage circuitry for front halogen/LED fog light assemblies.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "rear_fog_light_installed",
@@ -165,7 +187,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Rear Fog Lamp Installed",
         "description": "Enables BCM output stage circuitry for high-intensity rear fog safety lamp.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "coming_home_fog_lights",
@@ -174,7 +197,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Coming Home / Leaving Home with Fog Lights",
         "description": "Uses fog lights instead of xenon/LED low beams for Coming Home lighting to extend bulb life.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "comfort_turn_signals_5_flashes",
@@ -183,7 +207,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 3,
         "name": "Highway Comfort Turn Signals",
         "description": "Cycles indicator flash pulses upon soft touch of indicator stalk.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "teardrop_wipe_front",
@@ -192,7 +217,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Front Windscreen Teardrop Wipe",
         "description": "Performs one delayed wipe across front screen 5 seconds after screenwash spray.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "rear_window_wiper_installed",
@@ -201,7 +227,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Rear Window Wiper Installed",
         "description": "Enables rear tailgate wiper motor output driver and stalk intermittent control.",
-        "prerequisites": "Rear wiper."
+        "prerequisites": "Rear wiper.",
+        "verified_on": []
       },
       {
         "id": "rear_wiper_reverse_sync",
@@ -210,7 +237,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Rear Wiper on Reverse Gear Sync",
         "description": "Automatically runs rear wiper when selecting reverse gear if front wipers are active.",
-        "prerequisites": "Rear wiper."
+        "prerequisites": "Rear wiper.",
+        "verified_on": []
       },
       {
         "id": "heated_rear_window_installed",
@@ -219,7 +247,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Heated Rear Defrost Window Installed",
         "description": "Controls high-current relay driver for rear windscreen heating grid.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "footwell_ambient_lighting",
@@ -228,7 +257,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 7,
         "name": "Interior Footwell Lighting Installed",
         "description": "Enables LED/bulb footwell illumination with door open and dimmable ambient drive lighting.",
-        "prerequisites": "Footwell LED units."
+        "prerequisites": "Footwell LED units.",
+        "verified_on": []
       }
     ]
   },
@@ -262,7 +292,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Gauge Needle Sweep (Staging / Celebration)",
         "description": "Sweeps speedometer and tachometer needles from min to max and back upon ignition activation.",
-        "prerequisites": "Supported instrument cluster revision (Analog & Active Info Display)."
+        "prerequisites": "Supported instrument cluster revision (Analog & Active Info Display).",
+        "verified_on": []
       },
       {
         "id": "lap_timer_active",
@@ -271,7 +302,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 3,
         "name": "Lap Timer & Oil Temperature Menu",
         "description": "Activates the track lap timer and dedicated engine oil temperature telemetry screen in cluster MFA.",
-        "prerequisites": "Color MFA or Virtual Cockpit."
+        "prerequisites": "Colour multifunction display or fully digital instrument cluster.",
+        "verified_on": []
       },
       {
         "id": "refuel_quantity_display",
@@ -280,7 +312,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Refuel Volume Display (Quantity to Add)",
         "description": "Displays the exact liters/gallons needed to fill fuel tank to capacity in 5-liter increments.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "seatbelt_chime_warning",
@@ -289,7 +322,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Seatbelt Acoustic Warning Chime",
         "description": "Sounds audible chime when driver or passenger seatbelts are unbuckled with vehicle in motion.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       }
     ]
   },
@@ -319,7 +353,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Selective Door Unlocking (Single Door)",
         "description": "First press of remote key fob unlocks driver door only; second press unlocks all doors.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_lock_15kmh",
@@ -328,7 +363,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Speed-Dependent Auto Locking (>15 km/h)",
         "description": "Automatically locks all passenger and cargo doors when vehicle speed exceeds 15 km/h (anti-carjacking).",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_unlock_key_removal",
@@ -337,7 +373,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Auto-Unlock on Key Removal",
         "description": "Automatically unlocks all doors when the mechanical ignition key is withdrawn from the barrel.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "central_locking_remote_active",
@@ -346,7 +383,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Central Locking Remote Control Active",
         "description": "Enables wireless RF receiver processing for factory remote key fobs.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "acoustic_lock_chirp",
@@ -355,7 +393,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Acoustic Lock Confirmation",
         "description": "Sounds brief alarm siren chirp when all vehicle doors and tailgate are securely locked.",
-        "prerequisites": "OEM alarm siren installed."
+        "prerequisites": "OEM alarm siren installed.",
+        "verified_on": []
       },
       {
         "id": "optical_lock_flash",
@@ -364,7 +403,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Optical Confirmation on Locking",
         "description": "Flashes hazard/turn indicators once upon successful vehicle locking.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "optical_unlock_flash",
@@ -373,7 +413,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 7,
         "name": "Optical Confirmation on Unlocking",
         "description": "Flashes hazard/turn indicators twice upon remote unlocking.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "anti_theft_siren_installed",
@@ -382,7 +423,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Anti-Theft Alarm Siren Installed",
         "description": "Enables LIN-bus communication with the internal battery-backed alarm sounder (H12).",
-        "prerequisites": "Physical alarm sounder hardware."
+        "prerequisites": "Physical alarm sounder hardware.",
+        "verified_on": []
       },
       {
         "id": "comfort_windows_remote",
@@ -391,7 +433,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Comfort Window Operation via Remote Key",
         "description": "Allows opening and closing electric power windows by holding the remote key fob buttons.",
-        "prerequisites": "Power electric front windows."
+        "prerequisites": "Power electric front windows.",
+        "verified_on": []
       },
       {
         "id": "teardrop_wipe_front",
@@ -400,7 +443,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Front Windscreen Teardrop Wipe",
         "description": "Performs one delayed wipe across the front windscreen 5 seconds after washing to clear fluid runoff.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "rear_wiper_installed",
@@ -409,7 +453,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 7,
         "name": "Rear Window Wiper Installed",
         "description": "Enables power feed and stalk control for tailgate rear wiper motor.",
-        "prerequisites": "Tailgate rear wiper equipped."
+        "prerequisites": "Tailgate rear wiper equipped.",
+        "verified_on": []
       },
       {
         "id": "heated_mirror_defogger_sync",
@@ -418,7 +463,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Heated Mirrors Synced with Rear Defogger",
         "description": "Automatically activates exterior heated door mirrors when the rear window defogger switch is engaged.",
-        "prerequisites": "Heated mirror glass equipped."
+        "prerequisites": "Heated mirror glass equipped.",
+        "verified_on": []
       },
       {
         "id": "rain_closing_windows",
@@ -427,7 +473,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Rain-Closing Windows",
         "description": "Automatically winds up open windows if rain is sensed while vehicle is locked and parked.",
-        "prerequisites": "Rain/Light sensor (RLS) installed."
+        "prerequisites": "Rain/Light sensor (RLS) installed.",
+        "verified_on": []
       },
       {
         "id": "drl_active",
@@ -436,7 +483,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Daytime Running Lights (DRL) Active",
         "description": "Master switch enabling dedicated daytime running lamps when ignition is switched ON.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "drl_selectable_in_mfa",
@@ -445,7 +493,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "DRL Toggle in Cluster Display (MFA)",
         "description": "Adds Daytime Running Lights ON/OFF checkbox to the Instrument Cluster multifunction display menu.",
-        "prerequisites": "Highline / MFA+ instrument cluster."
+        "prerequisites": "Higher-specification instrument cluster with multifunction display.",
+        "verified_on": []
       },
       {
         "id": "headlight_washers_installed",
@@ -454,7 +503,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Headlight Washer System Installed (SRA)",
         "description": "Enables high-pressure bumper headlight washer pump activation every 5 windscreen wash cycles.",
-        "prerequisites": "Headlight washer pump and bumper jets."
+        "prerequisites": "Headlight washer pump and bumper jets.",
+        "verified_on": []
       },
       {
         "id": "leaving_home_active",
@@ -463,7 +513,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Leaving Home Illumination",
         "description": "Illuminates headlights/sidelights when vehicle is unlocked via remote key in the dark.",
-        "prerequisites": "Rain/Light sensor with Auto headlight switch."
+        "prerequisites": "Rain/Light sensor with Auto headlight switch.",
+        "verified_on": []
       },
       {
         "id": "coming_home_active",
@@ -472,7 +523,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Coming Home Illumination",
         "description": "Maintains exterior lighting after ignition is switched off to guide occupant to house.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "drl_via_low_beam",
@@ -481,7 +533,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "DRL via Dipped Beam Headlights",
         "description": "Operates dipped low beam headlights as Daytime Running Lights (Scandinavian mode).",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "drl_via_fog_lights",
@@ -490,7 +543,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "DRL via Front Fog Lights (North America)",
         "description": "Illuminates front fog lamps as daytime running lights instead of main headlights.",
-        "prerequisites": "Front fog lamps installed."
+        "prerequisites": "Front fog lamps installed.",
+        "verified_on": []
       },
       {
         "id": "cornering_fog_lights",
@@ -499,7 +553,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Dynamic Cornering Fog Lights",
         "description": "Illuminates the front fog lamp on the steered or indicated side during low-speed maneuvers (below 40 km/h).",
-        "prerequisites": "Front fog lamps must be physically installed and wired."
+        "prerequisites": "Front fog lamps must be physically installed and wired.",
+        "verified_on": []
       },
       {
         "id": "coming_home_flasher",
@@ -508,7 +563,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Coming Home (Stalk Triggered)",
         "description": "Activates Coming Home lighting for 30 seconds upon pulling high-beam flash stalk after ignition OFF.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "parking_lights_single_side",
@@ -517,7 +573,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Single-Side Parking Lights",
         "description": "Illuminates side lights on the chosen side when turn indicator stalk is left up/down with ignition off.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "drl_handbrake_off",
@@ -526,7 +583,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Deactivate DRL with Parking Brake",
         "description": "Shuts off daytime running lamps whenever the mechanical handbrake lever is engaged.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "rear_wipe_reverse",
@@ -535,7 +593,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Rear Wiper on Reverse Gear",
         "description": "Automatically sweeps rear window wiper once when reverse gear is engaged with front wipers active.",
-        "prerequisites": "Rear wiper must be physically equipped."
+        "prerequisites": "Rear wiper must be physically equipped.",
+        "verified_on": []
       },
       {
         "id": "emergency_brake_flash",
@@ -544,7 +603,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Emergency Brake Hazard Flashing",
         "description": "Automatically pulses hazard warning flashers rapidly during severe deceleration or ABS intervention.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "emergency_brake_light_flash",
@@ -553,7 +613,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Emergency Brake Light Flashing",
         "description": "Rapidly flashes rear brake lights under heavy threshold braking.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "comfort_turn_signals",
@@ -562,7 +623,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 3,
         "name": "Highway Comfort Turn Signals",
         "description": "Flashing cycle pulses 3 times when the turn indicator stalk is lightly tapped.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "front_fog_lights_installed",
@@ -571,7 +633,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Front Fog Lights Installed",
         "description": "Registers physical front fog lamp wiring and light switch front fog position.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "footwell_lights_installed",
@@ -580,7 +643,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Footwell Interior Lighting Installed",
         "description": "Enables ambient driver and passenger footwell lighting circuits upon door opening.",
-        "prerequisites": "Footwell lamp wiring."
+        "prerequisites": "Footwell lamp wiring.",
+        "verified_on": []
       }
     ]
   },
@@ -605,7 +669,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Air Recirculation Memory State",
         "description": "Retains manual recirculated air setting between ignition cycles.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       }
     ]
   },
@@ -630,7 +695,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Gauge Needle Sweep (Staging)",
         "description": "Sweeps speedometer and tachometer needles to maximum position and back upon turning ignition ON.",
-        "prerequisites": "Supported instrument cluster revision (MFA+ / Highline)."
+        "prerequisites": "Supported instrument cluster revision with multifunction display.",
+        "verified_on": []
       },
       {
         "id": "seatbelt_chime_warning",
@@ -639,7 +705,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Seatbelt Warning Acoustic Chime",
         "description": "Sounds audible chime when driver seatbelt is unbuckled with vehicle in motion.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       }
     ]
   },
@@ -664,7 +731,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Trailer Detection Module (J345)",
         "description": "Enables CAN communication and lighting coordination for factory or aftermarket towbar module.",
-        "prerequisites": "Physical towbar wiring kit installed."
+        "prerequisites": "Physical towbar wiring kit installed.",
+        "verified_on": []
       },
       {
         "id": "navigation_module_installed",
@@ -673,7 +741,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Navigation System (RNS/Discover)",
         "description": "Registers headunit navigation bus on Gateway installation table.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       }
     ]
   },
@@ -698,7 +767,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Optical Parking System (OPS) Display",
         "description": "Enables graphic visual proximity vehicle silhouette on headunit screen.",
-        "prerequisites": "Compatible infotainment headunit."
+        "prerequisites": "Compatible infotainment headunit.",
+        "verified_on": []
       }
     ]
   },
@@ -733,7 +803,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Selective Door Unlocking",
         "description": "First press unlocks driver door; second press unlocks passenger and boot doors.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_lock_15kmh",
@@ -742,7 +813,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Auto-Locking (>15 km/h)",
         "description": "Automatically locks all doors once vehicle speed reaches 15 km/h.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "auto_unlock_key_removal",
@@ -751,7 +823,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Auto-Unlock on Key Removal",
         "description": "Unlocks vehicle doors automatically when ignition key is pulled from ignition barrel.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "acoustic_lock_chirp",
@@ -760,7 +833,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Acoustic Lock Confirmation (Horn/Siren Chirp)",
         "description": "Emits short acoustic chirp upon vehicle locking via remote fob.",
-        "prerequisites": "Alarm siren installed."
+        "prerequisites": "Alarm siren installed.",
+        "verified_on": []
       },
       {
         "id": "optical_lock_flash",
@@ -769,7 +843,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Optical Indicator Blink on Lock",
         "description": "Flashes turn indicators once when vehicle is locked.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "comfort_windows_remote",
@@ -778,7 +853,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Comfort Window Operation via Remote",
         "description": "Allows opening/closing windows by holding lock/unlock buttons on key fob.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "teardrop_wipe_front",
@@ -787,7 +863,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Windscreen Teardrop Wiping",
         "description": "Executes one final wipe 5 seconds after screenwash spray.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "rain_closing_windows",
@@ -796,7 +873,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 5,
         "name": "Rain-Closing Windows & Sunroof",
         "description": "Automatically closes open windows and sunroof if rain is detected while vehicle is locked.",
-        "prerequisites": "Rain/Light sensor equipped."
+        "prerequisites": "Rain/Light sensor equipped.",
+        "verified_on": []
       },
       {
         "id": "coming_home_automatic",
@@ -805,7 +883,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Coming Home Automatic Mode",
         "description": "Coming Home lights trigger automatically on door open when dark without requiring stalk flash.",
-        "prerequisites": "Rain/Light sensor with Auto headlight switch."
+        "prerequisites": "Rain/Light sensor with Auto headlight switch.",
+        "verified_on": []
       },
       {
         "id": "leaving_home_active",
@@ -814,7 +893,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "Leaving Home Illumination",
         "description": "Illuminates headlights upon remote unlocking at night.",
-        "prerequisites": "Rain/Light sensor."
+        "prerequisites": "Rain/Light sensor.",
+        "verified_on": []
       },
       {
         "id": "drl_via_fog_lights",
@@ -823,7 +903,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 2,
         "name": "DRL via Front Fog Lights",
         "description": "Runs front fog lamps as Daytime Running Lights instead of main dipped beams.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "cornering_fog_lights",
@@ -832,7 +913,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Dynamic Cornering Fog Lights",
         "description": "Turns on corresponding fog lamp when steering or indicating at low speed.",
-        "prerequisites": "Front fog lamps."
+        "prerequisites": "Front fog lamps.",
+        "verified_on": []
       },
       {
         "id": "drl_handbrake_off",
@@ -841,7 +923,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Deactivate DRL with Handbrake",
         "description": "Turns off daytime running lamps whenever parking brake is engaged.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "rear_wipe_reverse",
@@ -850,7 +933,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 4,
         "name": "Rear Wiper on Reverse Gear",
         "description": "Wipes rear window when reverse gear is selected with front wipers running.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "emergency_brake_flash",
@@ -859,7 +943,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Emergency Brake Hazard Flashing",
         "description": "Flashes hazard lights under emergency deceleration.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "comfort_turn_signals",
@@ -868,7 +953,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 3,
         "name": "Highway Comfort Turn Signals (3 Flashes)",
         "description": "3 turn indicator flashes on light tap of stalk.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "footwell_lights_installed",
@@ -877,7 +963,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Footwell Ambient Lighting Active",
         "description": "Enables ambient footwell lighting circuit.",
-        "prerequisites": "Footwell lights."
+        "prerequisites": "Footwell lights.",
+        "verified_on": []
       }
     ]
   },
@@ -912,7 +999,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 0,
         "name": "Gauge Needle Sweep (Staging / Celebration)",
         "description": "Sweeps speedometer and tachometer needles from 0 to max and back upon turning ignition ON.",
-        "prerequisites": "MFA+ / Highline cluster instrument revision."
+        "prerequisites": "Cluster revision with multifunction display.",
+        "verified_on": []
       },
       {
         "id": "seatbelt_chime_warning",
@@ -921,7 +1009,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 1,
         "name": "Seatbelt Acoustic Warning Chime",
         "description": "Audible chime sounding if driver seatbelt is not buckled above 20 km/h.",
-        "prerequisites": null
+        "prerequisites": null,
+        "verified_on": []
       },
       {
         "id": "digital_speed_mfa",
@@ -930,7 +1019,8 @@ export const BUNDLED_SCHEMAS = {
         "bit": 3,
         "name": "Large Digital Speed Display in MFA",
         "description": "Shows large digital speedometer reading on central instrument cluster display.",
-        "prerequisites": "Highline multifunction display."
+        "prerequisites": "Multifunction display.",
+        "verified_on": []
       }
     ]
   }
@@ -991,4 +1081,24 @@ export function computeByteDiff(origBytes, modBytes) {
         }
     }
     return diffs;
+}
+
+
+// --- Feature metadata helpers ---
+export const LIGHTING_REGULATION_NOTICE =
+  'Exterior lighting behaviour is regulated (UNECE Regulation 48 and national lighting regulations such as the UK Road Vehicles Lighting Regulations). ' +
+  'Changing it may make the vehicle non-compliant, fail a roadworthiness test, or affect insurance. Check the rules where the vehicle is used before enabling.';
+
+const REGULATED_CATEGORIES = ['Daytime Running Lights', 'Exterior Lighting'];
+
+export function isRegulatedFeature(feature) {
+  return REGULATED_CATEGORIES.includes(feature?.category);
+}
+
+export function featureVerification(feature) {
+  const list = Array.isArray(feature?.verified_on) ? feature.verified_on.filter(Boolean) : [];
+  if (list.length === 0) {
+    return { verified: false, label: 'Unverified: not yet confirmed on a real vehicle', vehicles: [] };
+  }
+  return { verified: true, label: `Verified on: ${list.join(', ')}`, vehicles: list };
 }

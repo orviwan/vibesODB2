@@ -15,7 +15,8 @@
       "bit": 0,
       "name": "Selective Door Unlocking (Single Door)",
       "description": "First press of remote key fob unlocks driver door only; second press unlocks all doors.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "auto_lock_15kmh",
@@ -24,7 +25,8 @@
       "bit": 1,
       "name": "Speed-Dependent Auto Locking (>15 km/h)",
       "description": "Automatically locks all passenger and cargo doors when vehicle speed exceeds 15 km/h (anti-carjacking).",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "auto_unlock_key_removal",
@@ -33,7 +35,8 @@
       "bit": 2,
       "name": "Auto-Unlock on Key Removal",
       "description": "Automatically unlocks all doors when the mechanical ignition key is withdrawn from the barrel.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "central_locking_remote_active",
@@ -42,7 +45,8 @@
       "bit": 5,
       "name": "Central Locking Remote Control Active",
       "description": "Enables wireless RF receiver processing for factory remote key fobs.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "acoustic_lock_chirp",
@@ -51,7 +55,8 @@
       "bit": 2,
       "name": "Acoustic Lock Confirmation",
       "description": "Sounds brief alarm siren chirp when all vehicle doors and tailgate are securely locked.",
-      "prerequisites": "OEM alarm siren installed."
+      "prerequisites": "OEM alarm siren installed.",
+      "verified_on": []
     },
     {
       "id": "optical_lock_flash",
@@ -60,7 +65,8 @@
       "bit": 5,
       "name": "Optical Confirmation on Locking",
       "description": "Flashes hazard/turn indicators once upon successful vehicle locking.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "optical_unlock_flash",
@@ -69,7 +75,8 @@
       "bit": 7,
       "name": "Optical Confirmation on Unlocking",
       "description": "Flashes hazard/turn indicators twice upon remote unlocking.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "anti_theft_siren_installed",
@@ -78,7 +85,8 @@
       "bit": 4,
       "name": "Anti-Theft Alarm Siren Installed",
       "description": "Enables LIN-bus communication with the internal battery-backed alarm sounder (H12).",
-      "prerequisites": "Physical alarm sounder hardware."
+      "prerequisites": "Physical alarm sounder hardware.",
+      "verified_on": []
     },
     {
       "id": "comfort_windows_remote",
@@ -87,7 +95,8 @@
       "bit": 0,
       "name": "Comfort Window Operation via Remote Key",
       "description": "Allows opening and closing electric power windows by holding the remote key fob buttons.",
-      "prerequisites": "Power electric front windows."
+      "prerequisites": "Power electric front windows.",
+      "verified_on": []
     },
     {
       "id": "teardrop_wipe_front",
@@ -96,7 +105,8 @@
       "bit": 4,
       "name": "Front Windscreen Teardrop Wipe",
       "description": "Performs one delayed wipe across the front windscreen 5 seconds after washing to clear fluid runoff.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "rear_wiper_installed",
@@ -105,7 +115,8 @@
       "bit": 7,
       "name": "Rear Window Wiper Installed",
       "description": "Enables power feed and stalk control for tailgate rear wiper motor.",
-      "prerequisites": "Tailgate rear wiper equipped."
+      "prerequisites": "Tailgate rear wiper equipped.",
+      "verified_on": []
     },
     {
       "id": "heated_mirror_defogger_sync",
@@ -114,7 +125,8 @@
       "bit": 0,
       "name": "Heated Mirrors Synced with Rear Defogger",
       "description": "Automatically activates exterior heated door mirrors when the rear window defogger switch is engaged.",
-      "prerequisites": "Heated mirror glass equipped."
+      "prerequisites": "Heated mirror glass equipped.",
+      "verified_on": []
     },
     {
       "id": "rain_closing_windows",
@@ -123,7 +135,8 @@
       "bit": 5,
       "name": "Rain-Closing Windows",
       "description": "Automatically winds up open windows if rain is sensed while vehicle is locked and parked.",
-      "prerequisites": "Rain/Light sensor (RLS) installed."
+      "prerequisites": "Rain/Light sensor (RLS) installed.",
+      "verified_on": []
     },
     {
       "id": "drl_active",
@@ -132,7 +145,8 @@
       "bit": 0,
       "name": "Daytime Running Lights (DRL) Active",
       "description": "Master switch enabling dedicated daytime running lamps when ignition is switched ON.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "drl_selectable_in_mfa",
@@ -141,7 +155,8 @@
       "bit": 1,
       "name": "DRL Toggle in Cluster Display (MFA)",
       "description": "Adds Daytime Running Lights ON/OFF checkbox to the Instrument Cluster multifunction display menu.",
-      "prerequisites": "Highline / MFA+ instrument cluster."
+      "prerequisites": "Higher-specification instrument cluster with multifunction display.",
+      "verified_on": []
     },
     {
       "id": "headlight_washers_installed",
@@ -150,7 +165,8 @@
       "bit": 0,
       "name": "Headlight Washer System Installed (SRA)",
       "description": "Enables high-pressure bumper headlight washer pump activation every 5 windscreen wash cycles.",
-      "prerequisites": "Headlight washer pump and bumper jets."
+      "prerequisites": "Headlight washer pump and bumper jets.",
+      "verified_on": []
     },
     {
       "id": "leaving_home_active",
@@ -159,7 +175,8 @@
       "bit": 1,
       "name": "Leaving Home Illumination",
       "description": "Illuminates headlights/sidelights when vehicle is unlocked via remote key in the dark.",
-      "prerequisites": "Rain/Light sensor with Auto headlight switch."
+      "prerequisites": "Rain/Light sensor with Auto headlight switch.",
+      "verified_on": []
     },
     {
       "id": "coming_home_active",
@@ -168,7 +185,8 @@
       "bit": 2,
       "name": "Coming Home Illumination",
       "description": "Maintains exterior lighting after ignition is switched off to guide occupant to house.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "drl_via_low_beam",
@@ -177,7 +195,8 @@
       "bit": 0,
       "name": "DRL via Dipped Beam Headlights",
       "description": "Operates dipped low beam headlights as Daytime Running Lights (Scandinavian mode).",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "drl_via_fog_lights",
@@ -186,7 +205,8 @@
       "bit": 2,
       "name": "DRL via Front Fog Lights (North America)",
       "description": "Illuminates front fog lamps as daytime running lights instead of main headlights.",
-      "prerequisites": "Front fog lamps installed."
+      "prerequisites": "Front fog lamps installed.",
+      "verified_on": []
     },
     {
       "id": "cornering_fog_lights",
@@ -195,7 +215,8 @@
       "bit": 0,
       "name": "Dynamic Cornering Fog Lights",
       "description": "Illuminates the front fog lamp on the steered or indicated side during low-speed maneuvers (below 40 km/h).",
-      "prerequisites": "Front fog lamps must be physically installed and wired."
+      "prerequisites": "Front fog lamps must be physically installed and wired.",
+      "verified_on": []
     },
     {
       "id": "coming_home_flasher",
@@ -204,7 +225,8 @@
       "bit": 2,
       "name": "Coming Home (Stalk Triggered)",
       "description": "Activates Coming Home lighting for 30 seconds upon pulling high-beam flash stalk after ignition OFF.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "parking_lights_single_side",
@@ -213,7 +235,8 @@
       "bit": 0,
       "name": "Single-Side Parking Lights",
       "description": "Illuminates side lights on the chosen side when turn indicator stalk is left up/down with ignition off.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "drl_handbrake_off",
@@ -222,7 +245,8 @@
       "bit": 1,
       "name": "Deactivate DRL with Parking Brake",
       "description": "Shuts off daytime running lamps whenever the mechanical handbrake lever is engaged.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "rear_wipe_reverse",
@@ -231,7 +255,8 @@
       "bit": 4,
       "name": "Rear Wiper on Reverse Gear",
       "description": "Automatically sweeps rear window wiper once when reverse gear is engaged with front wipers active.",
-      "prerequisites": "Rear wiper must be physically equipped."
+      "prerequisites": "Rear wiper must be physically equipped.",
+      "verified_on": []
     },
     {
       "id": "emergency_brake_flash",
@@ -240,7 +265,8 @@
       "bit": 1,
       "name": "Emergency Brake Hazard Flashing",
       "description": "Automatically pulses hazard warning flashers rapidly during severe deceleration or ABS intervention.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "emergency_brake_light_flash",
@@ -249,7 +275,8 @@
       "bit": 2,
       "name": "Emergency Brake Light Flashing",
       "description": "Rapidly flashes rear brake lights under heavy threshold braking.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "comfort_turn_signals",
@@ -258,7 +285,8 @@
       "bit": 3,
       "name": "Highway Comfort Turn Signals",
       "description": "Flashing cycle pulses 3 times when the turn indicator stalk is lightly tapped.",
-      "prerequisites": null
+      "prerequisites": null,
+      "verified_on": []
     },
     {
       "id": "front_fog_lights_installed",
@@ -267,7 +295,8 @@
       "bit": 0,
       "name": "Front Fog Lights Installed",
       "description": "Registers physical front fog lamp wiring and light switch front fog position.",
-      "prerequisites": "Front fog lamps."
+      "prerequisites": "Front fog lamps.",
+      "verified_on": []
     },
     {
       "id": "footwell_lights_installed",
@@ -276,7 +305,8 @@
       "bit": 2,
       "name": "Footwell Interior Lighting Installed",
       "description": "Enables ambient driver and passenger footwell lighting circuits upon door opening.",
-      "prerequisites": "Footwell lamp wiring."
+      "prerequisites": "Footwell lamp wiring.",
+      "verified_on": []
     }
   ]
 }
