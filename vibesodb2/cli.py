@@ -368,13 +368,20 @@ async def cmd_dtc(args) -> int:
 
             table = Table(title=f"Diagnostic Trouble Codes (Module 0x{module_addr:02X})", border_style="red")
             table.add_column("DTC Code", style="bold red")
+            table.add_column("Description", style="white")
+            table.add_column("Failure Subtype", style="yellow")
             table.add_column("Status Mask", style="dim")
             table.add_column("Confirmed", justify="center")
             table.add_column("Pending", justify="center")
 
             for d in dtcs:
+                code_display = d.get("formatted_code") or d["code"]
+                if d.get("formatted_code") and d["formatted_code"] != d["code"]:
+                    code_display = f"{d['formatted_code']} [dim](0x{d['code']})[/dim]"
                 table.add_row(
-                    d["code"],
+                    code_display,
+                    d.get("title") or "Unlisted Fault Code",
+                    d.get("failure_type") or "—",
                     d["status_mask"],
                     "[red]YES[/red]" if d["confirmed"] else "[dim]NO[/dim]",
                     "[yellow]YES[/yellow]" if d["pending"] else "[dim]NO[/dim]",

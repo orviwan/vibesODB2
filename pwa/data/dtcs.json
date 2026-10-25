@@ -1,0 +1,4455 @@
+{
+  "_meta": {
+    "project": "vibesODB2",
+    "license": "MIT",
+    "provenance": "Original fault-code reference prose authored for vibesODB2. General diagnostic guidance only; not a diagnosis of any specific vehicle.",
+    "count": 326
+  },
+  "codes": {
+    "00003": {
+      "title": "Control Module Defective",
+      "system": "ECU Internal Hardware",
+      "meaning": "Internal memory checksum or hardware self-check failed inside the module.",
+      "causes": [
+        "Interrupted write or low-voltage glitch",
+        "Internal PCB / EEPROM failure"
+      ],
+      "fixes": [
+        "Re-verify coding and power feed; if permanent, module repair/replacement is needed"
+      ],
+      "severity": "danger"
+    },
+    "00256": {
+      "title": "A/C Pressure / Temperature Sensor (G395)",
+      "system": "Climate Control (HVAC)",
+      "meaning": "High-pressure refrigerant sensor G395 reports implausible pressure or lost LIN comms (disables A/C compressor).",
+      "causes": [
+        "Empty A/C refrigerant gas",
+        "Corroded 3-pin plug on G395 sensor behind front grille",
+        "Failed G395 sensor"
+      ],
+      "fixes": [
+        "Inspect G395 sensor plug near condenser for green corrosion",
+        "Have A/C refrigerant static pressure checked"
+      ],
+      "severity": "warning"
+    },
+    "00283": {
+      "title": "ABS Wheel Speed Sensor; Front Left (G47)",
+      "system": "Brakes & ABS",
+      "meaning": "Missing or erratic wheel speed signal from front-left hub.",
+      "causes": [
+        "Split/corroded magnetic bearing ring",
+        "Damaged wheel-arch sensor cable",
+        "Failed G47 sensor"
+      ],
+      "fixes": [
+        "Inspect front-left sensor cable and bearing encoder ring"
+      ],
+      "severity": "danger"
+    },
+    "00285": {
+      "title": "ABS Wheel Speed Sensor; Front Right (G45)",
+      "system": "Brakes & ABS",
+      "meaning": "Missing or erratic wheel speed signal from front-right hub.",
+      "causes": [
+        "Damaged magnetic encoder ring in front-right wheel bearing",
+        "Chafed sensor lead",
+        "Failed G45 sensor"
+      ],
+      "fixes": [
+        "Inspect front-right wheel speed sensor tip and wiring"
+      ],
+      "severity": "danger"
+    },
+    "00287": {
+      "title": "ABS Wheel Speed Sensor; Rear Right (G44)",
+      "system": "Brakes & ABS",
+      "meaning": "Missing or erratic wheel speed signal from rear-right hub.",
+      "causes": [
+        "Swollen rusty rear hub bearing magnetic seal",
+        "Broken wire along rear trailing arm",
+        "Failed G44 sensor"
+      ],
+      "fixes": [
+        "Check rear-right trailing arm cable and inspect sensor tip for rub marks"
+      ],
+      "severity": "danger"
+    },
+    "00290": {
+      "title": "ABS Wheel Speed Sensor; Rear Left (G46)",
+      "system": "Brakes & ABS",
+      "meaning": "Missing or erratic wheel speed signal from rear-left hub.",
+      "causes": [
+        "Swollen rusty rear bearing magnetic ring",
+        "Broken wire on rear suspension arm",
+        "Failed G46 sensor"
+      ],
+      "fixes": [
+        "Inspect rear-left sensor cable along trailing arm and check bearing ring"
+      ],
+      "severity": "danger"
+    },
+    "00361": {
+      "title": "Heater Element for Auxiliary Heater (Z35)",
+      "system": "Auxiliary Cabin Heater",
+      "meaning": "Electric PTC cabin heater element inside dash heater box failed internal load test.",
+      "causes": [
+        "Cracked solder joints on heavy MOSFET resistors inside Z35 PTC unit"
+      ],
+      "fixes": [
+        "Reflow PCB joints or replace Z35 PTC element if instant electric warm air is needed"
+      ],
+      "severity": "info"
+    },
+    "00446": {
+      "title": "Function Limitation Due to Under-Voltage",
+      "system": "Power Distribution",
+      "meaning": "Module disabled outputs temporarily because supply voltage dropped too low.",
+      "causes": [
+        "Weak battery during cranking or prolonged parking"
+      ],
+      "fixes": [
+        "Charge and test 12V battery"
+      ],
+      "severity": "info"
+    },
+    "00447": {
+      "title": "Function Limitation Due to Over-Voltage",
+      "system": "Power Distribution",
+      "meaning": "Supply voltage exceeded ~16V upper threshold.",
+      "causes": [
+        "Jump-pack / charger voltage spike",
+        "Failing alternator voltage regulator"
+      ],
+      "fixes": [
+        "Verify alternator output does not exceed 14.8V"
+      ],
+      "severity": "warning"
+    },
+    "00456": {
+      "title": "Control Module for Access and Start Control (J518)",
+      "system": "Immobilizer / KESSY",
+      "meaning": "Fault or missing comms with steering lock / start authorization unit.",
+      "causes": [
+        "Sticky electronic steering column lock",
+        "Low battery"
+      ],
+      "fixes": [
+        "Check steering lock operation and battery voltage"
+      ],
+      "severity": "warning"
+    },
+    "00457": {
+      "title": "Central Electronics Control Module (J519)",
+      "system": "CAN Network",
+      "meaning": "Companion module reports stored fault or missing message from 0x09 Central Electrics.",
+      "causes": [
+        "Fault stored in 0x09 BCM",
+        "Power supply dip"
+      ],
+      "fixes": [
+        "Inspect faults inside Address 0x09 directly"
+      ],
+      "severity": "info"
+    },
+    "00469": {
+      "title": "Infotainment Databus in Single-Wire Mode",
+      "system": "CAN Network",
+      "meaning": "One wire of the Infotainment CAN pair is open or grounded.",
+      "causes": [
+        "Pinched quadlock CAN wire behind stereo",
+        "Broken door/dash splice"
+      ],
+      "fixes": [
+        "Pull radio to inspect orange/purple & orange/brown CAN pair behind head unit"
+      ],
+      "severity": "warning"
+    },
+    "00470": {
+      "title": "Comfort CAN Databus in Single-Wire Mode",
+      "system": "CAN Network",
+      "meaning": "One wire of the two-wire Comfort CAN bus is open or shorted; bus is limping on a single wire.",
+      "causes": [
+        "Broken orange/green or orange/brown CAN wire inside rubber door hinge boot",
+        "Corroded splice under cab floor mat"
+      ],
+      "fixes": [
+        "Pull back rubber door bellows on driver and passenger doors to check for snapped CAN wires"
+      ],
+      "severity": "warning"
+    },
+    "00493": {
+      "title": "ESP Sensor Unit (G419)",
+      "system": "ABS / ESP",
+      "meaning": "Combined yaw-rate & lateral acceleration cluster fault.",
+      "causes": [
+        "Water under seat/carpet",
+        "Failed G419 module"
+      ],
+      "fixes": [
+        "Inspect G419 mounting under seat/console"
+      ],
+      "severity": "warning"
+    },
+    "00526": {
+      "title": "Brake Light Switch (F)",
+      "system": "Brakes & Exterior Lights",
+      "meaning": "Implausible brake pedal switch signal.",
+      "causes": [
+        "Worn 4-pin brake pedal switch",
+        "Blown brake lamp fuse or both bulbs out"
+      ],
+      "fixes": [
+        "Verify brake lights work and inspect switch above brake pedal"
+      ],
+      "severity": "warning"
+    },
+    "00532": {
+      "title": "Supply Voltage B+",
+      "system": "Power Supply",
+      "meaning": "Module detected abnormally low (or interrupted) battery supply voltage.",
+      "causes": [
+        "Weak 12V battery or cranking dip",
+        "Recent battery disconnect",
+        "Corroded fuse or earth point"
+      ],
+      "fixes": [
+        "Test resting battery voltage (>12.4V); if recorded during battery work, clear and recheck"
+      ],
+      "severity": "warning"
+    },
+    "00562": {
+      "title": "Sensor for Oil Level and Oil Temperature (G266)",
+      "system": "Instrument Cluster / Sump",
+      "meaning": "Sump oil level/temperature sensor (TOG) signal missing or shorted (triggers yellow oil sensor warning on dash).",
+      "causes": [
+        "Chafed wiring on sump undertray",
+        "Failed G266 sensor on bottom of sump",
+        "Faulty bonnet microswitch preventing oil warning reset"
+      ],
+      "fixes": [
+        "Inspect 3-pin plug on bottom of oil sump and undertray wiring"
+      ],
+      "severity": "warning"
+    },
+    "00576": {
+      "title": "Terminal 15 Ignition Supply",
+      "system": "Electrical Supply",
+      "meaning": "Switched ignition feed (Terminal 15) implausible.",
+      "causes": [
+        "Worn ignition switch block",
+        "Faulty Terminal 15 relay"
+      ],
+      "fixes": [
+        "Check ignition switch electrical contacts and Terminal 15 relay"
+      ],
+      "severity": "warning"
+    },
+    "00588": {
+      "title": "Airbag Igniter; Driver Side (N95)",
+      "system": "SRS Airbag Safety System",
+      "meaning": "Driver steering-wheel airbag squib resistance is outside safe limits.",
+      "causes": [
+        "Broken ribbon inside steering column clockspring / slip ring",
+        "Loose yellow airbag plug behind airbag or column"
+      ],
+      "fixes": [
+        "CAUTION: Disconnect battery negative for 15 minutes before touching SRS plugs; never probe squibs with a multimeter",
+        "Inspect yellow slip-ring connectors; replace clockspring if open circuit"
+      ],
+      "severity": "danger"
+    },
+    "00589": {
+      "title": "Airbag Igniter 1; Passenger Side (N131)",
+      "system": "SRS Airbag Safety System",
+      "meaning": "Passenger dashboard airbag igniter resistance outside tolerance (common if glovebox airbag switch/plug was unplugged with ignition on).",
+      "causes": [
+        "Glovebox passenger airbag switch unplugged while battery was connected!",
+        "Loose yellow SRS plug behind glovebox"
+      ],
+      "fixes": [
+        "Disconnect battery before refitting trim; if caused by unplugging glovebox switch during trim removal, reconnect and clear code"
+      ],
+      "severity": "danger"
+    },
+    "00625": {
+      "title": "Vehicle Speed Signal",
+      "system": "Speed & Cluster",
+      "meaning": "Implausible or missing speed pulse line.",
+      "causes": [
+        "Aftermarket radio wired onto blue/white gala speed wire shorting it!"
+      ],
+      "fixes": [
+        "If an aftermarket stereo was fitted, disconnect the blue/white speed wire from the ISO harness"
+      ],
+      "severity": "warning"
+    },
+    "00665": {
+      "title": "Boost Pressure Regulation: Control Range Not Reached",
+      "system": "Turbocharger & Boost",
+      "meaning": "Measured manifold boost fell below target (VAG 5-digit form of P0299).",
+      "causes": [
+        "Split boost hose or intercooler leak",
+        "Perished vacuum line to turbo capsule",
+        "Sticky N75 valve or VNT vanes"
+      ],
+      "fixes": [
+        "Check boost hose joints for oil misting and vacuum-test turbo actuator"
+      ],
+      "severity": "danger",
+      "vagCode": "P0299"
+    },
+    "00668": {
+      "title": "Supply Voltage Terminal 30",
+      "system": "Power Supply",
+      "meaning": "Permanent +12V battery feed dropped below threshold.",
+      "causes": [
+        "Discharged or disconnected battery",
+        "Corroded battery-top fuse strip"
+      ],
+      "fixes": [
+        "Check battery-top fuse connections and battery charge"
+      ],
+      "severity": "info"
+    },
+    "00710": {
+      "title": "Defroster Flap Positioning Motor (V107)",
+      "system": "Climate Control",
+      "meaning": "Defrost flap motor failed to reach stop.",
+      "causes": [
+        "Sticking V107 actuator"
+      ],
+      "fixes": [
+        "Run Climatronic flap adaptation"
+      ],
+      "severity": "warning"
+    },
+    "00716": {
+      "title": "Air Recirculation Flap Positioning Motor (V113)",
+      "system": "Climate Control",
+      "meaning": "Recirculation flap motor sticking or clicking.",
+      "causes": [
+        "Stripped plastic gear inside V113"
+      ],
+      "fixes": [
+        "Replace V113 actuator behind glovebox"
+      ],
+      "severity": "warning"
+    },
+    "00778": {
+      "title": "Steering Angle Sensor (G85)",
+      "system": "ABS / ESP & Steering",
+      "meaning": "Steering angle sensor G85 is uncalibrated or implausible.",
+      "causes": [
+        "Battery disconnected",
+        "Wheel alignment off-centre",
+        "Faulty G85 sensor"
+      ],
+      "fixes": [
+        "Start engine, turn steering full left, full right, centre, and drive straight ~50 m to re-learn"
+      ],
+      "severity": "warning"
+    },
+    "00779": {
+      "title": "Outside Air Temperature Sensor (G17)",
+      "system": "Instrument Cluster & HVAC",
+      "meaning": "Ambient bumper temperature sensor G17 is open or shorted.",
+      "causes": [
+        "Unplugged ambient temp sensor behind lower front bumper grille",
+        "Damaged bumper loom"
+      ],
+      "fixes": [
+        "Check 2-pin sensor clipped behind lower front grille"
+      ],
+      "severity": "info"
+    },
+    "00819": {
+      "title": "High Pressure Sensor (G65) — Air Conditioning",
+      "system": "Climate Control (HVAC)",
+      "meaning": "A/C refrigerant pressure sensor G65 signal too low or missing.",
+      "causes": [
+        "Lost A/C gas charge from stone-damaged condenser",
+        "Corroded 3-pin plug on A/C high-pressure pipe",
+        "Failed G65 sensor"
+      ],
+      "fixes": [
+        "Inspect 3-pin G65 connector on aluminium A/C pipework; check system gas pressure"
+      ],
+      "severity": "warning"
+    },
+    "00856": {
+      "title": "Radio Antenna",
+      "system": "Infotainment",
+      "meaning": "Open circuit or short on powered FM/AM antenna phantom feed (common when fitting aftermarket stereo without phantom adapter).",
+      "causes": [
+        "Aftermarket head unit fitted without Fakra phantom power injector",
+        "Corroded wing-mirror antenna module (Transporter T5.1/T6)"
+      ],
+      "fixes": [
+        "Check wing-mirror antenna base for water ingress or fit powered Fakra adapter"
+      ],
+      "severity": "info"
+    },
+    "00883": {
+      "title": "Ignition Starter Switch (D) Terminal S",
+      "system": "Steering Column",
+      "meaning": "Key-in-ignition 'S-contact' signal implausible (radio may not turn off when key is pulled).",
+      "causes": [
+        "Sticky mechanical/electrical S-contact in ignition barrel"
+      ],
+      "fixes": [
+        "Lubricate lock cylinder lightly or replace electrical ignition switch block on rear of barrel"
+      ],
+      "severity": "info"
+    },
+    "00884": {
+      "title": "Ignition Starter Switch (D) Terminal X",
+      "system": "Electrical Supply",
+      "meaning": "X-relief load-shedding contact implausible (wipers/blower/headlights fail during or after cranking).",
+      "causes": [
+        "Worn ignition switch electrical block",
+        "Sticking X-contact relief relay"
+      ],
+      "fixes": [
+        "Inspect X-relief relay and ignition switch block"
+      ],
+      "severity": "warning"
+    },
+    "00907": {
+      "title": "Intervention Load Management",
+      "system": "Battery & Charging",
+      "meaning": "Central Electrics raised idle RPM and shed comfort consumers because battery voltage sagged.",
+      "causes": [
+        "Weak battery",
+        "Alternator DF load wire fault (check for 01117)",
+        "Heavy camper/leisure draw on starter battery"
+      ],
+      "fixes": [
+        "Check charging voltage (13.8–14.4V) and inspect alternator 2-pin plug under engine"
+      ],
+      "severity": "warning"
+    },
+    "00912": {
+      "title": "Window Regulator Switch; Front Left (E40)",
+      "system": "Door Electrics",
+      "meaning": "Driver electric window switch signal implausible.",
+      "causes": [
+        "Rainwater ingress in driver door switch pack",
+        "Broken wire in driver door hinge boot"
+      ],
+      "fixes": [
+        "Pop out driver window switch pack and clean contacts"
+      ],
+      "severity": "warning"
+    },
+    "00928": {
+      "title": "Locking Module for Central Locking; Driver Side (F220)",
+      "system": "Central Locking",
+      "meaning": "Driver door latch microswitch reported implausible state.",
+      "causes": [
+        "Worn microswitches or dry solder joints inside driver door latch",
+        "Broken wire in driver door rubber boot"
+      ],
+      "fixes": [
+        "Check door hinge wiring boot first, then replace F220 door lock actuator"
+      ],
+      "severity": "info"
+    },
+    "00929": {
+      "title": "Locking Module for Central Locking; Passenger Side (F221)",
+      "system": "Central Locking",
+      "meaning": "Front passenger door lock unit reported implausible latch/safe feedback.",
+      "causes": [
+        "Worn F221 door lock actuator",
+        "Broken wire in passenger door boot"
+      ],
+      "fixes": [
+        "Inspect door jamb wiring gaiter and F221 latch unit"
+      ],
+      "severity": "info"
+    },
+    "00930": {
+      "title": "Locking Module for Central Locking; Rear Left (F222)",
+      "system": "Central Locking",
+      "meaning": "Rear-left / sliding door lock unit reported implausible feedback (on Transporters often dirty sliding door contact pins!).",
+      "causes": [
+        "Tarnished brass B-pillar contact pins and sprung plungers on sliding door",
+        "Worn F222 lock actuator"
+      ],
+      "fixes": [
+        "Clean sliding door brass contact plate and sprung pins with a fibreglass pencil / contact cleaner first"
+      ],
+      "severity": "info"
+    },
+    "00931": {
+      "title": "Locking Module for Central Locking; Rear Right (F223)",
+      "system": "Central Locking",
+      "meaning": "Rear-right / sliding door lock unit reported implausible feedback.",
+      "causes": [
+        "Dirty B-pillar sliding door contact pins",
+        "Worn F223 lock actuator"
+      ],
+      "fixes": [
+        "Clean sliding door contact pins and check plunger spring travel"
+      ],
+      "severity": "info"
+    },
+    "00932": {
+      "title": "Electric Window Motor; Driver Side (V147)",
+      "system": "Door Electrics",
+      "meaning": "Driver window motor thermal cutout or Hall pulse fault.",
+      "causes": [
+        "Stiff window channel rubbers",
+        "Broken wire in door gaiter",
+        "Lost pinch-protection adaptation"
+      ],
+      "fixes": [
+        "Hold switch down 2s past bottom, then up 2s past top to relearn pinch limits"
+      ],
+      "severity": "warning"
+    },
+    "00933": {
+      "title": "Electric Window Motor; Passenger Side (V148)",
+      "system": "Door Electrics",
+      "meaning": "Passenger window motor or adaptation fault.",
+      "causes": [
+        "Lost window limit adaptation",
+        "Door boot wire break"
+      ],
+      "fixes": [
+        "Relearn upper/lower window limits"
+      ],
+      "severity": "warning"
+    },
+    "00978": {
+      "title": "Lamp for Low Beam; Left (M29)",
+      "system": "Exterior Lighting",
+      "meaning": "Left dipped-beam bulb circuit open or shorted.",
+      "causes": [
+        "Blown H4/H7 bulb",
+        "Heat-melted bulb holder plug",
+        "Non-ballasted LED bulb"
+      ],
+      "fixes": [
+        "Inspect left headlight bulb and 2/3-pin socket for heat discolouration"
+      ],
+      "severity": "warning"
+    },
+    "00979": {
+      "title": "Lamp for Low Beam; Right (M31)",
+      "system": "Exterior Lighting",
+      "meaning": "Right dipped-beam bulb circuit open or shorted.",
+      "causes": [
+        "Blown dipped-beam bulb",
+        "Corroded/melted bulb holder"
+      ],
+      "fixes": [
+        "Inspect right headlight bulb and connector"
+      ],
+      "severity": "warning"
+    },
+    "00984": {
+      "title": "Left Tail Light Bulb (M4)",
+      "system": "Exterior Lighting",
+      "meaning": "Left rear tail lamp circuit open.",
+      "causes": [
+        "Blown tail bulb",
+        "Corroded rear light cluster bulb tray or trailer socket"
+      ],
+      "fixes": [
+        "Check left tail bulb and inspect rear light cluster earth track for corrosion"
+      ],
+      "severity": "info"
+    },
+    "00985": {
+      "title": "Right Tail Light Bulb (M2)",
+      "system": "Exterior Lighting",
+      "meaning": "Right rear tail lamp circuit open.",
+      "causes": [
+        "Blown tail bulb",
+        "Corroded rear bulb holder"
+      ],
+      "fixes": [
+        "Check right tail bulb and holder contacts"
+      ],
+      "severity": "info"
+    },
+    "00987": {
+      "title": "Lamp for Brake Light; Left (M9)",
+      "system": "Exterior Lighting",
+      "meaning": "Left stop-lamp bulb circuit open.",
+      "causes": [
+        "Blown 21W brake bulb",
+        "Oxidised rear cluster contact"
+      ],
+      "fixes": [
+        "Replace bulb and clean cluster contacts"
+      ],
+      "severity": "warning"
+    },
+    "00988": {
+      "title": "Lamp for Brake Light; Right (M10)",
+      "system": "Exterior Lighting",
+      "meaning": "Right stop-lamp bulb circuit open.",
+      "causes": [
+        "Blown 21W brake bulb",
+        "Oxidised rear cluster contact"
+      ],
+      "fixes": [
+        "Replace bulb and clean cluster contacts"
+      ],
+      "severity": "warning"
+    },
+    "01044": {
+      "title": "Control Module Incorrectly Coded",
+      "system": "Module Coding",
+      "meaning": "Long coding or gateway installation list conflicts with actual connected hardware.",
+      "causes": [
+        "Feature enabled in coding for hardware not present on vehicle",
+        "Replacement module not coded to vehicle"
+      ],
+      "fixes": [
+        "Review recent coding changes or restore saved pre-write backup"
+      ],
+      "severity": "warning"
+    },
+    "01117": {
+      "title": "Generator Terminal DF Load Signal",
+      "system": "Alternator & Charging System",
+      "meaning": "Alternator DF load feedback wire to Central Electrics / ECU is open or implausible (classic Transporter T5 broken wire fault).",
+      "causes": [
+        "Snapped thin blue/brown wire inside corrugated conduit near starter motor / gearbox bracket",
+        "Corroded 2-pin alternator plug",
+        "Worn alternator voltage regulator"
+      ],
+      "fixes": [
+        "Open the plastic conduit beneath the starter/gearbox mount and check the thin alternator sense wires for a clean break",
+        "Verify 14V charging output at battery"
+      ],
+      "severity": "warning"
+    },
+    "01134": {
+      "title": "Alarm Horn (H12)",
+      "system": "Anti-Theft Alarm",
+      "meaning": "Backup alarm sounder H12 missing on LIN bus or defective.",
+      "causes": [
+        "Failed internal battery inside H12 siren",
+        "Blown siren fuse"
+      ],
+      "fixes": [
+        "Check alarm siren fuse and H12 unit under scuttle / wheel arch"
+      ],
+      "severity": "info"
+    },
+    "01135": {
+      "title": "Interior Monitoring Sensors",
+      "system": "Anti-Theft Alarm",
+      "meaning": "Ultrasonic cabin motion sensor module unplugged or faulty (common in campervan roof-lining conversions).",
+      "causes": [
+        "Overhead console ultrasonic sensor left unplugged after headlining / pop-top work"
+      ],
+      "fixes": [
+        "Reconnect overhead sensor or disable interior monitoring if permanently removed for camper conversion"
+      ],
+      "severity": "info"
+    },
+    "01176": {
+      "title": "Key — Transponder Signal Too Low",
+      "system": "Immobilizer",
+      "meaning": "Immobilizer reader coil around ignition barrel read a weak or invalid key transponder.",
+      "causes": [
+        "Damaged glass RFID transponder capsule in dropped key",
+        "Poor connection on ignition barrel reader coil plug"
+      ],
+      "fixes": [
+        "Test with spare key first to isolate key vs reader coil"
+      ],
+      "severity": "danger"
+    },
+    "01206": {
+      "title": "Signal for Duration of Ignition Off Time",
+      "system": "Climate Control",
+      "meaning": "HVAC lost real-time clock reference from instrument cluster after power loss.",
+      "causes": [
+        "Battery disconnected or cluster reset"
+      ],
+      "fixes": [
+        "Clear code after setting clock; should not return with healthy battery"
+      ],
+      "severity": "info"
+    },
+    "01217": {
+      "title": "Side Airbag Igniter; Driver Side (N199)",
+      "system": "SRS Airbag Safety System",
+      "meaning": "Driver seat side-airbag squib resistance out of range.",
+      "causes": [
+        "Yellow SRS plug disturbed under driver seat"
+      ],
+      "fixes": [
+        "Disconnect battery for 15 minutes, reseat yellow plug under driver seat, then clear fault"
+      ],
+      "severity": "danger"
+    },
+    "01218": {
+      "title": "Side Airbag Igniter; Passenger Side (N200)",
+      "system": "SRS Airbag Safety System",
+      "meaning": "Passenger seat side-airbag squib resistance out of range.",
+      "causes": [
+        "Yellow SRS plug disturbed under passenger seat / swivel base"
+      ],
+      "fixes": [
+        "Disconnect battery for 15 minutes, check under-seat yellow SRS connector, then clear fault"
+      ],
+      "severity": "danger"
+    },
+    "01221": {
+      "title": "Crash Sensor Side Airbag; Driver Side (G179)",
+      "system": "SRS Airbags",
+      "meaning": "Open circuit or wrong sensor on driver door/B-pillar side impact sensor (very common broken wire in door boot!).",
+      "causes": [
+        "Snapped wire inside driver door rubber accordion gaiter",
+        "Water in door cavity"
+      ],
+      "fixes": [
+        "Disconnect battery 15 min, pull back driver door rubber boot, and check for broken sensor wires"
+      ],
+      "severity": "danger"
+    },
+    "01222": {
+      "title": "Crash Sensor Side Airbag; Passenger Side (G180)",
+      "system": "SRS Airbags",
+      "meaning": "Fault in passenger side impact crash sensor circuit.",
+      "causes": [
+        "Broken wire in passenger door hinge boot",
+        "Damp crash sensor plug"
+      ],
+      "fixes": [
+        "Disconnect battery 15 min and inspect passenger door hinge wiring"
+      ],
+      "severity": "danger"
+    },
+    "01259": {
+      "title": "Fuel Pump Relay (J17)",
+      "system": "Fuel Delivery",
+      "meaning": "Open or short in electric fuel pump relay control.",
+      "causes": [
+        "Failed J17 fuel pump relay",
+        "Blown fuse"
+      ],
+      "fixes": [
+        "Test/swap fuel pump relay and check fuse"
+      ],
+      "severity": "warning"
+    },
+    "01271": {
+      "title": "Positioning Motor for Temperature Flap (V68)",
+      "system": "Climate Control",
+      "meaning": "Cabin blend-air temperature flap motor jammed or noisy.",
+      "causes": [
+        "Worn potentiometer inside V68 flap motor"
+      ],
+      "fixes": [
+        "Run HVAC adaptation or replace V68 motor"
+      ],
+      "severity": "warning"
+    },
+    "01272": {
+      "title": "Positioning Motor for Central Flap (V70)",
+      "system": "Climate Control",
+      "meaning": "Dashboard face-vent flap motor fault.",
+      "causes": [
+        "Sticking V70 actuator"
+      ],
+      "fixes": [
+        "Run HVAC flap basic setting"
+      ],
+      "severity": "warning"
+    },
+    "01274": {
+      "title": "Air Flow Flap Positioning Motor (V71)",
+      "system": "Climate Control (HVAC)",
+      "meaning": "Fresh/recirculation flap motor V71 jammed or worn.",
+      "causes": [
+        "Stripped nylon cog inside V71 motor behind glovebox"
+      ],
+      "fixes": [
+        "Replace V71 actuator behind glovebox"
+      ],
+      "severity": "info"
+    },
+    "01279": {
+      "title": "Longitudinal Acceleration Sensor (G251)",
+      "system": "ABS / ESP (4Motion)",
+      "meaning": "Longitudinal G-sensor out of calibration or faulty.",
+      "causes": [
+        "All-wheel-drive / hill-start sensor drift"
+      ],
+      "fixes": [
+        "Calibrate on level ground"
+      ],
+      "severity": "warning"
+    },
+    "01299": {
+      "title": "Diagnostic Interface for Data Bus (J533 / Gateway)",
+      "system": "CAN Gateway",
+      "meaning": "Companion module flags a stored fault or coding mismatch in 0x19 Gateway.",
+      "causes": [
+        "Gateway installation list mismatch"
+      ],
+      "fixes": [
+        "Check Address 0x19 CAN Gateway directly"
+      ],
+      "severity": "warning"
+    },
+    "01304": {
+      "title": "Radio (R) — No Signal / Communication",
+      "system": "CAN Gateway",
+      "meaning": "CAN Gateway expects factory radio on Infotainment CAN, but none responded (routine when an aftermarket stereo is fitted).",
+      "causes": [
+        "Aftermarket stereo installed without CANbus interface"
+      ],
+      "fixes": [
+        "Harmless if aftermarket head unit is fitted; otherwise check radio quadlock fuse"
+      ],
+      "severity": "info"
+    },
+    "01305": {
+      "title": "Databus for Infotainment",
+      "system": "CAN Network",
+      "meaning": "No communication on Infotainment CAN.",
+      "causes": [
+        "Aftermarket stereo or unplugged module"
+      ],
+      "fixes": [
+        "Inspect quadlock CAN connections"
+      ],
+      "severity": "warning"
+    },
+    "01309": {
+      "title": "Power Steering Control Module (J500)",
+      "system": "Steering",
+      "meaning": "Fault stored in or lost comms with 0x44 Steering Assist.",
+      "causes": [
+        "Low battery voltage",
+        "Steering angle adaptation needed"
+      ],
+      "fixes": [
+        "Scan Address 0x44"
+      ],
+      "severity": "warning"
+    },
+    "01312": {
+      "title": "Powertrain Data Bus",
+      "system": "CAN Network",
+      "meaning": "Fault detected on high-speed Powertrain CAN.",
+      "causes": [
+        "Corroded ECU/ABS plug",
+        "Damaged twisted pair"
+      ],
+      "fixes": [
+        "Inspect Engine and ABS connectors"
+      ],
+      "severity": "danger"
+    },
+    "01314": {
+      "title": "Engine Control Module (ECM) — Check DTC Memory / No Comms",
+      "system": "CAN Network",
+      "meaning": "Either CAN comms to 0x01 Engine dropped out, or 0x01 has an active fault stored.",
+      "causes": [
+        "Active fault stored inside 0x01 Engine ECU",
+        "Failing main ECM power relay (J317 / Relay 109) if 'No Communication'",
+        "Water in scuttle ECU plug"
+      ],
+      "fixes": [
+        "Check status symptom: 'Check DTC Memory' means read 0x01 Engine first; 'No Communication' means check ECM relay and fuses"
+      ],
+      "severity": "danger"
+    },
+    "01315": {
+      "title": "Transmission Control Module — No Comms / Fault Stored",
+      "system": "CAN Network",
+      "meaning": "Gateway or ABS lost comms with 0x02 Gearbox or reports a stored gearbox fault.",
+      "causes": [
+        "Stored fault in 0x02 Transmission",
+        "Blown mechatronic supply fuse"
+      ],
+      "fixes": [
+        "Check Address 0x02 faults and mechatronic power supply"
+      ],
+      "severity": "warning"
+    },
+    "01316": {
+      "title": "ABS Brake Control Module — No Comms / Fault Stored",
+      "system": "CAN Network",
+      "meaning": "Missing communication or active fault flagged by 0x03 ABS.",
+      "causes": [
+        "Fault stored in 0x03 ABS",
+        "Blown ABS strip fuse on battery top",
+        "Corroded ABS multi-plug"
+      ],
+      "fixes": [
+        "Scan 0x03 ABS directly and inspect battery-top strip fuses"
+      ],
+      "severity": "danger"
+    },
+    "01317": {
+      "title": "Control Module in Instrument Cluster (J285)",
+      "system": "CAN Network",
+      "meaning": "Lost communication or fault stored in 0x17 Instrument Cluster.",
+      "causes": [
+        "Cracked cluster header pins on older clusters",
+        "Low battery glitch"
+      ],
+      "fixes": [
+        "Check 0x17 Instrument Cluster faults and connector latch"
+      ],
+      "severity": "warning"
+    },
+    "01320": {
+      "title": "Control Module for Climatronic (J255)",
+      "system": "Climate Control",
+      "meaning": "Missing comms or fault stored in 0x08 HVAC.",
+      "causes": [
+        "Unplugged dash fascia during stereo work"
+      ],
+      "fixes": [
+        "Check 0x08 Climate Control"
+      ],
+      "severity": "warning"
+    },
+    "01321": {
+      "title": "Control Module for Airbags (J234)",
+      "system": "CAN Network",
+      "meaning": "Lost communication with 0x15 SRS Airbag module.",
+      "causes": [
+        "Blown ignition feed fuse",
+        "Unplugged airbag module under centre console"
+      ],
+      "fixes": [
+        "Check fuse supply to SRS module"
+      ],
+      "severity": "danger"
+    },
+    "01325": {
+      "title": "Control Module for Tire Pressure Monitoring (J502)",
+      "system": "TPMS",
+      "meaning": "No communication with direct TPMS receiver.",
+      "causes": [
+        "Unplugged TPMS module or coding mismatch"
+      ],
+      "fixes": [
+        "Check TPMS fuse or Gateway coding"
+      ],
+      "severity": "warning"
+    },
+    "01330": {
+      "title": "Central Control Module for Central Convenience (J393)",
+      "system": "Comfort System",
+      "meaning": "No communication or stored fault in comfort module.",
+      "causes": [
+        "Water ingress under cab floor carpet",
+        "Blown comfort module fuse"
+      ],
+      "fixes": [
+        "Check under-seat / under-carpet module housing for dampness"
+      ],
+      "severity": "warning"
+    },
+    "01331": {
+      "title": "Door Control Module; Driver Side (J386)",
+      "system": "Door Electrics",
+      "meaning": "Lost communication or fault in driver door module.",
+      "causes": [
+        "Snapped power or CAN wire inside driver door hinge boot"
+      ],
+      "fixes": [
+        "Inspect driver door rubber wiring boot"
+      ],
+      "severity": "warning"
+    },
+    "01332": {
+      "title": "Door Control Module; Passenger Side (J387)",
+      "system": "Door Electrics",
+      "meaning": "Lost communication or fault in passenger door module.",
+      "causes": [
+        "Broken wire in passenger door hinge boot"
+      ],
+      "fixes": [
+        "Inspect passenger door rubber wiring boot"
+      ],
+      "severity": "warning"
+    },
+    "01333": {
+      "title": "Door Control Module; Rear Left (J388)",
+      "system": "Door Electrics",
+      "meaning": "Lost communication with rear-left door module.",
+      "causes": [
+        "Broken wire in rear door boot"
+      ],
+      "fixes": [
+        "Inspect rear-left door wiring gaiter"
+      ],
+      "severity": "warning"
+    },
+    "01334": {
+      "title": "Door Control Module; Rear Right (J389)",
+      "system": "Door Electrics",
+      "meaning": "Lost communication with rear-right door module.",
+      "causes": [
+        "Broken wire in rear door boot"
+      ],
+      "fixes": [
+        "Inspect rear-right door wiring gaiter"
+      ],
+      "severity": "warning"
+    },
+    "01336": {
+      "title": "Comfort CAN Databus Fault / Single-Wire",
+      "system": "CAN Network",
+      "meaning": "Comfort CAN twisted pair operating in single-wire fallback or faulted.",
+      "causes": [
+        "Snapped CAN wire inside door rubber accordion boot",
+        "Damp floor wiring splice"
+      ],
+      "fixes": [
+        "Inspect wiring inside front door rubber bellows"
+      ],
+      "severity": "warning"
+    },
+    "01406": {
+      "title": "No Flame — Auxiliary / Parking Heater",
+      "system": "Auxiliary Heater (0x18)",
+      "meaning": "Diesel auxiliary heater (Webasto Thermo Top) failed to establish flame during startup.",
+      "causes": [
+        "Air in heater fuel line because fuel tank was below 1/4 reserve",
+        "Coked burner gauze / glow pin",
+        "Locked-out heater after repeated failed starts"
+      ],
+      "fixes": [
+        "Ensure fuel tank is above 1/4 full; inspect metering pump click and burner chamber"
+      ],
+      "severity": "warning"
+    },
+    "01410": {
+      "title": "Heater Over-Temp — Auxiliary Heater",
+      "system": "Auxiliary Heater (0x18)",
+      "meaning": "Webasto auxiliary heater shut down on overheat.",
+      "causes": [
+        "Failed V55 electric circulation pump (check for 01415)",
+        "Airlock in coolant circuit"
+      ],
+      "fixes": [
+        "Verify electric coolant pump runs when heater starts"
+      ],
+      "severity": "warning"
+    },
+    "01414": {
+      "title": "Combustion Air Blower (V6) — Auxiliary Heater",
+      "system": "Auxiliary Heater (0x18)",
+      "meaning": "Combustion fan inside underfloor Webasto auxiliary heater stalled or out of speed range (very common dry PCB solder joints).",
+      "causes": [
+        "Cracked solder joints on underfloor heater control PCB",
+        "Seized V6 combustion fan motor"
+      ],
+      "fixes": [
+        "Inspect underfloor auxiliary heater module under left cab floor; PCB reflow or blower replacement resolves"
+      ],
+      "severity": "warning"
+    },
+    "01415": {
+      "title": "Recirculating Pump (V55) — Auxiliary Heater",
+      "system": "Auxiliary Heater (0x18)",
+      "meaning": "Electric coolant circulation pump on auxiliary heater open or seized (causes heater overheat shutdown).",
+      "causes": [
+        "Worn brushes / seized impeller in V55 auxiliary coolant pump"
+      ],
+      "fixes": [
+        "Replace V55 electric coolant pump mounted beside underfloor heater"
+      ],
+      "severity": "warning"
+    },
+    "01423": {
+      "title": "Lateral Acceleration Sensor (G200)",
+      "system": "ABS / ESP",
+      "meaning": "ESP yaw/lateral G-sensor signal implausible.",
+      "causes": [
+        "Dry solder joints in G200 sensor",
+        "Loose sensor bracket"
+      ],
+      "fixes": [
+        "Check G200 mounting and live lateral acceleration reading on level ground"
+      ],
+      "severity": "warning"
+    },
+    "01435": {
+      "title": "Brake Pressure Sensor 1 (G201)",
+      "system": "ABS / ESP",
+      "meaning": "Hydraulic brake line pressure sensor inside ABS unit reads implausible pressure at rest.",
+      "causes": [
+        "Internal G201 transducer failure inside ABS hydraulic block",
+        "Sticking brake pedal switch"
+      ],
+      "fixes": [
+        "Verify live brake pressure reads ~0 bar with foot off pedal; internal G201 failure can be repaired with ABS pump rebuild"
+      ],
+      "severity": "danger"
+    },
+    "01494": {
+      "title": "Bulb for Parking Lamp; Left (M1)",
+      "system": "Exterior Lighting",
+      "meaning": "Left front sidelight circuit open.",
+      "causes": [
+        "Blown 5W W5W bulb",
+        "Non-resistor LED sidelight"
+      ],
+      "fixes": [
+        "Replace sidelight bulb or check holder contacts"
+      ],
+      "severity": "info"
+    },
+    "01498": {
+      "title": "Bulb for Parking Lamp; Right (M3)",
+      "system": "Exterior Lighting",
+      "meaning": "Right front sidelight circuit open.",
+      "causes": [
+        "Blown 5W W5W bulb",
+        "Non-resistor LED sidelight"
+      ],
+      "fixes": [
+        "Replace right sidelight bulb"
+      ],
+      "severity": "info"
+    },
+    "01504": {
+      "title": "Bulb for License Plate Light (X)",
+      "system": "Exterior Lighting",
+      "meaning": "Number-plate lamp circuit open (extremely common tailgate corrosion point on Transporters).",
+      "causes": [
+        "Water-corroded brass contacts inside tailgate/barn-door number plate lamp plinth"
+      ],
+      "fixes": [
+        "Unscrew rear number-plate lamp lenses and check for green verdigris corrosion inside the grab-handle strip"
+      ],
+      "severity": "info"
+    },
+    "01516": {
+      "title": "Terminal 30; Left",
+      "system": "Central Electrics",
+      "meaning": "Missing permanent +12V on one of BCM's fused supply rails.",
+      "causes": [
+        "Blown cab fuse feeding left BCM output bank"
+      ],
+      "fixes": [
+        "Check cab fusebox fuses feeding Central Electrics"
+      ],
+      "severity": "warning"
+    },
+    "01598": {
+      "title": "Drive Battery Voltage",
+      "system": "Battery & Power Supply",
+      "meaning": "Supply voltage at Central Electrics fell below lower threshold.",
+      "causes": [
+        "Discharged starter battery",
+        "Loose earth strap",
+        "Alternator undercharging"
+      ],
+      "fixes": [
+        "Check resting (>12.4V) and running (13.8–14.4V) battery voltage"
+      ],
+      "severity": "warning"
+    },
+    "01800": {
+      "title": "Light Switch (E1) — Implausible Signal",
+      "system": "Exterior Lighting",
+      "meaning": "Rotary headlight switch E1 returned an invalid contact combination.",
+      "causes": [
+        "Worn rotary headlight switch contacts",
+        "Faulty aftermarket auto-light dongle"
+      ],
+      "fixes": [
+        "Push rotary switch in at '0' and twist clockwise to slide switch out; inspect plug or test without aftermarket auto-light box"
+      ],
+      "severity": "info"
+    },
+    "02067": {
+      "title": "Optical Databus (MOST) Unauthorized Awakening / Break",
+      "system": "Infotainment",
+      "meaning": "Fibre-optic MOST ring interrupted.",
+      "causes": [
+        "Unplugged amplifier/tuner in MOST loop"
+      ],
+      "fixes": [
+        "Fit MOST optical bypass loop if removing an unused module"
+      ],
+      "severity": "warning"
+    },
+    "02251": {
+      "title": "Heater Unit Locked — Auxiliary Heater",
+      "system": "Auxiliary Heater (0x18)",
+      "meaning": "Diesel auxiliary heater entered safety lockout after repeated flame-outs or overheats.",
+      "causes": [
+        "Repeated low-fuel airlocks, failed V55 water pump (01415), or failed glow pin"
+      ],
+      "fixes": [
+        "Fix underlying pump/fuel fault before unlocking heater"
+      ],
+      "severity": "warning"
+    },
+    "02252": {
+      "title": "Generator (Alternator) — No Communication",
+      "system": "Charging (LIN Bus)",
+      "meaning": "ECU/Gateway lost LIN communication with smart alternator regulator.",
+      "causes": [
+        "Broken single LIN wire to alternator plug (common under-engine chafe on T5.1/T6)",
+        "Wrong non-LIN regulator fitted"
+      ],
+      "fixes": [
+        "Inspect single-wire/2-pin plug on back of alternator and trace under sump"
+      ],
+      "severity": "warning"
+    },
+    "02391": {
+      "title": "Terminal 30 Reference",
+      "system": "Central Electrics",
+      "meaning": "Missing reference +12V fuse input to BCM.",
+      "causes": [
+        "Blown BCM reference fuse in dash fusebox"
+      ],
+      "fixes": [
+        "Check all BCM supply fuses"
+      ],
+      "severity": "warning"
+    },
+    "02399": {
+      "title": "Control Circuit for Terminal 30",
+      "system": "Central Electrics",
+      "meaning": "Interior lighting / saver relay Terminal 30g shorted (often caused by pinched interior LED/camper wiring!).",
+      "causes": [
+        "Pinched wire under roof lining or sunvisor vanity light screw",
+        "Shorted load illumination bulb"
+      ],
+      "fixes": [
+        "Check interior dome lights and any campervan 12V roof wiring tapped into courtesy circuit"
+      ],
+      "severity": "warning"
+    },
+    "02479": {
+      "title": "Partial Consumer Shut-Off Active",
+      "system": "Battery Management",
+      "meaning": "Energy manager switched off comfort loads to protect starting capability.",
+      "causes": [
+        "Low starter battery"
+      ],
+      "fixes": [
+        "Charge and test starter battery"
+      ],
+      "severity": "warning"
+    },
+    "03158": {
+      "title": "Information Electronics Control Module 1 (J794 / 5F)",
+      "system": "Infotainment",
+      "meaning": "Fault stored in or missing comms with 5F MIB infotainment unit.",
+      "causes": [
+        "Aftermarket coding/retrofit mismatch"
+      ],
+      "fixes": [
+        "Check infotainment unit status"
+      ],
+      "severity": "warning"
+    },
+    "03405": {
+      "title": "Bass Speaker Rear / Door Open Circuit",
+      "system": "Audio",
+      "meaning": "Open circuit in speaker wiring.",
+      "causes": [
+        "Broken speaker wire in door boot",
+        "Blown speaker voice coil"
+      ],
+      "fixes": [
+        "Test speaker resistance across quadlock audio pins"
+      ],
+      "severity": "warning"
+    },
+    "B104A": {
+      "title": "Rain / Light Recognition Sensor Fault",
+      "system": "Central Electrics (LIN Bus)",
+      "meaning": "BCM lost LIN communication or detected a circuit fault on the windscreen rain/light sensor (G397).",
+      "causes": [
+        "Rain/light sensor unplugged behind interior mirror trim after windscreen replacement",
+        "Blown fuse feeding mirror/rain sensor",
+        "Rain/light sensor coded as installed on a van without one"
+      ],
+      "fixes": [
+        "Check 3-pin connector behind rearview mirror trim",
+        "Verify 12V, ground, and violet/white LIN wire",
+        "If vehicle has manual wipers only, untick Rain/Light Sensor in BCM coding"
+      ],
+      "severity": "warning"
+    },
+    "B1087": {
+      "title": "LIN Bus Air Conditioning / Flap Motor Communication",
+      "system": "Climate Control (HVAC)",
+      "meaning": "HVAC module lost communication with one or more LIN-bus air distribution flap motors.",
+      "causes": [
+        "Unplugged dashboard flap motor",
+        "One shorted flap motor pulling down the daisy-chained LIN line"
+      ],
+      "fixes": [
+        "Inspect HVAC flap motor connectors behind glovebox / centre console"
+      ],
+      "severity": "warning"
+    },
+    "B108C": {
+      "title": "Left Temperature Flap Motor Jammed / Fault",
+      "system": "Climate Control (HVAC)",
+      "meaning": "Left blend-air flap actuator V158 failed to reach its calibrated end stops.",
+      "causes": [
+        "Worn feedback track or stripped gear inside V158 actuator",
+        "Foreign object in heater box"
+      ],
+      "fixes": [
+        "Run HVAC flap end-stop adaptation or replace V158 motor above driver footwell"
+      ],
+      "severity": "info"
+    },
+    "B1090": {
+      "title": "Defrost Flap Positioning Motor Fault",
+      "system": "Climate Control (HVAC)",
+      "meaning": "Windscreen defrost flap motor V107 is sticking or out of calibration.",
+      "causes": [
+        "Sticking V107 actuator gears"
+      ],
+      "fixes": [
+        "Check actuator movement under dash while switching to windscreen demist"
+      ],
+      "severity": "info"
+    },
+    "B109E": {
+      "title": "Air Recirculation Flap Motor Fault",
+      "system": "Climate Control (HVAC)",
+      "meaning": "Fresh/recirculation air flap actuator V113 jammed or missed end stop.",
+      "causes": [
+        "Stripped plastic gear inside V113 motor behind glovebox (very common clicking noise on ignition on)"
+      ],
+      "fixes": [
+        "Listen for rhythmic clicking behind glovebox; replace V113 recirculation motor"
+      ],
+      "severity": "info"
+    },
+    "B10A4": {
+      "title": "Fresh Air Blower Front Fault",
+      "system": "Climate Control (HVAC)",
+      "meaning": "Cabin heater blower motor V2 or its PWM regulator J126 reported a fault or mechanical bind.",
+      "causes": [
+        "Dry/rusted blower fan bearings after scuttle water ingress",
+        "Failed blower resistor/hedgehog regulator",
+        "Blocked cabin pollen filter"
+      ],
+      "fixes": [
+        "Drop blower motor behind passenger footwell to check free spin and inspect cabin filter"
+      ],
+      "severity": "warning"
+    },
+    "B10B3": {
+      "title": "Functional Restriction of Seat Heating",
+      "system": "Central Electrics",
+      "meaning": "Heated seat output reduced or shut off due to load management or thermistor fault.",
+      "causes": [
+        "Broken seat heater pad wire or NTC sensor in seat base",
+        "Low battery load-shedding"
+      ],
+      "fixes": [
+        "Measure seat cushion NTC thermistor resistance under seat plug"
+      ],
+      "severity": "info"
+    },
+    "B10CD": {
+      "title": "Function Limitation Due to Energy Management",
+      "system": "Battery & Energy Management",
+      "meaning": "Gateway / BCM shed non-essential comfort loads because battery state of charge fell low.",
+      "causes": [
+        "Aged or discharged 12V battery",
+        "Parasitic current draw while parked"
+      ],
+      "fixes": [
+        "Charge battery with an AGM-capable smart charger and test parasitic draw if recurring"
+      ],
+      "severity": "info"
+    },
+    "B1148": {
+      "title": "Terminal 15 Ignition Switch / Relay Implausible",
+      "system": "Central Electrics",
+      "meaning": "Mismatch between ignition switch Terminal 15 input and main Terminal 15 relay output.",
+      "causes": [
+        "Worn ignition switch contact block",
+        "Ageing Terminal 15 load relay"
+      ],
+      "fixes": [
+        "Inspect ignition switch electrical block and Terminal 15 relay under dash"
+      ],
+      "severity": "warning"
+    },
+    "B1168": {
+      "title": "Steering Angle Sensor (G85) No Basic Setting / Implausible",
+      "system": "Steering & ESP",
+      "meaning": "Steering angle sensor G85 has lost zero calibration or failed.",
+      "causes": [
+        "Battery disconnection",
+        "Clockspring / steering column module fault"
+      ],
+      "fixes": [
+        "Turn wheel full lock left to right with engine running and drive straight a short distance"
+      ],
+      "severity": "warning"
+    },
+    "B1217": {
+      "title": "Side Airbag Igniter Driver Side Resistance",
+      "system": "SRS Airbags",
+      "meaning": "Driver seat thorax airbag circuit impedance is outside safe bounds.",
+      "causes": [
+        "Loose yellow airbag connector under driver seat (common on swivel/adjustable van seats)"
+      ],
+      "fixes": [
+        "Disconnect battery negative for 15 minutes before inspecting under-seat yellow connector—never probe airbag pins with a multimeter"
+      ],
+      "severity": "danger"
+    },
+    "B1218": {
+      "title": "Side Airbag Igniter Passenger Side Resistance",
+      "system": "SRS Airbags",
+      "meaning": "Passenger seat/bench side airbag or occupancy/pretensioner circuit resistance out of range.",
+      "causes": [
+        "Unplugged or strained yellow connector under passenger seat / swivel base"
+      ],
+      "fixes": [
+        "Disconnect battery for 15 minutes, reseat and secure under-seat yellow harness plug, then clear SRS faults"
+      ],
+      "severity": "danger"
+    },
+    "B122D": {
+      "title": "Lock Unit for Central Locking Fault",
+      "system": "Central Locking",
+      "meaning": "Door latch microswitch reported implausible locked/safe state.",
+      "causes": [
+        "Worn microswitch or cracked solder joints inside door lock module",
+        "Broken wire inside rubber door-frame gaiter"
+      ],
+      "fixes": [
+        "Inspect wiring inside rubber door hinge boot first, then replace door lock mechanism"
+      ],
+      "severity": "info"
+    },
+    "B131F": {
+      "title": "Alarm Horn (H12) No Communication / Defective",
+      "system": "Anti-Theft Alarm",
+      "meaning": "Backup battery-sounder siren H12 failed self-test or lost LIN comms.",
+      "causes": [
+        "Internal NiMH backup battery leaked onto H12 siren PCB (common on 8+ year old vehicles)",
+        "Blown alarm siren fuse"
+      ],
+      "fixes": [
+        "Inspect H12 siren under wheel-arch liner / scuttle and check dedicated siren fuse"
+      ],
+      "severity": "info"
+    },
+    "B1479": {
+      "title": "Remote Key Battery Voltage Low",
+      "system": "Keyless / Remote Entry",
+      "meaning": "Key fob transmitted a low-battery flag during unlock/lock.",
+      "causes": [
+        "Weak CR2025 / CR2032 coin cell in key fob"
+      ],
+      "fixes": [
+        "Replace coin cell in remote key fob"
+      ],
+      "severity": "info"
+    },
+    "B2000": {
+      "title": "Control Module Defective (Internal Checksum / Hardware)",
+      "system": "ECU Hardware",
+      "meaning": "Module failed an internal ROM/EEPROM checksum or self-test.",
+      "causes": [
+        "Corrupted internal flash/EEPROM from voltage drop",
+        "Hardware failure inside control unit"
+      ],
+      "fixes": [
+        "Check supply voltage stability; persistent B2000 normally requires module repair or replacement"
+      ],
+      "severity": "danger"
+    },
+    "B2010": {
+      "title": "No Basic Setting",
+      "system": "Module Calibration",
+      "meaning": "Module or actuator requires end-stop / zero-point basic calibration before operating.",
+      "causes": [
+        "New part fitted or battery/coding reset without completing basic setting"
+      ],
+      "fixes": [
+        "Perform the required calibration procedure for the replaced actuator/sensor"
+      ],
+      "severity": "warning"
+    },
+    "C101A": {
+      "title": "Front Left ABS Wheel Speed Sensor Fault",
+      "system": "Brakes & ABS",
+      "meaning": "Signal missing, erratic, or open on front-left wheel speed sensor.",
+      "causes": [
+        "Swollen/cracked magnetic encoder ring on wheel bearing",
+        "Chafed sensor wire in front wheel arch",
+        "Failed sensor"
+      ],
+      "fixes": [
+        "Inspect sensor wire routing at strut bracket and check bearing magnetic ring face for rust"
+      ],
+      "severity": "danger"
+    },
+    "C101B": {
+      "title": "Front Right ABS Wheel Speed Sensor Fault",
+      "system": "Brakes & ABS",
+      "meaning": "Signal missing, erratic, or open on front-right wheel speed sensor.",
+      "causes": [
+        "Damaged magnetic ABS ring in wheel bearing",
+        "Rubbed sensor harness",
+        "Failed wheel speed sensor"
+      ],
+      "fixes": [
+        "Inspect front-right ABS sensor and bearing magnetic seal"
+      ],
+      "severity": "danger"
+    },
+    "C101C": {
+      "title": "Rear Left ABS Wheel Speed Sensor Fault",
+      "system": "Brakes & ABS",
+      "meaning": "Signal missing, erratic, or open on rear-left wheel speed sensor (common rust swell point on Transporters).",
+      "causes": [
+        "Rust under sensor bracket pushing sensor away or scraping magnetic bearing ring",
+        "Failed rear wheel speed sensor"
+      ],
+      "fixes": [
+        "Remove rear-left sensor and inspect tip for rub marks against a swollen bearing ring"
+      ],
+      "severity": "danger"
+    },
+    "C101D": {
+      "title": "Rear Right ABS Wheel Speed Sensor Fault",
+      "system": "Brakes & ABS",
+      "meaning": "Signal missing, erratic, or open on rear-right wheel speed sensor.",
+      "causes": [
+        "Corroded magnetic ring on rear hub bearing",
+        "Damaged trailing-arm sensor cable",
+        "Failed sensor"
+      ],
+      "fixes": [
+        "Inspect rear-right trailing arm cable and sensor tip for contact wear"
+      ],
+      "severity": "danger"
+    },
+    "C10AC": {
+      "title": "Steering End Stops Not Learned",
+      "system": "Power Steering",
+      "meaning": "Electro-mechanical steering assist requires left/right full-lock end-stop adaptation.",
+      "causes": [
+        "12V battery disconnected"
+      ],
+      "fixes": [
+        "With engine idling, turn wheel smoothly to full left lock, hold 2 seconds, then full right lock, hold 2 seconds, and centre"
+      ],
+      "severity": "warning"
+    },
+    "P0011": {
+      "title": "Camshaft Position Timing Over-Advanced (Bank 1)",
+      "system": "Valve Timing",
+      "meaning": "Intake camshaft phase did not return to target angle as commanded.",
+      "causes": [
+        "Low engine oil level or dirty oil clogging VVT spool valve",
+        "Sticking N205 camshaft adjuster solenoid",
+        "Stretched timing chain"
+      ],
+      "fixes": [
+        "Check engine oil level and service history",
+        "Inspect and clean VVT oil control screen/solenoid"
+      ],
+      "severity": "warning"
+    },
+    "P0012": {
+      "title": "Camshaft Position Timing Over-Retarded (Bank 1)",
+      "system": "Valve Timing",
+      "meaning": "Intake cam stayed retarded relative to target.",
+      "causes": [
+        "Low oil pressure",
+        "Sticking VVT valve"
+      ],
+      "fixes": [
+        "Check oil level/condition and VVT solenoid"
+      ],
+      "severity": "warning"
+    },
+    "P0016": {
+      "title": "Crankshaft – Camshaft Position Correlation (Bank 1 Sensor A)",
+      "system": "Valve Timing",
+      "meaning": "Phase angle between crankshaft sensor G28 and camshaft sensor G40 is outside mechanical tolerance.",
+      "causes": [
+        "Stretched timing chain or worn tensioner",
+        "Timing belt jumped a tooth or set without locking tools",
+        "Sheared crank/cam pulley key"
+      ],
+      "fixes": [
+        "Check live camshaft torsion / phase adaptation angle before driving further",
+        "Physically verify mechanical timing marks with locking pins"
+      ],
+      "severity": "danger"
+    },
+    "P0017": {
+      "title": "Crankshaft – Exhaust Camshaft Correlation (Bank 1)",
+      "system": "Valve Timing",
+      "meaning": "Exhaust camshaft timing out of phase with crank.",
+      "causes": [
+        "Stretched timing chain",
+        "Belt timing error"
+      ],
+      "fixes": [
+        "Verify mechanical timing marks"
+      ],
+      "severity": "danger"
+    },
+    "P0030": {
+      "title": "HO2S Heater Control Circuit (Bank 1 Sensor 1)",
+      "system": "Lambda / O2 Sensors",
+      "meaning": "Open or short in upstream lambda sensor heater.",
+      "causes": [
+        "Blown O2 heater fuse",
+        "Open heater inside O2 sensor"
+      ],
+      "fixes": [
+        "Check engine bay O2 heater fuse and measure heater pins (~3–10 Ω)"
+      ],
+      "severity": "warning"
+    },
+    "P0036": {
+      "title": "HO2S Heater Control Circuit (Bank 1 Sensor 2)",
+      "system": "Lambda / O2 Sensors",
+      "meaning": "Open or short in downstream lambda sensor heater.",
+      "causes": [
+        "Damaged underfloor O2 wire",
+        "Failed post-cat O2 heater"
+      ],
+      "fixes": [
+        "Inspect underbody O2 cable and heater resistance"
+      ],
+      "severity": "warning"
+    },
+    "P0068": {
+      "title": "Manifold Pressure / Mass Airflow Throttle Correlation",
+      "system": "Air Intake & Metering",
+      "meaning": "Measured intake manifold pressure and airflow disagree with the throttle valve angle.",
+      "causes": [
+        "Unmetered air leak after the MAF sensor",
+        "Carbon fouling around the throttle plate",
+        "Drifted MAP or MAF sensor reading"
+      ],
+      "fixes": [
+        "Smoke-test intake hoses and intercooler joints for leaks",
+        "Clean throttle body bore and re-run throttle basic adaptation",
+        "Compare key-on engine-off MAP reading against atmospheric pressure"
+      ],
+      "severity": "warning"
+    },
+    "P0087": {
+      "title": "Fuel Rail / System Pressure Too Low",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "High-pressure common-rail sensor (G247) measured rail pressure significantly below target.",
+      "causes": [
+        "Clogged fuel filter starving the lift/high-pressure pump",
+        "Failed in-tank or inline auxiliary electric fuel pump",
+        "Sticking N290 fuel metering valve or N276 rail pressure regulator",
+        "Excessive injector back-leakage or HPFP wear"
+      ],
+      "fixes": [
+        "Inspect fuel filter bowl for metallic swarf before running further",
+        "Replace fuel filter if overdue and prime fuel system before cranking",
+        "Perform injector return leak-off bottle test",
+        "Verify low-pressure lift pump delivery pressure"
+      ],
+      "severity": "danger"
+    },
+    "P0088": {
+      "title": "Fuel Rail / System Pressure Too High",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "Common-rail fuel pressure spiked above the commanded safety ceiling.",
+      "causes": [
+        "Sticking N276 rail pressure regulating valve",
+        "Sticking N290 fuel volume metering valve on HPFP",
+        "Drifted G247 rail pressure sensor"
+      ],
+      "fixes": [
+        "Inspect wiring and connectors on N276 (rail end) and N290 (pump)",
+        "Check rail pressure reading at key-on engine-off (should read near 0 bar)"
+      ],
+      "severity": "danger"
+    },
+    "P0089": {
+      "title": "Fuel Pressure Regulator 1 Performance",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "Rail pressure regulator duty cycle reached control limits while trying to maintain target pressure.",
+      "causes": [
+        "Restricted fuel supply / dirty filter",
+        "Worn N276/N290 regulating valve",
+        "Air ingress in low-pressure fuel lines"
+      ],
+      "fixes": [
+        "Check transparent/low-pressure supply lines for air bubbles",
+        "Inspect fuel filter and regulating valve connectors"
+      ],
+      "severity": "warning"
+    },
+    "P0090": {
+      "title": "Fuel Pressure Regulator 1 Control Circuit Open",
+      "system": "Fuel Delivery",
+      "meaning": "Open circuit on fuel metering / rail pressure solenoid.",
+      "causes": [
+        "Unplugged N290/N276 valve",
+        "Broken wire on HPFP"
+      ],
+      "fixes": [
+        "Check 2-pin connector on high-pressure fuel pump"
+      ],
+      "severity": "danger"
+    },
+    "P0091": {
+      "title": "Fuel Pressure Regulator 1 Control Circuit Low",
+      "system": "Fuel Delivery",
+      "meaning": "Short to ground on fuel pressure control valve.",
+      "causes": [
+        "Chafed wire on fuel rail / HPFP",
+        "Shorted solenoid"
+      ],
+      "fixes": [
+        "Inspect HPFP and rail regulator wiring"
+      ],
+      "severity": "danger"
+    },
+    "P0092": {
+      "title": "Fuel Pressure Regulator 1 Control Circuit High",
+      "system": "Fuel Delivery",
+      "meaning": "Short to battery positive on fuel pressure regulator.",
+      "causes": [
+        "Wiring short",
+        "Faulty solenoid"
+      ],
+      "fixes": [
+        "Check regulator harness continuity"
+      ],
+      "severity": "danger"
+    },
+    "P0100": {
+      "title": "Mass Air Flow (MAF) Sensor Circuit Fault",
+      "system": "Air Intake & Metering",
+      "meaning": "Electrical open, short, or missing signal from the intake mass airflow sensor (G70).",
+      "causes": [
+        "Unplugged MAF connector after air filter service",
+        "Broken 5V reference, 12V supply, or signal wire near airbox",
+        "Failed MAF sensor"
+      ],
+      "fixes": [
+        "Check that the MAF multi-plug is seated and locked",
+        "Verify supply voltage and ground at the MAF harness plug",
+        "Inspect wiring back to the engine harness conduit for chafing"
+      ],
+      "severity": "warning"
+    },
+    "P0101": {
+      "title": "Mass Air Flow (MAF) Range / Performance",
+      "system": "Air Intake & Metering",
+      "meaning": "Airflow reported by sensor G70 does not match expected volumetric flow for the current RPM and boost.",
+      "causes": [
+        "Oil mist or dust contaminating the MAF sensing element",
+        "Split intake pipe between MAF and turbo inlet",
+        "Sticking EGR valve altering fresh air intake",
+        "Restricted air filter"
+      ],
+      "fixes": [
+        "Inspect intake ducting downstream of the MAF for splits or loose clips",
+        "Clean sensor element with dedicated MAF cleaner spray without touching the film",
+        "Compare specified vs actual MAF in live data under load"
+      ],
+      "severity": "warning"
+    },
+    "P0102": {
+      "title": "Mass Air Flow (MAF) Signal Too Low",
+      "system": "Air Intake & Metering",
+      "meaning": "MAF sensor output voltage or frequency fell below the minimum threshold.",
+      "causes": [
+        "Open circuit or short to ground on MAF signal wire",
+        "Disconnected intake hose bypassing the MAF",
+        "Dead MAF sensor"
+      ],
+      "fixes": [
+        "Check MAF connector pins and supply fuse",
+        "Ensure turbo inlet hose is clamped securely to the MAF housing",
+        "Test live airflow reading at idle"
+      ],
+      "severity": "warning"
+    },
+    "P0103": {
+      "title": "Mass Air Flow (MAF) Signal Too High",
+      "system": "Air Intake & Metering",
+      "meaning": "MAF sensor output exceeded the upper plausible limit.",
+      "causes": [
+        "Signal wire shorted to 5V/12V supply",
+        "Water ingress in MAF connector",
+        "Faulty MAF electronics"
+      ],
+      "fixes": [
+        "Inspect MAF plug for moisture or corroded terminals",
+        "Check signal wire for short to power",
+        "Replace MAF sensor if wiring checks clean"
+      ],
+      "severity": "warning"
+    },
+    "P0106": {
+      "title": "Manifold Absolute Pressure (MAP) Range / Performance",
+      "system": "Turbocharger & Boost",
+      "meaning": "Boost / manifold pressure sensor (G31) reading is implausible compared to barometric pressure or engine load.",
+      "causes": [
+        "Oil-soaked or failed MAP sensor in intercooler pipe",
+        "Pinched harness on the front charge pipe",
+        "Blocked sensor port"
+      ],
+      "fixes": [
+        "With ignition ON and engine OFF, check that MAP matches barometric pressure within ~3 kPa",
+        "Remove and inspect G31 sensor O-ring and sensing port",
+        "Inspect wiring near the radiator fan shroud for rubbing"
+      ],
+      "severity": "warning"
+    },
+    "P0107": {
+      "title": "Manifold Absolute Pressure (MAP) Circuit Low",
+      "system": "Turbocharger & Boost",
+      "meaning": "MAP sensor signal voltage is below minimum (short to ground or open 5V reference).",
+      "causes": [
+        "Broken wire at the G31 charge-pipe plug",
+        "5V sensor reference rail pulled low by another sensor",
+        "Failed MAP sensor"
+      ],
+      "fixes": [
+        "Tug-test the 4-pin connector on the intercooler pipework",
+        "Measure 5V reference and ground at the unplugged connector",
+        "Replace G31 sensor if wiring is intact"
+      ],
+      "severity": "warning"
+    },
+    "P0108": {
+      "title": "Manifold Absolute Pressure (MAP) Circuit High",
+      "system": "Turbocharger & Boost",
+      "meaning": "MAP sensor signal voltage is stuck near the upper rail.",
+      "causes": [
+        "Open sensor ground wire",
+        "Signal shorted to 5V reference",
+        "Internal G31 sensor failure"
+      ],
+      "fixes": [
+        "Check ground continuity on the MAP harness plug",
+        "Inspect connector pins for spread or corrosion",
+        "Replace MAP sensor if key-on engine-off pressure reads stuck high"
+      ],
+      "severity": "warning"
+    },
+    "P0112": {
+      "title": "Intake Air Temperature (IAT) Circuit Low",
+      "system": "Air Intake & Metering",
+      "meaning": "IAT sensor resistance is abnormally low, indicating an implausibly hot intake temperature.",
+      "causes": [
+        "IAT signal wire shorted to ground",
+        "Failed NTC thermistor inside MAF/MAP combo sensor"
+      ],
+      "fixes": [
+        "Check live intake temperature on a cold engine against ambient",
+        "Inspect sensor harness for pinched insulation"
+      ],
+      "severity": "warning"
+    },
+    "P0113": {
+      "title": "Intake Air Temperature (IAT) Circuit High",
+      "system": "Air Intake & Metering",
+      "meaning": "IAT circuit reads open (commonly ~-40°C in live data).",
+      "causes": [
+        "Unplugged combined MAF/IAT or MAP/IAT connector",
+        "Broken wire in charge-pipe harness",
+        "Open-circuit NTC thermistor"
+      ],
+      "fixes": [
+        "Confirm live IAT reading; -40°C points to an open wire or unplugged sensor",
+        "Inspect connector terminals and harness bend right behind the plug"
+      ],
+      "severity": "warning"
+    },
+    "P0115": {
+      "title": "Engine Coolant Temperature Circuit",
+      "system": "Cooling System",
+      "meaning": "Electrical fault in ECT sensor G62.",
+      "causes": [
+        "Unplugged or faulty G62 sensor"
+      ],
+      "fixes": [
+        "Inspect G62 plug on cylinder head flange"
+      ],
+      "severity": "warning"
+    },
+    "P0116": {
+      "title": "Engine Coolant Temperature Sensor Range / Performance",
+      "system": "Cooling System",
+      "meaning": "Coolant temperature sensor G62 rises too slowly or reads implausibly.",
+      "causes": [
+        "Thermostat stuck open (van runs cool on motorway)",
+        "Drifted G62 NTC sensor"
+      ],
+      "fixes": [
+        "Monitor live coolant temperature from cold start to warm cruise; should climb steadily to ~88–92°C"
+      ],
+      "severity": "warning"
+    },
+    "P0117": {
+      "title": "Engine Coolant Temperature Sensor Circuit Low",
+      "system": "Cooling System",
+      "meaning": "G62 resistance is shorted low (reads abnormally hot).",
+      "causes": [
+        "Coolant wicked into G62 connector shorting pins",
+        "Failed G62 thermistor"
+      ],
+      "fixes": [
+        "Unplug G62 and inspect plug cavity for pink coolant crust"
+      ],
+      "severity": "warning"
+    },
+    "P0118": {
+      "title": "Engine Coolant Temperature Sensor Circuit High",
+      "system": "Cooling System",
+      "meaning": "G62 circuit is open (typically shows -40°C and runs radiator fans at full speed).",
+      "causes": [
+        "Open-circuit G62 sensor",
+        "Broken wire or unlatched plug on cylinder head coolant flange"
+      ],
+      "fixes": [
+        "Check live coolant temp; if -40°C, bridge or test harness continuity and replace G62 with a fresh O-ring"
+      ],
+      "severity": "warning",
+      "vagCode": "16502"
+    },
+    "P0121": {
+      "title": "Throttle / Pedal Position Sensor A Range / Performance",
+      "system": "Throttle & Pedal",
+      "meaning": "Throttle valve feedback disagrees with expected opening.",
+      "causes": [
+        "Oily soot jamming anti-shudder / throttle flap gears",
+        "Worn internal sensor track"
+      ],
+      "fixes": [
+        "Inspect throttle body gear housing for oil ingress (common when shaft seal wears)"
+      ],
+      "severity": "warning"
+    },
+    "P0122": {
+      "title": "Throttle / Pedal Position Sensor A Circuit Low",
+      "system": "Throttle & Pedal",
+      "meaning": "Throttle position track A below minimum voltage.",
+      "causes": [
+        "Oil in throttle body",
+        "Shorted wire"
+      ],
+      "fixes": [
+        "Inspect J338 throttle connector"
+      ],
+      "severity": "warning"
+    },
+    "P0123": {
+      "title": "Throttle / Pedal Position Sensor A Circuit High",
+      "system": "Throttle & Pedal",
+      "meaning": "Throttle position track A above maximum voltage.",
+      "causes": [
+        "Open sensor ground",
+        "Faulty throttle unit"
+      ],
+      "fixes": [
+        "Check ground wire on J338 plug"
+      ],
+      "severity": "warning"
+    },
+    "P0128": {
+      "title": "Coolant Thermostat Below Regulating Temperature",
+      "system": "Cooling System",
+      "meaning": "Engine failed to reach operating temperature within expected warm-up time.",
+      "causes": [
+        "Main thermostat or DSG inline thermostat stuck open"
+      ],
+      "fixes": [
+        "Replace stuck thermostat (on DSG vans check the small inline gearbox thermostat first—very common culprit)"
+      ],
+      "severity": "warning"
+    },
+    "P0130": {
+      "title": "O2 Sensor Circuit (Bank 1 Sensor 1)",
+      "system": "Lambda / O2 Sensors",
+      "meaning": "Electrical fault on upstream wideband lambda sensor.",
+      "causes": [
+        "Damaged O2 harness on exhaust heatshield",
+        "Failed probe"
+      ],
+      "fixes": [
+        "Inspect 6-pin wideband lambda connector"
+      ],
+      "severity": "warning"
+    },
+    "P0135": {
+      "title": "O2 Sensor Heater Circuit (Bank 1 Sensor 1)",
+      "system": "Lambda / O2 Sensors",
+      "meaning": "Upstream O2 sensor heater did not reach operating temperature.",
+      "causes": [
+        "Blown heater fuse",
+        "Burned-out internal heater"
+      ],
+      "fixes": [
+        "Check heater supply voltage and coil resistance"
+      ],
+      "severity": "warning"
+    },
+    "P0141": {
+      "title": "O2 Sensor Heater Circuit (Bank 1 Sensor 2)",
+      "system": "Lambda / O2 Sensors",
+      "meaning": "Downstream O2 sensor heater fault.",
+      "causes": [
+        "Damaged underfloor harness",
+        "Failed post-cat O2 sensor"
+      ],
+      "fixes": [
+        "Inspect post-cat O2 wiring"
+      ],
+      "severity": "warning"
+    },
+    "P0171": {
+      "title": "System Too Lean (Bank 1)",
+      "system": "Fuel Trim",
+      "meaning": "Long-term fuel trim added excessive fuel to compensate for lean exhaust.",
+      "causes": [
+        "Intake air / PCV vacuum leak",
+        "Low fuel pressure",
+        "Under-reading MAF"
+      ],
+      "fixes": [
+        "Smoke-test intake and check PCV valve membrane"
+      ],
+      "severity": "warning"
+    },
+    "P0172": {
+      "title": "System Too Rich (Bank 1)",
+      "system": "Fuel Trim",
+      "meaning": "Fuel trim pulled significant fuel due to rich mixture.",
+      "causes": [
+        "Boost leak after MAF",
+        "Leaking injector or HPFP seal into sump"
+      ],
+      "fixes": [
+        "Smell engine oil dipstick for fuel contamination and check charge hoses"
+      ],
+      "severity": "warning"
+    },
+    "P0183": {
+      "title": "Fuel Temperature Sensor A Circuit High",
+      "system": "Fuel Delivery",
+      "meaning": "Fuel temperature sensor G81 circuit is open.",
+      "causes": [
+        "Unplugged 2-pin G81 plug on diesel return/supply line",
+        "Broken wire (classic TDI loom break)"
+      ],
+      "fixes": [
+        "Inspect 2-pin G81 plug on fuel lines atop engine"
+      ],
+      "severity": "warning"
+    },
+    "P0190": {
+      "title": "Fuel Rail Pressure Sensor Circuit",
+      "system": "Fuel Delivery",
+      "meaning": "General electrical fault on G247 rail pressure sensor.",
+      "causes": [
+        "Loose G247 plug",
+        "Damaged harness"
+      ],
+      "fixes": [
+        "Inspect 3-pin rail sensor connector"
+      ],
+      "severity": "danger"
+    },
+    "P0191": {
+      "title": "Fuel Rail Pressure Sensor Range / Performance",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "Rail pressure sensor G247 reports an implausible pressure at rest or during transients.",
+      "causes": [
+        "Drifted G247 sensor on fuel rail",
+        "Poor terminal tension in 3-pin rail sensor plug"
+      ],
+      "fixes": [
+        "Verify live rail pressure reads ~0 bar with engine off",
+        "Inspect 3-pin G247 plug for oil/diesel contamination"
+      ],
+      "severity": "warning"
+    },
+    "P0192": {
+      "title": "Fuel Rail Pressure Sensor Circuit Low",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "G247 rail pressure signal voltage dropped below minimum.",
+      "causes": [
+        "Short to ground on G247 signal or 5V reference",
+        "Failed rail pressure sensor"
+      ],
+      "fixes": [
+        "Measure 5V reference at unplugged G247 connector",
+        "Inspect engine top harness for chafing under acoustic cover"
+      ],
+      "severity": "danger"
+    },
+    "P0193": {
+      "title": "Fuel Rail Pressure Sensor Circuit High",
+      "system": "Fuel Delivery & Common Rail",
+      "meaning": "G247 rail pressure signal voltage is open or shorted high.",
+      "causes": [
+        "Unplugged G247 rail sensor",
+        "Broken ground wire at fuel rail plug",
+        "Failed G247 sensor"
+      ],
+      "fixes": [
+        "Ensure G247 connector on the fuel rail is fully seated",
+        "Test ground and signal continuity on the 3-pin plug"
+      ],
+      "severity": "danger"
+    },
+    "P0201": {
+      "title": "Cylinder 1 Injector Circuit Open / Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Open circuit or electrical drive fault detected on fuel injector 1.",
+      "causes": [
+        "Loose or heat-brittle terminal on injector 1 plug",
+        "Under-rocker-cover injector loom degradation (PD engines)",
+        "Internal piezo/solenoid fault in injector 1"
+      ],
+      "fixes": [
+        "Inspect injector 1 connector pins (and internal head loom on PD engines)",
+        "Check injector resistance/capacitance per engine type—never pierce piezo injector wires with power on"
+      ],
+      "severity": "danger"
+    },
+    "P0202": {
+      "title": "Cylinder 2 Injector Circuit Open / Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Open circuit or electrical drive fault detected on fuel injector 2.",
+      "causes": [
+        "Loose or heat-brittle terminal on injector 2 plug",
+        "Under-rocker-cover injector loom degradation (PD engines)",
+        "Internal piezo/solenoid fault in injector 2"
+      ],
+      "fixes": [
+        "Inspect injector 2 connector pins (and internal head loom on PD engines)",
+        "Check injector resistance/capacitance per engine type—never pierce piezo injector wires with power on"
+      ],
+      "severity": "danger"
+    },
+    "P0203": {
+      "title": "Cylinder 3 Injector Circuit Open / Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Open circuit or electrical drive fault detected on fuel injector 3.",
+      "causes": [
+        "Loose or heat-brittle terminal on injector 3 plug",
+        "Under-rocker-cover injector loom degradation (PD engines)",
+        "Internal piezo/solenoid fault in injector 3"
+      ],
+      "fixes": [
+        "Inspect injector 3 connector pins (and internal head loom on PD engines)",
+        "Check injector resistance/capacitance per engine type—never pierce piezo injector wires with power on"
+      ],
+      "severity": "danger"
+    },
+    "P0204": {
+      "title": "Cylinder 4 Injector Circuit Open / Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Open circuit or electrical drive fault detected on fuel injector 4.",
+      "causes": [
+        "Loose or heat-brittle terminal on injector 4 plug",
+        "Under-rocker-cover injector loom degradation (PD engines)",
+        "Internal piezo/solenoid fault in injector 4"
+      ],
+      "fixes": [
+        "Inspect injector 4 connector pins (and internal head loom on PD engines)",
+        "Check injector resistance/capacitance per engine type—never pierce piezo injector wires with power on"
+      ],
+      "severity": "danger"
+    },
+    "P0217": {
+      "title": "Engine Coolant Overtemperature Condition",
+      "system": "Cooling System",
+      "meaning": "Coolant exceeded safe thermal limit.",
+      "causes": [
+        "Low coolant / airlock",
+        "Failed water pump impeller",
+        "Inoperative radiator fans"
+      ],
+      "fixes": [
+        "Check coolant level once cooled and verify water pump return flow into header tank"
+      ],
+      "severity": "danger"
+    },
+    "P0219": {
+      "title": "Engine Overspeed Condition",
+      "system": "Powertrain Protection",
+      "meaning": "Engine RPM exceeded rev limiter (typically mechanical downshift over-rev).",
+      "causes": [
+        "Missed downshift driving wheels faster than redline"
+      ],
+      "fixes": [
+        "Inspect valve train noise if severe over-rev occurred"
+      ],
+      "severity": "warning"
+    },
+    "P0222": {
+      "title": "Throttle / Pedal Position Sensor B Circuit Low",
+      "system": "Throttle & Pedal",
+      "meaning": "Secondary throttle/pedal track voltage too low.",
+      "causes": [
+        "Moisture in pedal or throttle plug",
+        "Damaged wire"
+      ],
+      "fixes": [
+        "Inspect throttle and pedal connectors"
+      ],
+      "severity": "warning"
+    },
+    "P0223": {
+      "title": "Throttle / Pedal Position Sensor B Circuit High",
+      "system": "Throttle & Pedal",
+      "meaning": "Secondary throttle/pedal track voltage too high.",
+      "causes": [
+        "Open ground on sensor B"
+      ],
+      "fixes": [
+        "Check sensor ground continuity"
+      ],
+      "severity": "warning"
+    },
+    "P0234": {
+      "title": "Turbocharger Overboost Condition",
+      "system": "Turbocharger & Boost",
+      "meaning": "Actual manifold boost pressure rose significantly above the ECU target map, often triggering limp mode.",
+      "causes": [
+        "Carbon-seized VNT turbocharger vanes sticking in high-boost position",
+        "Failed N75 boost control solenoid valve",
+        "Binding turbo actuator rod",
+        "Drifted MAP sensor"
+      ],
+      "fixes": [
+        "Check smooth travel of the turbo VNT actuator linkage over its full stroke",
+        "Test N75 vacuum solenoid operation and vent filter",
+        "Log requested vs actual boost on a 3rd-gear pull"
+      ],
+      "severity": "danger",
+      "vagCode": "00564"
+    },
+    "P0236": {
+      "title": "Turbocharger Boost Sensor A Range / Performance",
+      "system": "Turbocharger & Boost",
+      "meaning": "Charge pressure sensor G31 disagrees with atmospheric pressure before startup or drifts under load.",
+      "causes": [
+        "Faulty G31 boost pressure sensor",
+        "Chafed wiring loom under battery tray or front slam panel"
+      ],
+      "fixes": [
+        "Compare boost pressure and barometric sensors with engine off",
+        "Inspect front bumper/charge-pipe loom for water ingress"
+      ],
+      "severity": "warning"
+    },
+    "P0237": {
+      "title": "Turbocharger Boost Sensor A Circuit Low",
+      "system": "Turbocharger & Boost",
+      "meaning": "Boost sensor G31 voltage dropped below the lower electrical limit.",
+      "causes": [
+        "Broken wire or short to ground at G31 plug",
+        "Missing 5V sensor supply"
+      ],
+      "fixes": [
+        "Test 5V reference and ground at G31 connector",
+        "Repair damaged terminals on intercooler sensor plug"
+      ],
+      "severity": "warning"
+    },
+    "P0238": {
+      "title": "Turbocharger Boost Sensor A Circuit High",
+      "system": "Turbocharger & Boost",
+      "meaning": "Boost sensor G31 voltage exceeded the upper electrical limit.",
+      "causes": [
+        "Open sensor ground",
+        "Signal wire shorted to 5V reference",
+        "Failed G31 sensor"
+      ],
+      "fixes": [
+        "Verify sensor ground continuity",
+        "Replace G31 sensor if wiring tests clean"
+      ],
+      "severity": "warning"
+    },
+    "P0243": {
+      "title": "Turbocharger Wastegate / Boost Solenoid A Malfunction",
+      "system": "Turbocharger & Boost",
+      "meaning": "Electrical fault in the N75 boost pressure control solenoid circuit.",
+      "causes": [
+        "Open coil in N75 solenoid",
+        "Blown engine actuator supply fuse",
+        "Broken wire at N75 connector"
+      ],
+      "fixes": [
+        "Measure N75 coil resistance (typically ~14–20 Ω)",
+        "Verify 12V supply at the N75 plug with ignition on"
+      ],
+      "severity": "warning"
+    },
+    "P0245": {
+      "title": "Turbocharger Boost Solenoid A Low",
+      "system": "Turbocharger & Boost",
+      "meaning": "N75 boost solenoid control circuit is open or shorted to ground.",
+      "causes": [
+        "Snapped wire at N75 connector",
+        "Blown fuse feeding engine bay solenoids",
+        "Shorted N75 coil"
+      ],
+      "fixes": [
+        "Check engine bay fuse feeding emissions/boost solenoids",
+        "Inspect N75 2-pin plug and pigtail"
+      ],
+      "severity": "warning"
+    },
+    "P0263": {
+      "title": "Cylinder 1 Contribution / Balance Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Crankshaft speed variation shows cylinder 1 is contributing less torque than adjacent cylinders.",
+      "causes": [
+        "Clogged or worn nozzle on injector 1",
+        "Low compression on cylinder",
+        "Dual-mass flywheel rattle skewing smooth-running calculation at idle"
+      ],
+      "fixes": [
+        "Compare idle smooth-running / injection quantity deviation across cylinders",
+        "Run compression test if injector swap does not move the fault"
+      ],
+      "severity": "warning"
+    },
+    "P0266": {
+      "title": "Cylinder 2 Contribution / Balance Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Crankshaft speed variation shows cylinder 2 is contributing less torque than adjacent cylinders.",
+      "causes": [
+        "Clogged or worn nozzle on injector 2",
+        "Low compression on cylinder",
+        "Dual-mass flywheel rattle skewing smooth-running calculation at idle"
+      ],
+      "fixes": [
+        "Compare idle smooth-running / injection quantity deviation across cylinders",
+        "Run compression test if injector swap does not move the fault"
+      ],
+      "severity": "warning"
+    },
+    "P0269": {
+      "title": "Cylinder 3 Contribution / Balance Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Crankshaft speed variation shows cylinder 3 is contributing less torque than adjacent cylinders.",
+      "causes": [
+        "Clogged or worn nozzle on injector 3",
+        "Low compression on cylinder",
+        "Dual-mass flywheel rattle skewing smooth-running calculation at idle"
+      ],
+      "fixes": [
+        "Compare idle smooth-running / injection quantity deviation across cylinders",
+        "Run compression test if injector swap does not move the fault"
+      ],
+      "severity": "warning"
+    },
+    "P0272": {
+      "title": "Cylinder 4 Contribution / Balance Fault",
+      "system": "Fuel Injectors",
+      "meaning": "Crankshaft speed variation shows cylinder 4 is contributing less torque than adjacent cylinders.",
+      "causes": [
+        "Clogged or worn nozzle on injector 4",
+        "Low compression on cylinder",
+        "Dual-mass flywheel rattle skewing smooth-running calculation at idle"
+      ],
+      "fixes": [
+        "Compare idle smooth-running / injection quantity deviation across cylinders",
+        "Run compression test if injector swap does not move the fault"
+      ],
+      "severity": "warning"
+    },
+    "P0299": {
+      "title": "Turbocharger / Supercharger Underboost",
+      "system": "Turbocharger & Boost",
+      "meaning": "Measured manifold boost stayed well below the ECU's requested pressure.",
+      "causes": [
+        "Split rubber boost hose or blown-off O-ring clip joint",
+        "Cracked plastic intercooler end-tank",
+        "Perished vacuum hose to turbo actuator or perforated actuator diaphragm",
+        "Weak N75 solenoid or sticking VNT vanes"
+      ],
+      "fixes": [
+        "Pressure- or smoke-test the charge-air tract from turbo outlet to inlet manifold",
+        "Apply hand vacuum pump to the turbo actuator—verify it holds ~18 inHg without leaking down",
+        "Inspect thin braided/rubber vacuum lines across the rocker cover and bulkhead",
+        "Check N75 solenoid vacuum output at idle"
+      ],
+      "severity": "danger",
+      "vagCode": "00665"
+    },
+    "P0300": {
+      "title": "Random / Multiple Cylinder Misfire",
+      "system": "Ignition & Combustion",
+      "meaning": "Crankshaft angular velocity fluctuations indicate misfires across more than one cylinder.",
+      "causes": [
+        "Worn spark plugs or failing coil packs (TSI/TFSI)",
+        "Intake vacuum leak or split PCV membrane",
+        "Contaminated fuel or low fuel rail pressure",
+        "Heavy intake valve carbon buildup"
+      ],
+      "fixes": [
+        "Check cylinder misfire counters in live data to isolate affected cylinders",
+        "Inspect PCV breather valve and intake hoses for air leaks",
+        "Verify fuel pressure under load"
+      ],
+      "severity": "danger",
+      "vagCode": "16684"
+    },
+    "P0301": {
+      "title": "Cylinder 1 Misfire Detected",
+      "system": "Ignition & Combustion",
+      "meaning": "Combustion misfire counted above threshold on cylinder 1.",
+      "causes": [
+        "Failing ignition coil or fouled spark plug on cylinder 1 (petrol)",
+        "Faulty fuel injector on cylinder 1",
+        "Low mechanical compression or burnt valve"
+      ],
+      "fixes": [
+        "Swap ignition coil from cylinder 1 to another cylinder to see if the code follows",
+        "Inspect spark plug / injector sealing washer",
+        "Perform compression test if misfire stays on the same cylinder"
+      ],
+      "severity": "danger"
+    },
+    "P0302": {
+      "title": "Cylinder 2 Misfire Detected",
+      "system": "Ignition & Combustion",
+      "meaning": "Combustion misfire counted above threshold on cylinder 2.",
+      "causes": [
+        "Failing ignition coil or fouled spark plug on cylinder 2 (petrol)",
+        "Faulty fuel injector on cylinder 2",
+        "Low mechanical compression or burnt valve"
+      ],
+      "fixes": [
+        "Swap ignition coil from cylinder 2 to another cylinder to see if the code follows",
+        "Inspect spark plug / injector sealing washer",
+        "Perform compression test if misfire stays on the same cylinder"
+      ],
+      "severity": "danger"
+    },
+    "P0303": {
+      "title": "Cylinder 3 Misfire Detected",
+      "system": "Ignition & Combustion",
+      "meaning": "Combustion misfire counted above threshold on cylinder 3.",
+      "causes": [
+        "Failing ignition coil or fouled spark plug on cylinder 3 (petrol)",
+        "Faulty fuel injector on cylinder 3",
+        "Low mechanical compression or burnt valve"
+      ],
+      "fixes": [
+        "Swap ignition coil from cylinder 3 to another cylinder to see if the code follows",
+        "Inspect spark plug / injector sealing washer",
+        "Perform compression test if misfire stays on the same cylinder"
+      ],
+      "severity": "danger"
+    },
+    "P0304": {
+      "title": "Cylinder 4 Misfire Detected",
+      "system": "Ignition & Combustion",
+      "meaning": "Combustion misfire counted above threshold on cylinder 4.",
+      "causes": [
+        "Failing ignition coil or fouled spark plug on cylinder 4 (petrol)",
+        "Faulty fuel injector on cylinder 4",
+        "Low mechanical compression or burnt valve"
+      ],
+      "fixes": [
+        "Swap ignition coil from cylinder 4 to another cylinder to see if the code follows",
+        "Inspect spark plug / injector sealing washer",
+        "Perform compression test if misfire stays on the same cylinder"
+      ],
+      "severity": "danger"
+    },
+    "P0321": {
+      "title": "Engine Speed Sensor (G28) Implausible Signal",
+      "system": "Crank & Cam Sensors",
+      "meaning": "Erratic or missing tooth pulses from crankshaft speed sensor G28.",
+      "causes": [
+        "Metallic debris on G28 sensor tip",
+        "Damaged crankshaft tone wheel / rear main seal magnetic ring",
+        "Failing G28 sensor when hot"
+      ],
+      "fixes": [
+        "Inspect G28 connector near oil filter housing / bellhousing",
+        "Remove G28 to check for swarf or physical contact with the tone ring"
+      ],
+      "severity": "danger"
+    },
+    "P0322": {
+      "title": "Engine Speed Sensor (G28) No Signal",
+      "system": "Crank & Cam Sensors",
+      "meaning": "ECU receives no crankshaft rotation pulses during cranking or running.",
+      "causes": [
+        "Failed G28 crankshaft sensor",
+        "Broken wire in front engine loom",
+        "Damaged rear main seal magnetic encoder ring"
+      ],
+      "fixes": [
+        "Verify live RPM moves above ~200 RPM while cranking",
+        "Check 3-pin G28 plug and wiring"
+      ],
+      "severity": "danger"
+    },
+    "P0335": {
+      "title": "Crankshaft Position Sensor A Circuit",
+      "system": "Crank & Cam Sensors",
+      "meaning": "Electrical fault in crankshaft sensor G28.",
+      "causes": [
+        "Damaged G28 wire near starter/oil cooler",
+        "Failed G28 sensor"
+      ],
+      "fixes": [
+        "Inspect G28 harness and sensor"
+      ],
+      "severity": "danger"
+    },
+    "P0336": {
+      "title": "Crankshaft Position Sensor A Range / Performance",
+      "system": "Crank & Cam Sensors",
+      "meaning": "Irregular tooth count from crankshaft tone ring.",
+      "causes": [
+        "Bent/corroded magnetic rear main seal ring",
+        "Starter interference from weak earth strap"
+      ],
+      "fixes": [
+        "Clean gearbox-to-chassis earth strap and inspect G28/tone ring"
+      ],
+      "severity": "danger"
+    },
+    "P0340": {
+      "title": "Camshaft Position Sensor A Circuit (Bank 1)",
+      "system": "Crank & Cam Sensors",
+      "meaning": "Open or short on camshaft Hall sensor G40.",
+      "causes": [
+        "Unplugged G40 sensor",
+        "Broken wire behind timing cover"
+      ],
+      "fixes": [
+        "Check 3-pin G40 plug, 5V/12V supply, and ground"
+      ],
+      "severity": "warning"
+    },
+    "P0341": {
+      "title": "Camshaft Position Sensor (G40) Range / Performance",
+      "system": "Crank & Cam Sensors",
+      "meaning": "Camshaft Hall sensor G40 pulses are noisy or out of sync.",
+      "causes": [
+        "Failing G40 Hall sensor",
+        "Chafed timing-cover sensor wire",
+        "Incorrect belt/chain timing"
+      ],
+      "fixes": [
+        "Inspect G40 wiring behind timing belt cover",
+        "Verify mechanical timing before condemning sensor"
+      ],
+      "severity": "warning"
+    },
+    "P0380": {
+      "title": "Glow Plug / Heater Circuit A Fault",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Glow plug control module J179 reported an electrical fault in the pre-heat system.",
+      "causes": [
+        "One or more open-circuit glow plugs",
+        "Failed J179 glow plug relay module",
+        "Blown glow-plug strip fuse in engine bay E-box"
+      ],
+      "fixes": [
+        "Measure individual glow plug resistance (note: beware 4.4V/5V low-voltage plugs—do not jump directly to 12V!)",
+        "Check main supply fuse to J179 relay"
+      ],
+      "severity": "warning"
+    },
+    "P0381": {
+      "title": "Glow Plug / Heater Indicator Circuit",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Instrument cluster glow-plug lamp control fault.",
+      "causes": [
+        "CAN cluster fault"
+      ],
+      "fixes": [
+        "Scan 0x17 Instrument Cluster"
+      ],
+      "severity": "warning"
+    },
+    "P0400": {
+      "title": "Exhaust Gas Recirculation (EGR) Flow Fault",
+      "system": "EGR & Emissions",
+      "meaning": "General EGR flow deviation detected.",
+      "causes": [
+        "Soot-choked EGR valve or cooler",
+        "Vacuum or electrical fault at EGR actuator"
+      ],
+      "fixes": [
+        "Inspect EGR valve movement and clean carbon deposits"
+      ],
+      "severity": "warning"
+    },
+    "P0401": {
+      "title": "EGR Flow Insufficient",
+      "system": "EGR & Emissions",
+      "meaning": "Fresh airflow did not drop as expected when the ECU commanded the EGR valve open.",
+      "causes": [
+        "Heavy carbon/oil sludge blocking EGR passages or cooler matrix",
+        "Stripped internal gears on electric EGR actuator",
+        "Blanked EGR pipe without matching software"
+      ],
+      "fixes": [
+        "Inspect and clean EGR valve and intake entry port",
+        "Run EGR output test / basic adaptation"
+      ],
+      "severity": "warning",
+      "vagCode": "01025"
+    },
+    "P0402": {
+      "title": "EGR Flow Excessive",
+      "system": "EGR & Emissions",
+      "meaning": "Exhaust gas is leaking into the intake when the EGR valve should be closed.",
+      "causes": [
+        "EGR pintle held open by a chunk of carbon",
+        "Weak EGR return spring or stuck-open cooler bypass"
+      ],
+      "fixes": [
+        "Remove EGR valve to check whether the valve seats fully closed"
+      ],
+      "severity": "warning"
+    },
+    "P0403": {
+      "title": "EGR Control Circuit Malfunction",
+      "system": "EGR & Emissions",
+      "meaning": "Electrical drive or H-bridge fault on the EGR valve motor/solenoid.",
+      "causes": [
+        "Water/coolant ingress inside combined EGR valve & cooler electronics (common on 2.0 TDI CFCA/CAAC)",
+        "Seized EGR valve overloading motor driver",
+        "Damaged wiring"
+      ],
+      "fixes": [
+        "Pop the plastic cap off the EGR actuator to check for moisture, rust, or stripped gears",
+        "Verify 12V/5V supply and ground at the EGR multi-plug"
+      ],
+      "severity": "danger"
+    },
+    "P0404": {
+      "title": "EGR Control Circuit Range / Performance",
+      "system": "EGR & Emissions",
+      "meaning": "EGR position sensor cannot reach its commanded target or closed adaptation stop.",
+      "causes": [
+        "Carbon buildup stopping full valve closure",
+        "Worn position potentiometer inside EGR unit"
+      ],
+      "fixes": [
+        "Check live EGR specified vs actual % position",
+        "Clean or replace EGR unit and run adaptation"
+      ],
+      "severity": "warning"
+    },
+    "P0407": {
+      "title": "EGR Sensor B Circuit Low",
+      "system": "EGR & Emissions",
+      "meaning": "EGR potentiometer signal fell below minimum voltage.",
+      "causes": [
+        "Shorted potentiometer track inside EGR module",
+        "Broken 5V reference wire"
+      ],
+      "fixes": [
+        "Check 5V supply on EGR connector",
+        "Inspect internal EGR electronics for moisture"
+      ],
+      "severity": "warning"
+    },
+    "P0408": {
+      "title": "EGR Sensor B Circuit High",
+      "system": "EGR & Emissions",
+      "meaning": "EGR potentiometer signal exceeded upper voltage limit.",
+      "causes": [
+        "Open sensor ground in EGR harness",
+        "Failed EGR position sensor"
+      ],
+      "fixes": [
+        "Test ground wire at EGR plug",
+        "Replace EGR assembly if internal track is open"
+      ],
+      "severity": "warning"
+    },
+    "P0420": {
+      "title": "Catalyst System Efficiency Below Threshold (Bank 1)",
+      "system": "Catalyst & Exhaust",
+      "meaning": "Downstream oxygen sensor switches nearly as fast as upstream, showing low oxygen storage in the catalytic converter.",
+      "causes": [
+        "Aged catalytic converter substrate",
+        "Exhaust flex-pipe or manifold leak upstream of post-cat O2 sensor",
+        "Lazy O2 sensor"
+      ],
+      "fixes": [
+        "Check exhaust flex joint and flange gaskets for soot marks before condemning the cat",
+        "Compare upstream and downstream O2 waveforms at warm cruise"
+      ],
+      "severity": "warning"
+    },
+    "P0441": {
+      "title": "EVAP Emission System Incorrect Purge Flow",
+      "system": "EVAP (Petrol)",
+      "meaning": "Charcoal canister purge flow failed self-check.",
+      "causes": [
+        "Sticking N80 EVAP purge valve (test: shouldn't blow through when unplugged)",
+        "Loose fuel cap"
+      ],
+      "fixes": [
+        "Unplug N80 valve and test whether air blows through—if open unpowered, replace N80"
+      ],
+      "severity": "warning"
+    },
+    "P0455": {
+      "title": "EVAP System Large Leak Detected",
+      "system": "EVAP (Petrol)",
+      "meaning": "Gross pressure/vacuum leak in fuel tank vapour system.",
+      "causes": [
+        "Loose fuel filler cap",
+        "Stuck-open N80 valve",
+        "Split EVAP hose"
+      ],
+      "fixes": [
+        "Check fuel cap seal and N80 purge valve"
+      ],
+      "severity": "warning"
+    },
+    "P0480": {
+      "title": "Fan 1 Control Circuit",
+      "system": "Cooling Fans",
+      "meaning": "Radiator cooling fan 1 PWM control or power fault.",
+      "causes": [
+        "Blown high-amp fan strip fuse",
+        "Water-damaged fan controller built into main fan hub",
+        "Shared fuse blown by shorted intake flap"
+      ],
+      "fixes": [
+        "Check engine bay fuses and large 4-pin fan connector under radiator"
+      ],
+      "severity": "warning"
+    },
+    "P0489": {
+      "title": "EGR Control Circuit Low",
+      "system": "EGR & Emissions",
+      "meaning": "EGR actuator driver circuit shorted low or open.",
+      "causes": [
+        "Seized EGR cooler motor blowing fuse or driver",
+        "Chafed loom behind engine block"
+      ],
+      "fixes": [
+        "Inspect EGR multi-plug and engine bay actuator fuse"
+      ],
+      "severity": "warning"
+    },
+    "P0490": {
+      "title": "EGR Control Circuit High",
+      "system": "EGR & Emissions",
+      "meaning": "EGR H-bridge current or voltage exceeded upper limit.",
+      "causes": [
+        "Jammed EGR valve drawing high stall current",
+        "Shorted motor windings"
+      ],
+      "fixes": [
+        "Check whether EGR valve shaft moves freely or is seized with soot"
+      ],
+      "severity": "warning"
+    },
+    "P0501": {
+      "title": "Vehicle Speed Sensor Range / Performance",
+      "system": "Speed & ABS",
+      "meaning": "Vehicle speed signal received by ECU is missing or erratic.",
+      "causes": [
+        "ABS wheel speed sensor fault",
+        "CAN speed message fault from ABS module"
+      ],
+      "fixes": [
+        "Scan ABS module (0x03) for individual wheel speed sensor faults"
+      ],
+      "severity": "warning"
+    },
+    "P0507": {
+      "title": "Idle Air Control RPM Higher Than Expected",
+      "system": "Air Intake",
+      "meaning": "Warm idle speed stayed above target.",
+      "causes": [
+        "Vacuum leak / torn PCV diaphragm drawing air into manifold"
+      ],
+      "fixes": [
+        "Clamp or test PCV breather hose to see if idle drops"
+      ],
+      "severity": "warning"
+    },
+    "P0520": {
+      "title": "Engine Oil Pressure Sensor / Switch Circuit",
+      "system": "Lubrication",
+      "meaning": "Electrical fault in oil pressure switch circuit.",
+      "causes": [
+        "Broken single-wire plug at oil filter housing",
+        "Leaking oil pressure switch"
+      ],
+      "fixes": [
+        "STOP if red oil lamp is active until mechanical oil pressure is verified with a gauge; inspect switch plug"
+      ],
+      "severity": "danger"
+    },
+    "P0522": {
+      "title": "Engine Oil Pressure Sensor Low",
+      "system": "Lubrication",
+      "meaning": "Oil pressure sensor voltage below minimum.",
+      "causes": [
+        "Low oil pressure or failed oil pressure transducer"
+      ],
+      "fixes": [
+        "Verify mechanical oil pressure with a workshop gauge before running engine"
+      ],
+      "severity": "danger"
+    },
+    "P0544": {
+      "title": "Exhaust Gas Temperature Sensor Circuit (Bank 1 Sensor 1)",
+      "system": "Exhaust & DPF",
+      "meaning": "Electrical fault on pre-turbo EGT sensor 1 (G235).",
+      "causes": [
+        "Open-circuit EGT probe due to thermal cycling",
+        "Melted wire near turbo manifold"
+      ],
+      "fixes": [
+        "Measure EGT sensor resistance at the 2-pin bulkhead plug (~200 Ω cold on PT200 probes)",
+        "Check cold engine EGT live reading"
+      ],
+      "severity": "warning"
+    },
+    "P0545": {
+      "title": "Exhaust Gas Temperature Sensor Circuit Low (Bank 1 Sensor 1)",
+      "system": "Exhaust & DPF",
+      "meaning": "Short to ground on pre-turbo EGT sensor 1.",
+      "causes": [
+        "Pinched EGT wire",
+        "Shorted EGT probe"
+      ],
+      "fixes": [
+        "Inspect G235 lead behind turbo"
+      ],
+      "severity": "warning"
+    },
+    "P0546": {
+      "title": "Exhaust Gas Temperature Sensor Circuit High (Bank 1 Sensor 1)",
+      "system": "Exhaust & DPF",
+      "meaning": "Pre-turbo EGT sensor G235 reads open circuit.",
+      "causes": [
+        "Failed G235 probe in exhaust manifold",
+        "Unplugged brown/black 2-pin EGT connector on bulkhead"
+      ],
+      "fixes": [
+        "Unplug G235 connector and measure probe continuity; open circuit confirms failed probe"
+      ],
+      "severity": "warning"
+    },
+    "P0560": {
+      "title": "System Voltage Malfunction",
+      "system": "Charging & Power",
+      "meaning": "Unstable 12V supply voltage.",
+      "causes": [
+        "Loose battery clamp",
+        "Corroded earth strap"
+      ],
+      "fixes": [
+        "Clean and tighten battery posts and chassis grounds"
+      ],
+      "severity": "warning"
+    },
+    "P0562": {
+      "title": "System Voltage Low",
+      "system": "Charging & Power",
+      "meaning": "ECU Terminal 30/15 voltage dropped below threshold.",
+      "causes": [
+        "Discharged battery",
+        "Failing alternator or slipping auxiliary belt",
+        "Corroded earth strap"
+      ],
+      "fixes": [
+        "Check battery voltage at rest (>12.4V) and charging (~14.0–14.4V)"
+      ],
+      "severity": "warning"
+    },
+    "P0563": {
+      "title": "System Voltage High",
+      "system": "Charging & Power",
+      "meaning": "Alternator voltage exceeded safe limit (>16V).",
+      "causes": [
+        "Faulty alternator regulator"
+      ],
+      "fixes": [
+        "Measure battery voltage running; replace regulator immediately if >15.2V"
+      ],
+      "severity": "danger"
+    },
+    "P0568": {
+      "title": "Cruise Control Set Signal Malfunction",
+      "system": "Cruise Control",
+      "meaning": "Implausible switch state from the indicator-stalk cruise control buttons.",
+      "causes": [
+        "Tarnished sliding PCB contacts inside the left steering-column stalk",
+        "Broken wire in stalk hinge"
+      ],
+      "fixes": [
+        "Clean cruise stalk rocker/slide switch contacts with contact cleaner or replace stalk"
+      ],
+      "severity": "info"
+    },
+    "P0571": {
+      "title": "Brake Switch A Circuit Malfunction",
+      "system": "Brakes & Cruise",
+      "meaning": "Implausible correlation between dual brake pedal switch contacts (disables cruise control and flashes glow plug light on many TDIs).",
+      "causes": [
+        "Failed brake light switch or master-cylinder Hall sensor",
+        "Both brake light bulbs blown or incompatible non-ballasted LEDs fitted"
+      ],
+      "fixes": [
+        "Check whether all rear brake lights illuminate cleanly",
+        "Inspect brake pedal switch / master cylinder sensor"
+      ],
+      "severity": "warning",
+      "vagCode": "16955"
+    },
+    "P0601": {
+      "title": "Internal Control Module Memory Check Sum Error",
+      "system": "ECU Hardware",
+      "meaning": "Flash/EEPROM checksum mismatch inside ECU.",
+      "causes": [
+        "Failed/incomplete ECU tune or low-voltage write interruption"
+      ],
+      "fixes": [
+        "Have ECU flash integrity checked"
+      ],
+      "severity": "danger"
+    },
+    "P0606": {
+      "title": "ECM / PCM Processor Fault",
+      "system": "ECU Hardware",
+      "meaning": "Internal microcontroller monitoring check tripped inside the engine ECU.",
+      "causes": [
+        "Water ingress in ECU plenum / scuttle tray",
+        "Severe low-voltage cranking glitch",
+        "Internal ECU fault"
+      ],
+      "fixes": [
+        "Inspect ECU multi-plugs for moisture or green pin corrosion",
+        "Verify battery and ECU ground points"
+      ],
+      "severity": "danger"
+    },
+    "P0627": {
+      "title": "Fuel Pump A Control Circuit Open",
+      "system": "Fuel Delivery",
+      "meaning": "Open circuit to electric lift pump or J538 fuel pump module.",
+      "causes": [
+        "Blown fuel pump fuse",
+        "Failed J538 pump controller on top of tank",
+        "Open lift pump"
+      ],
+      "fixes": [
+        "Check fuel pump fuse and power at J538 module"
+      ],
+      "severity": "warning"
+    },
+    "P0641": {
+      "title": "Sensor Reference Voltage A Circuit Open",
+      "system": "ECU 5V Reference",
+      "meaning": "Shared 5V sensor reference bus A inside the ECU is overloaded or pulled to ground (often triggers cascading sensor codes).",
+      "causes": [
+        "Shorted sensor sharing 5V rail A (commonly EGR, MAP, AC pressure, or rail pressure sensor)",
+        "Pinched engine harness wire"
+      ],
+      "fixes": [
+        "Watch 5V rail A voltage while unplugging sensors on that rail one at a time until 5.0V returns"
+      ],
+      "severity": "danger"
+    },
+    "P0642": {
+      "title": "Sensor Reference Voltage A Circuit Low",
+      "system": "ECU 5V Reference",
+      "meaning": "ECU 5V reference bus A is pulled below ~4.7V by an external short.",
+      "causes": [
+        "Water-damaged EGR, DPF pressure, AC pressure, or boost sensor dragging down the shared 5V rail"
+      ],
+      "fixes": [
+        "Unplug suspect 3-pin/5-pin sensors one by one while monitoring live 5V reference"
+      ],
+      "severity": "danger"
+    },
+    "P0651": {
+      "title": "Sensor Reference Voltage B Circuit Open",
+      "system": "ECU 5V Reference",
+      "meaning": "Shared 5V sensor reference bus B is open or shorted.",
+      "causes": [
+        "Shorted sensor on 5V rail B (throttle body, pedal channel 2, cam/crank, or turbo position sensor)"
+      ],
+      "fixes": [
+        "Isolate by unplugging sensors on rail B one at a time until 5V recovers"
+      ],
+      "severity": "danger"
+    },
+    "P0652": {
+      "title": "Sensor Reference Voltage B Circuit Low",
+      "system": "ECU 5V Reference",
+      "meaning": "5V sensor supply rail B pulled low by a shorted sensor.",
+      "causes": [
+        "Shorted throttle, turbo position, or cam/crank sensor"
+      ],
+      "fixes": [
+        "Unplug rail-B sensors one by one while watching 5V reference"
+      ],
+      "severity": "danger"
+    },
+    "P0670": {
+      "title": "Glow Plug Control Module Circuit",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Power or control fault at J179 glow plug relay.",
+      "causes": [
+        "Blown glow-plug strip fuse",
+        "Failed J179 relay"
+      ],
+      "fixes": [
+        "Check heavy fuse feeding J179 and inspect relay pins"
+      ],
+      "severity": "warning"
+    },
+    "P0671": {
+      "title": "Cylinder 1 Glow Plug Circuit Fault",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Glow plug control unit detected open circuit or abnormal current on cylinder 1 glow plug (Q10).",
+      "causes": [
+        "Burnt-out glow plug in cylinder 1 (Note: check if cylinder 3 uses a PSG pressure-sensing glow plug before ordering)",
+        "Loose push-on glow plug cap",
+        "Faulty J179 glow plug module"
+      ],
+      "fixes": [
+        "Unclip cap on cylinder 1 and test resistance to engine block (~0.5–1.5 Ω typical on steel/ceramic low-voltage plugs)",
+        "Apply penetrating oil on a warm engine and use a torque wrench when removing glow plugs to avoid snapping"
+      ],
+      "severity": "warning"
+    },
+    "P0672": {
+      "title": "Cylinder 2 Glow Plug Circuit Fault",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Glow plug control unit detected open circuit or abnormal current on cylinder 2 glow plug (Q11).",
+      "causes": [
+        "Burnt-out glow plug in cylinder 2 (Note: check if cylinder 3 uses a PSG pressure-sensing glow plug before ordering)",
+        "Loose push-on glow plug cap",
+        "Faulty J179 glow plug module"
+      ],
+      "fixes": [
+        "Unclip cap on cylinder 2 and test resistance to engine block (~0.5–1.5 Ω typical on steel/ceramic low-voltage plugs)",
+        "Apply penetrating oil on a warm engine and use a torque wrench when removing glow plugs to avoid snapping"
+      ],
+      "severity": "warning"
+    },
+    "P0673": {
+      "title": "Cylinder 3 Glow Plug Circuit Fault",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Glow plug control unit detected open circuit or abnormal current on cylinder 3 glow plug (Q12).",
+      "causes": [
+        "Burnt-out glow plug in cylinder 3 (Note: check if cylinder 3 uses a PSG pressure-sensing glow plug before ordering)",
+        "Loose push-on glow plug cap",
+        "Faulty J179 glow plug module"
+      ],
+      "fixes": [
+        "Unclip cap on cylinder 3 and test resistance to engine block (~0.5–1.5 Ω typical on steel/ceramic low-voltage plugs)",
+        "Apply penetrating oil on a warm engine and use a torque wrench when removing glow plugs to avoid snapping"
+      ],
+      "severity": "warning"
+    },
+    "P0674": {
+      "title": "Cylinder 4 Glow Plug Circuit Fault",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Glow plug control unit detected open circuit or abnormal current on cylinder 4 glow plug (Q13).",
+      "causes": [
+        "Burnt-out glow plug in cylinder 4 (Note: check if cylinder 3 uses a PSG pressure-sensing glow plug before ordering)",
+        "Loose push-on glow plug cap",
+        "Faulty J179 glow plug module"
+      ],
+      "fixes": [
+        "Unclip cap on cylinder 4 and test resistance to engine block (~0.5–1.5 Ω typical on steel/ceramic low-voltage plugs)",
+        "Apply penetrating oil on a warm engine and use a torque wrench when removing glow plugs to avoid snapping"
+      ],
+      "severity": "warning"
+    },
+    "P0684": {
+      "title": "Glow Plug Control Module to PCM Communication Range",
+      "system": "Glow Plug Pre-Heat",
+      "meaning": "Diagnostic feedback wire between J179 glow plug relay and engine ECU carries an invalid signal.",
+      "causes": [
+        "Corroded J179 relay socket under battery/E-box",
+        "Broken LIN/PWM feedback wire",
+        "Failed J179 module"
+      ],
+      "fixes": [
+        "Inspect J179 relay pins for green corrosion",
+        "Verify power and ground feeds to J179"
+      ],
+      "severity": "warning"
+    },
+    "P0685": {
+      "title": "ECM / PCM Power Relay Control Circuit Open",
+      "system": "ECU Power Supply",
+      "meaning": "ECU cannot energize main power relay coil.",
+      "causes": [
+        "Failed J317 / Relay 109",
+        "Corroded E-box socket"
+      ],
+      "fixes": [
+        "Inspect E-box main power relay and socket under bonnet"
+      ],
+      "severity": "danger"
+    },
+    "P068A": {
+      "title": "ECM / PCM Power Relay De-Energized Too Early",
+      "system": "ECU Power Supply",
+      "meaning": "Main ECU power relay (J317) dropped out before the ECU completed its post-shutdown EEPROM save.",
+      "causes": [
+        "Flat or disconnected battery",
+        "Ageing main ECU power relay in E-box"
+      ],
+      "fixes": [
+        "Test battery state of health; replace J317 main power relay if code recurs with a healthy battery"
+      ],
+      "severity": "warning"
+    },
+    "P0700": {
+      "title": "Transmission Control System (MIL Request)",
+      "system": "Transmission",
+      "meaning": "Gearbox ECU requested Check Engine lamp illumination.",
+      "causes": [
+        "Fault stored in Address 0x02 Transmission"
+      ],
+      "fixes": [
+        "Check Address 0x02 for the specific gearbox fault"
+      ],
+      "severity": "warning"
+    },
+    "P0715": {
+      "title": "Input / Turbine Speed Sensor A Circuit",
+      "system": "Transmission",
+      "meaning": "Gearbox input shaft speed sensor fault.",
+      "causes": [
+        "Internal mechatronic speed sensor failure"
+      ],
+      "fixes": [
+        "Scan 0x02 Transmission live input RPM"
+      ],
+      "severity": "warning"
+    },
+    "P0722": {
+      "title": "Output Speed Sensor Circuit No Signal",
+      "system": "Transmission",
+      "meaning": "Gearbox output speed signal missing.",
+      "causes": [
+        "Internal output speed sensor fault"
+      ],
+      "fixes": [
+        "Inspect 0x02 Transmission live data"
+      ],
+      "severity": "warning"
+    },
+    "P0726": {
+      "title": "Engine Speed Input Circuit Range / Performance",
+      "system": "Transmission (DSG)",
+      "meaning": "Mechatronic unit received an implausible engine speed signal.",
+      "causes": [
+        "CAN message dropout from ECM",
+        "Internal mechatronic speed sensor issue"
+      ],
+      "fixes": [
+        "Check Engine (0x01) for G28 crankshaft sensor faults first"
+      ],
+      "severity": "warning"
+    },
+    "P0841": {
+      "title": "Transmission Fluid Pressure Sensor / Switch A Range",
+      "system": "Transmission (DSG)",
+      "meaning": "Hydraulic accumulator pressure in 7-speed dry-clutch DSG (DQ200) failed to build or hold pressure.",
+      "causes": [
+        "Cracked aluminium hydraulic accumulator housing inside DQ200 mechatronic",
+        "Loose accumulator body"
+      ],
+      "fixes": [
+        "Check mechatronic hydraulic pressure in live data; accumulator housing repair kits address cracked threads"
+      ],
+      "severity": "danger"
+    },
+    "P1556": {
+      "title": "Charge Pressure Control: Negative Deviation",
+      "system": "Turbocharger & Boost",
+      "meaning": "Boost pressure failed to reach requested target (KWP/early TDI equivalent of P0299).",
+      "causes": [
+        "Leaking boost pipe coupling",
+        "Split vacuum hose to VNT capsule",
+        "Faulty N75 solenoid"
+      ],
+      "fixes": [
+        "Inspect all push-fit boost hose lugs and seals for oil misting",
+        "Vacuum-test VNT actuator and supply lines"
+      ],
+      "severity": "danger",
+      "vagCode": "17964"
+    },
+    "P1557": {
+      "title": "Charge Pressure Control: Positive Deviation",
+      "system": "Turbocharger & Boost",
+      "meaning": "Boost pressure overshot target threshold and triggered protective fuel cut / limp mode.",
+      "causes": [
+        "Coked VNT vanes inside exhaust turbine housing",
+        "Sticking N75 boost solenoid"
+      ],
+      "fixes": [
+        "Check VNT lever movement for sticky spots",
+        "Verify N75 vents vacuum cleanly when de-energized"
+      ],
+      "severity": "danger",
+      "vagCode": "17965"
+    },
+    "P1602": {
+      "title": "Power Supply Terminal 30: Voltage Too Low",
+      "system": "ECU Power Supply",
+      "meaning": "Unswitched permanent battery supply to the ECU dropped or was disconnected.",
+      "causes": [
+        "Battery was disconnected during work",
+        "Weak battery voltage collapse while cranking",
+        "Corroded fuse-box feed"
+      ],
+      "fixes": [
+        "If battery was recently disconnected, clear code and confirm it does not return"
+      ],
+      "severity": "info",
+      "vagCode": "18010"
+    },
+    "P164B": {
+      "title": "Oil Pressure Switch Malfunction",
+      "system": "Lubrication",
+      "meaning": "Implausible state on two-stage oil pressure switch (open when running or closed with engine off).",
+      "causes": [
+        "Oil leaking through switch diaphragm into 1/2-pin plug",
+        "Blocked oil pickup"
+      ],
+      "fixes": [
+        "Inspect oil pressure switches on filter block; verify mechanical oil pressure"
+      ],
+      "severity": "danger"
+    },
+    "P164D": {
+      "title": "Reduced Oil Pressure Switch Malfunction",
+      "system": "Lubrication",
+      "meaning": "Low-stage oil pressure switch implausible (common on MQB EA288/EA888).",
+      "causes": [
+        "Stuck brown/blue low-pressure oil switch",
+        "Low oil pressure at hot idle"
+      ],
+      "fixes": [
+        "Test actual hot-idle oil pressure with mechanical gauge and inspect switch"
+      ],
+      "severity": "danger"
+    },
+    "P1735": {
+      "title": "Clutch 1 Position Sensor Electrical Malfunction",
+      "system": "Transmission (DSG)",
+      "meaning": "Hall position sensor for odd-gear clutch K1 inside DSG mechatronic failed (common on DQ500 / DQ381).",
+      "causes": [
+        "Failed K1 pressure/position Hall sensor on mechatronic PCB"
+      ],
+      "fixes": [
+        "Verify gear loss on odd gears (1, 3, 5, 7); specialist mechatronic sensor replacement or unit repair required"
+      ],
+      "severity": "danger"
+    },
+    "P1736": {
+      "title": "Clutch 2 Position Sensor Electrical Malfunction",
+      "system": "Transmission (DSG)",
+      "meaning": "Hall position sensor for even-gear/reverse clutch K2 inside DSG mechatronic failed.",
+      "causes": [
+        "Failed K2 sensor on mechatronic board"
+      ],
+      "fixes": [
+        "Verify loss of even gears (2, 4, 6, R); repair or replace mechatronic sensor board"
+      ],
+      "severity": "danger"
+    },
+    "P17BF": {
+      "title": "Hydraulic Pump Play Protection Active",
+      "system": "Transmission (DSG)",
+      "meaning": "DQ200 hydraulic pump ran continuously without reaching cut-out pressure, triggering thermal protection.",
+      "causes": [
+        "Internal hydraulic leak at cracked accumulator seat",
+        "Low mechatronic hydraulic oil level"
+      ],
+      "fixes": [
+        "Inspect mechatronic for hydraulic oil leaks from breather and check pump run cycle"
+      ],
+      "severity": "danger"
+    },
+    "P189C": {
+      "title": "Function Restriction Due to Insufficient Pressure Build-Up",
+      "system": "Transmission (DSG)",
+      "meaning": "DSG mechatronic could not build sufficient hydraulic pressure to engage clutches cleanly.",
+      "causes": [
+        "Cracked accumulator mount or leaking internal seal in DQ200 mechatronic"
+      ],
+      "fixes": [
+        "Diagnose alongside P0841 / P17BF; pressure loss requires mechatronic hydraulic repair"
+      ],
+      "severity": "danger"
+    },
+    "P2002": {
+      "title": "Diesel Particulate Filter Efficiency Below Threshold (Bank 1)",
+      "system": "Exhaust & DPF",
+      "meaning": "Measured differential or post-DPF pressure/PM indicates gas bypassing or abnormal flow across the DPF.",
+      "causes": [
+        "Cracked internal ceramic DPF monolith (check tailpipe inside for black soot—a healthy DPF tailpipe is clean)",
+        "Split or detached G450 differential pressure hose",
+        "Low-pressure EGR cooler clogged with soot (MQB EA288)",
+        "Faulty differential pressure sensor"
+      ],
+      "fixes": [
+        "Wipe inside the exhaust tailpipe: heavy black soot indicates a cracked DPF core",
+        "Inspect rubber hoses to the DPF differential pressure sensor",
+        "On MQB 2.0 TDI, check low-pressure EGR cooler flow restriction"
+      ],
+      "severity": "danger"
+    },
+    "P2004": {
+      "title": "Intake Manifold Runner Control Stuck Open (Bank 1)",
+      "system": "Induction & Swirl Flaps",
+      "meaning": "Swirl-flap actuator reports the intake flaps remain open when commanded closed.",
+      "causes": [
+        "Carbon buildup jamming swirl flaps",
+        "Broken linkage rod between V157 motor and flap shaft"
+      ],
+      "fixes": [
+        "Inspect swirl-flap arm and ball-joint linkage",
+        "Clean carbon deposits or fit travel-stop repair bracket if over-traveling"
+      ],
+      "severity": "warning"
+    },
+    "P2006": {
+      "title": "Intake Manifold Runner Control Stuck Closed (Bank 1)",
+      "system": "Induction & Swirl Flaps",
+      "meaning": "Intake manifold runner flaps failed to open when requested under load.",
+      "causes": [
+        "Seized flap shaft",
+        "Detached actuator arm or failed flap motor"
+      ],
+      "fixes": [
+        "Actuate flap linkage by hand to check for binding",
+        "Inspect electrical plug on manifold flap motor"
+      ],
+      "severity": "warning"
+    },
+    "P2015": {
+      "title": "Intake Manifold Flap Position Sensor Range / Performance",
+      "system": "Induction & Swirl Flaps",
+      "meaning": "Swirl-flap position feedback voltage went outside its calibrated end-stop window.",
+      "causes": [
+        "Worn plastic mechanical stop on 2.0 TDI manifold allowing the V157 motor arm to over-rotate",
+        "Heavy soot deposits on intake flaps",
+        "Internal potentiometer wear in flap motor"
+      ],
+      "fixes": [
+        "Inspect the manifold flap lever stop—on common-rail 2.0 TDI manifolds an aluminium stop bracket restores the rest angle",
+        "Clear code and run manifold flap basic setting if supported"
+      ],
+      "severity": "warning",
+      "vagCode": "08213"
+    },
+    "P2031": {
+      "title": "Exhaust Gas Temperature Sensor Circuit (Bank 1 Sensor 2)",
+      "system": "Exhaust & DPF",
+      "meaning": "Electrical fault in EGT sensor 2.",
+      "causes": [
+        "Open EGT S2 probe"
+      ],
+      "fixes": [
+        "Check resistance across EGT S2 2-pin plug"
+      ],
+      "severity": "warning"
+    },
+    "P2032": {
+      "title": "Exhaust Gas Temperature Sensor Circuit Low (Bank 1 Sensor 2)",
+      "system": "Exhaust & DPF",
+      "meaning": "EGT S2 shorted to ground.",
+      "causes": [
+        "Pinched EGT S2 cable"
+      ],
+      "fixes": [
+        "Inspect sensor routing near DPF"
+      ],
+      "severity": "warning"
+    },
+    "P2033": {
+      "title": "Exhaust Gas Temperature Sensor Circuit High (Bank 1 Sensor 2)",
+      "system": "Exhaust & DPF",
+      "meaning": "Open circuit on EGT sensor 2 (pre-DPF / post-turbo).",
+      "causes": [
+        "Failed EGT probe",
+        "Broken wire at sensor plug"
+      ],
+      "fixes": [
+        "Measure probe resistance at its 2-pin connector; replace probe if open"
+      ],
+      "severity": "warning"
+    },
+    "P2047": {
+      "title": "Reductant (AdBlue) Injector Circuit Open (Bank 1 Unit 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "Open circuit on N474 AdBlue dosing injector.",
+      "causes": [
+        "Unplugged or heat-damaged wire at exhaust AdBlue injector",
+        "Open N474 coil"
+      ],
+      "fixes": [
+        "Measure N474 coil resistance (~12 Ω) and inspect exhaust underbody plug"
+      ],
+      "severity": "warning"
+    },
+    "P2048": {
+      "title": "Reductant (AdBlue) Injector Circuit Low",
+      "system": "AdBlue / SCR",
+      "meaning": "Short to ground on AdBlue injector N474.",
+      "causes": [
+        "Chafed underbody wire",
+        "Shorted N474 coil"
+      ],
+      "fixes": [
+        "Inspect underfloor SCR wiring loom"
+      ],
+      "severity": "warning"
+    },
+    "P2049": {
+      "title": "Reductant (AdBlue) Injector Circuit High",
+      "system": "AdBlue / SCR",
+      "meaning": "Short to positive on AdBlue injector N474.",
+      "causes": [
+        "Damaged SCR harness"
+      ],
+      "fixes": [
+        "Test N474 wiring to SCR/ECU"
+      ],
+      "severity": "warning"
+    },
+    "P207F": {
+      "title": "Reductant (AdBlue) Quality Performance",
+      "system": "AdBlue / SCR",
+      "meaning": "NOx conversion or tank quality sensor indicates improper AdBlue fluid.",
+      "causes": [
+        "Contaminated or old AdBlue",
+        "Crystallized AdBlue injector"
+      ],
+      "fixes": [
+        "Drain and refill with fresh ISO 22241 AdBlue and clean dosing nozzle"
+      ],
+      "severity": "warning"
+    },
+    "P2080": {
+      "title": "Exhaust Gas Temperature Sensor Range / Performance (Bank 1 Sensor 1)",
+      "system": "Exhaust & DPF",
+      "meaning": "Pre-turbo EGT sensor G235 reports an implausible temperature compared to adjacent EGT probes after cold soak.",
+      "causes": [
+        "Drifted G235 thermistor/RTD element",
+        "High contact resistance in 2-pin connector"
+      ],
+      "fixes": [
+        "Compare all EGT sensors (S1–S4) cold before starting engine; the outlier sensor is faulty"
+      ],
+      "severity": "warning"
+    },
+    "P2084": {
+      "title": "Exhaust Gas Temperature Sensor Range / Performance (Bank 1 Sensor 2)",
+      "system": "Exhaust & DPF",
+      "meaning": "EGT sensor 2 reading disagrees with neighbouring exhaust temperature sensors.",
+      "causes": [
+        "Drifted EGT S2 probe",
+        "Corroded connector"
+      ],
+      "fixes": [
+        "Compare cold-soak live EGT readings across all exhaust probes"
+      ],
+      "severity": "warning"
+    },
+    "P2085": {
+      "title": "Exhaust Gas Temperature Sensor Circuit Intermittent (Bank 1 Sensor 2)",
+      "system": "Exhaust & DPF",
+      "meaning": "Intermittent dropouts on EGT sensor 2.",
+      "causes": [
+        "Failing EGT S2 probe",
+        "Loose connector terminal"
+      ],
+      "fixes": [
+        "Inspect 2-pin plug and replace intermittent probe"
+      ],
+      "severity": "warning"
+    },
+    "P20EE": {
+      "title": "SCR NOx Catalyst Efficiency Below Threshold (Bank 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "Downstream NOx sensor detects insufficient NOx reduction across the SCR catalyst.",
+      "causes": [
+        "Crystallized AdBlue blocking the N474 dosing injector",
+        "Stale or diluted AdBlue fluid",
+        "Drifted downstream NOx sensor",
+        "Aged SCR catalyst"
+      ],
+      "fixes": [
+        "Unbolt AdBlue injector from exhaust pipe and inspect for white urea crystals; clean with warm water",
+        "Check AdBlue fluid concentration with a refractometer (target 32.5% urea)"
+      ],
+      "severity": "warning"
+    },
+    "P2100": {
+      "title": "Throttle Actuator Control Motor Circuit Open",
+      "system": "Throttle & Anti-Shudder Flap",
+      "meaning": "Open circuit in the intake manifold throttle / anti-shudder valve (J338) motor.",
+      "causes": [
+        "Blown engine bay fuse (often shared with radiator fan module when intake flap shorts!)",
+        "Oil-flooded throttle body electronics"
+      ],
+      "fixes": [
+        "Check engine bay fuse box (commonly a 10A/15A fuse blows when oil enters the throttle flap PCB)",
+        "Unplug J338 and inspect for black engine oil pouring out of the connector"
+      ],
+      "severity": "danger"
+    },
+    "P2101": {
+      "title": "Throttle Actuator Control Motor Range / Performance",
+      "system": "Throttle & Anti-Shudder Flap",
+      "meaning": "Intake throttle plate could not reach commanded angle.",
+      "causes": [
+        "Heavy soot/EGR sludge jamming throttle plate",
+        "Stripped internal nylon teeth"
+      ],
+      "fixes": [
+        "Remove intake flap housing, clean carbon, and inspect internal plastic gears"
+      ],
+      "severity": "warning"
+    },
+    "P2102": {
+      "title": "Throttle Actuator Control Motor Circuit Low",
+      "system": "Throttle & Anti-Shudder Flap",
+      "meaning": "Short or overload in the intake throttle / shut-off flap motor.",
+      "causes": [
+        "Engine oil leaking past throttle shaft seal onto internal PCB",
+        "Stripped nylon gears inside J338"
+      ],
+      "fixes": [
+        "Check engine bay fuse and inspect J338 connector for oil contamination"
+      ],
+      "severity": "danger"
+    },
+    "P2122": {
+      "title": "Throttle / Pedal Position Sensor D Circuit Low",
+      "system": "Throttle & Pedal",
+      "meaning": "Accelerator pedal sensor 1 below minimum.",
+      "causes": [
+        "Wet footwell/plenum wiring",
+        "Faulty pedal module"
+      ],
+      "fixes": [
+        "Check 6-pin accelerator pedal connector"
+      ],
+      "severity": "warning"
+    },
+    "P2127": {
+      "title": "Throttle / Pedal Position Sensor E Circuit Low",
+      "system": "Throttle & Pedal",
+      "meaning": "Accelerator pedal sensor 2 below minimum.",
+      "causes": [
+        "Shared 5V rail B fault",
+        "Wet connector"
+      ],
+      "fixes": [
+        "Check whether P0651/P0652 is also stored; inspect pedal plug"
+      ],
+      "severity": "warning"
+    },
+    "P2138": {
+      "title": "Throttle / Pedal Position Sensor D/E Voltage Correlation",
+      "system": "Throttle & Pedal",
+      "meaning": "Dual safety tracks inside the accelerator pedal module disagree.",
+      "causes": [
+        "Water ingress in footwell pedal plug or plenum bulkhead connector",
+        "Worn accelerator pedal unit"
+      ],
+      "fixes": [
+        "Inspect accelerator pedal 6-pin connector and scuttle plenum connectors for moisture"
+      ],
+      "severity": "danger"
+    },
+    "P2146": {
+      "title": "Fuel Injector Group A Supply Voltage Open",
+      "system": "Fuel Injectors",
+      "meaning": "ECU lost electrical drive capability for injector bank A (often stalls engine immediately).",
+      "causes": [
+        "Piezo injector shorted internally to body/ground, tripping ECU bank shutdown",
+        "Chafed injector harness wire shorting to cylinder head"
+      ],
+      "fixes": [
+        "Unplug injectors one by one and test insulation resistance from each pin to injector body",
+        "Inspect injector loom where it enters or crosses the cylinder head"
+      ],
+      "severity": "danger"
+    },
+    "P2149": {
+      "title": "Fuel Injector Group B Supply Voltage Open",
+      "system": "Fuel Injectors",
+      "meaning": "ECU shut down injector bank B due to an open circuit or short on one of its paired injectors.",
+      "causes": [
+        "Shorted piezo/solenoid injector on bank B",
+        "Damaged injector harness"
+      ],
+      "fixes": [
+        "Test each bank-B injector for pin-to-body short",
+        "Check harness continuity between ECU and injector plugs"
+      ],
+      "severity": "danger"
+    },
+    "P2196": {
+      "title": "O2 Sensor Signal Biased / Stuck Rich (Bank 1 Sensor 1)",
+      "system": "Lambda / Fuel Trim",
+      "meaning": "Wideband upstream lambda probe reports persistently rich exhaust gas.",
+      "causes": [
+        "Boost hose leak on diesel causing rich mixture under load",
+        "Leaking injector",
+        "Contaminated or aged LSU wideband lambda sensor"
+      ],
+      "fixes": [
+        "Check charge pipes for boost leaks first on TDI engines",
+        "Verify live lambda response during overrun fuel cut (should swing lean cleanly)"
+      ],
+      "severity": "warning"
+    },
+    "P2200": {
+      "title": "NOx Sensor Circuit (Bank 1 Sensor 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "Electrical/CAN fault in upstream NOx sensor.",
+      "causes": [
+        "Blown NOx fuse",
+        "Failed NOx module"
+      ],
+      "fixes": [
+        "Check 12V supply and CAN lines at NOx box"
+      ],
+      "severity": "warning"
+    },
+    "P2201": {
+      "title": "NOx Sensor Circuit Range / Performance (Bank 1 Sensor 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "Upstream NOx sensor module reports implausible NOx or O2 values.",
+      "causes": [
+        "Aged NOx probe",
+        "Exhaust leak near sensor bung",
+        "Water ingress in underfloor NOx control box"
+      ],
+      "fixes": [
+        "Inspect underbody NOx module mounting and CAN/power plug"
+      ],
+      "severity": "warning"
+    },
+    "P2202": {
+      "title": "NOx Sensor Circuit Low (Bank 1 Sensor 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "Electrical supply or internal fault on NOx sensor 1.",
+      "causes": [
+        "Blown NOx sensor heater fuse",
+        "Damaged underbody wiring"
+      ],
+      "fixes": [
+        "Verify battery voltage and ground at the NOx module 4/5-pin plug"
+      ],
+      "severity": "warning"
+    },
+    "P2209": {
+      "title": "NOx Sensor Heater Sense Circuit Range (Bank 1 Sensor 1)",
+      "system": "AdBlue / SCR",
+      "meaning": "NOx sensor internal ceramic heater fault.",
+      "causes": [
+        "Moisture thermal shock cracking NOx sensor tip",
+        "Weak power supply"
+      ],
+      "fixes": [
+        "Replace failed NOx sensor assembly"
+      ],
+      "severity": "warning"
+    },
+    "P2263": {
+      "title": "Turbocharger / Supercharger Boost System Performance",
+      "system": "Turbocharger & Boost",
+      "meaning": "Bi-turbo or variable-geometry boost control did not track target across changeover or steady load.",
+      "causes": [
+        "Leaking vacuum changeover valve or reservoir on BiTDI engines",
+        "Seized wastegate/bypass flap pivot",
+        "Charge-air leak"
+      ],
+      "fixes": [
+        "On BiTDI engines, vacuum-test both actuator capsules and changeover solenoids",
+        "Inspect charge cooler and hoses for boost leaks"
+      ],
+      "severity": "danger"
+    },
+    "P2279": {
+      "title": "Intake Air System Leak",
+      "system": "Air Intake & Metering",
+      "meaning": "Unmetered air or pressure loss detected between MAF, turbocharger, and intake manifold.",
+      "causes": [
+        "Split PCV breather hose or torn PCV diaphragm",
+        "Loose boost pipe seal",
+        "Leaking rocker-cover or oil filler cap seal"
+      ],
+      "fixes": [
+        "Smoke-test intake and crankcase breather hoses",
+        "Check PCV valve membrane for tears"
+      ],
+      "severity": "warning"
+    },
+    "P229F": {
+      "title": "NOx Sensor Circuit Range / Performance (Bank 1 Sensor 2)",
+      "system": "AdBlue / SCR",
+      "meaning": "Downstream post-SCR NOx sensor reports implausible readings (blocks DPF/SCR readiness).",
+      "causes": [
+        "Failed downstream NOx sensor/module",
+        "Soot or urea fouling on sensor tip"
+      ],
+      "fixes": [
+        "Check live NOx ppm during warm overrun decel (should drop near zero)"
+      ],
+      "severity": "warning"
+    },
+    "P242A": {
+      "title": "Exhaust Gas Temperature Sensor Circuit (Bank 1 Sensor 3)",
+      "system": "Exhaust & DPF",
+      "meaning": "Electrical fault on pre-DPF EGT sensor 3 (G495)—active DPF regeneration will be inhibited while present.",
+      "causes": [
+        "Open-circuit G495 probe",
+        "Chafed underfloor sensor lead"
+      ],
+      "fixes": [
+        "Fix promptly so the DPF does not overload while regeneration is blocked",
+        "Test probe resistance at its connector"
+      ],
+      "severity": "danger"
+    },
+    "P242B": {
+      "title": "Exhaust Gas Temperature Sensor Range / Performance (Bank 1 Sensor 3)",
+      "system": "Exhaust & DPF",
+      "meaning": "EGT sensor 3 (G495) reading is implausible compared to exhaust model.",
+      "causes": [
+        "Drifted G495 probe"
+      ],
+      "fixes": [
+        "Check all EGT values after overnight cold soak; replace drifted probe"
+      ],
+      "severity": "danger"
+    },
+    "P242D": {
+      "title": "Exhaust Gas Temperature Sensor Circuit High (Bank 1 Sensor 3)",
+      "system": "Exhaust & DPF",
+      "meaning": "Open circuit on pre-DPF EGT sensor 3 (G495).",
+      "causes": [
+        "Burned-out G495 probe"
+      ],
+      "fixes": [
+        "Unplug G495 and confirm open circuit with ohmmeter; replace probe"
+      ],
+      "severity": "danger"
+    },
+    "P2452": {
+      "title": "DPF Differential Pressure Sensor Circuit",
+      "system": "Exhaust & DPF",
+      "meaning": "Electrical fault in DPF pressure sensor G450 circuit.",
+      "causes": [
+        "Failed G450 sensor",
+        "Melted wiring or corroded 3-pin plug"
+      ],
+      "fixes": [
+        "Inspect 3-pin plug and sensing hoses at G450",
+        "Adapt replacement sensor if replaced"
+      ],
+      "severity": "danger",
+      "vagCode": "09298"
+    },
+    "P2453": {
+      "title": "DPF Differential Pressure Sensor Range / Performance",
+      "system": "Exhaust & DPF",
+      "meaning": "G450 differential pressure is non-zero with engine off or implausible vs exhaust flow.",
+      "causes": [
+        "Condensation water or ice trapped in G450 sensing hoses",
+        "Drifted G450 pressure transducer",
+        "Split rubber sensing hose"
+      ],
+      "fixes": [
+        "Check differential pressure with ignition ON, engine OFF (should be ~0 hPa)",
+        "Blow clear both stainless/rubber sensing pipes and replace G450 if offset remains"
+      ],
+      "severity": "danger"
+    },
+    "P2454": {
+      "title": "DPF Differential Pressure Sensor Circuit Low",
+      "system": "Exhaust & DPF",
+      "meaning": "G450 signal voltage dropped below minimum.",
+      "causes": [
+        "Short to ground on G450 signal or 5V rail",
+        "Failed G450 sensor"
+      ],
+      "fixes": [
+        "Measure 5V supply and ground at G450 plug"
+      ],
+      "severity": "danger"
+    },
+    "P2455": {
+      "title": "DPF Differential Pressure Sensor Circuit High",
+      "system": "Exhaust & DPF",
+      "meaning": "G450 signal voltage stuck high / open ground.",
+      "causes": [
+        "Unplugged G450 sensor",
+        "Open ground wire",
+        "Failed G450 sensor"
+      ],
+      "fixes": [
+        "Check G450 connector latch and ground wire"
+      ],
+      "severity": "danger"
+    },
+    "P2456": {
+      "title": "DPF Differential Pressure Sensor Intermittent",
+      "system": "Exhaust & DPF",
+      "meaning": "Erratic readings from G450 DPF pressure sensor.",
+      "causes": [
+        "Moisture in pressure hoses",
+        "Failing G450 sensor"
+      ],
+      "fixes": [
+        "Blow hoses dry and replace G450"
+      ],
+      "severity": "warning"
+    },
+    "P2458": {
+      "title": "DPF Regeneration Duration",
+      "system": "Exhaust & DPF",
+      "meaning": "An active DPF regeneration cycle ran longer than allowed without reducing soot load sufficiently.",
+      "causes": [
+        "Faulty thermostat keeping coolant below ~75°C",
+        "Faulty EGT sensor under-reading temperature",
+        "Boost leak causing excess soot during regen"
+      ],
+      "fixes": [
+        "Verify live coolant temperature reaches ~88–90°C on road cruise",
+        "Check EGT sensors and charge hoses"
+      ],
+      "severity": "warning"
+    },
+    "P2459": {
+      "title": "DPF Regeneration Frequency",
+      "system": "Exhaust & DPF",
+      "meaning": "DPF regenerations are triggering at abnormally short mileage intervals.",
+      "causes": [
+        "High ash load in high-mileage DPF",
+        "Boost leak or worn injectors creating excess soot",
+        "Drifted G450 pressure sensor"
+      ],
+      "fixes": [
+        "Check oil ash volume and inspect boost pipes before cleaning/replacing DPF"
+      ],
+      "severity": "warning"
+    },
+    "P2463": {
+      "title": "DPF Soot Accumulation Excessive",
+      "system": "Exhaust & DPF",
+      "meaning": "Measured or calculated soot mass in the DPF exceeded the normal road-regeneration threshold.",
+      "causes": [
+        "Repeated short trips aborting active regenerations",
+        "Underlying boost leak, EGR fault, glow plug fault, or stuck-open thermostat",
+        "Faulty G450 differential pressure sensor"
+      ],
+      "fixes": [
+        "Resolve any other engine/thermostat/EGT codes first",
+        "Check actual vs measured soot mass (g) before attempting a service regeneration—never force regeneration above safe soot limits"
+      ],
+      "severity": "danger",
+      "vagCode": "09315"
+    },
+    "P246E": {
+      "title": "Exhaust Gas Temperature Sensor Circuit (Bank 1 Sensor 4)",
+      "system": "Exhaust & DPF",
+      "meaning": "Electrical fault in post-DPF EGT sensor 4 (G648).",
+      "causes": [
+        "Open G648 probe",
+        "Underbody road-debris wire damage"
+      ],
+      "fixes": [
+        "Inspect underfloor EGT 4 cable and test probe resistance"
+      ],
+      "severity": "danger"
+    },
+    "P2563": {
+      "title": "Turbocharger Boost Control Position Sensor Range / Performance",
+      "system": "Turbocharger & Boost",
+      "meaning": "Position sensor on the turbo VNT actuator (G581) disagrees with commanded vacuum/duty position.",
+      "causes": [
+        "Perforated vacuum diaphragm inside electronic-feedback turbo capsule",
+        "Vacuum leak starving actuator movement",
+        "Misadjusted actuator rod stop"
+      ],
+      "fixes": [
+        "Apply hand vacuum directly to the turbo capsule—if it will not hold vacuum, replace the capsule",
+        "Check live VNT position voltage from rest to full vacuum"
+      ],
+      "severity": "danger"
+    },
+    "P2564": {
+      "title": "Turbocharger Boost Control Position Sensor Circuit Low",
+      "system": "Turbocharger & Boost",
+      "meaning": "Turbo actuator position sensor (G581) voltage fell below minimum.",
+      "causes": [
+        "Damaged wire on the 3-pin plug atop the turbo actuator",
+        "Failed G581 position sensor"
+      ],
+      "fixes": [
+        "Check heat-exposed wiring behind the cylinder head leading to the turbo capsule",
+        "Verify 5V supply and ground at the 3-pin actuator plug"
+      ],
+      "severity": "warning"
+    },
+    "P2565": {
+      "title": "Turbocharger Boost Control Position Sensor Circuit High",
+      "system": "Turbocharger & Boost",
+      "meaning": "Turbo actuator position sensor (G581) voltage is stuck high / open circuit.",
+      "causes": [
+        "Unplugged turbo actuator sensor",
+        "Open ground wire in actuator harness",
+        "Failed G581 capsule sensor"
+      ],
+      "fixes": [
+        "Confirm the 3-pin plug on top of the turbo vacuum unit is latched",
+        "Test continuity of all 3 wires back to the ECU loom"
+      ],
+      "severity": "warning"
+    },
+    "P261A": {
+      "title": "Coolant Pump B Control Circuit Open",
+      "system": "Auxiliary Coolant Pump",
+      "meaning": "Electric auxiliary / EGR / charge-air coolant pump (V188 / V400) reported an open circuit or stall.",
+      "causes": [
+        "Failed electric auxiliary water pump (extremely common on 2.0 TDI CR & BiTDI)",
+        "Corroded 3-pin plug at bottom front of engine"
+      ],
+      "fixes": [
+        "Inspect the 3-pin connector on the electric auxiliary coolant pump behind the radiator/sump",
+        "Replace stalled electric pump to restore EGR/intercooler cooling and allow DPF regens"
+      ],
+      "severity": "warning"
+    },
+    "P261C": {
+      "title": "Coolant Pump B Control Circuit Low",
+      "system": "Auxiliary Coolant Pump",
+      "meaning": "Auxiliary electric coolant pump PWM diagnostic line pulled low (stalled rotor or electronics fault).",
+      "causes": [
+        "Seized impeller inside V188 electric coolant pump",
+        "Damaged under-engine wiring"
+      ],
+      "fixes": [
+        "Verify 12V, ground, and PWM wire at the auxiliary pump; replace pump if power/ground are good"
+      ],
+      "severity": "warning"
+    },
+    "P2711": {
+      "title": "Unexpected Mechanical Gear Disengagement",
+      "system": "Transmission (DSG)",
+      "meaning": "Gear selector fork slipped out of engagement or failed to engage cleanly.",
+      "causes": [
+        "Excessive clutch pack clearance",
+        "Selector fork magnet contaminated with metallic swarf",
+        "Mechatronic solenoid wear"
+      ],
+      "fixes": [
+        "Inspect DSG fluid condition and run clutch/gearbox basic setting only if mechanical health is confirmed"
+      ],
+      "severity": "danger"
+    },
+    "U0001": {
+      "title": "High-Speed CAN Communication Bus Fault",
+      "system": "CAN Network Communication",
+      "meaning": "Powertrain high-speed CAN bus entered bus-off or fault state.",
+      "causes": [
+        "Shorted CAN-H / CAN-L twisted pair",
+        "Water-damaged module pulling powertrain CAN rails out of spec"
+      ],
+      "fixes": [
+        "Measure termination resistance across CAN-H and CAN-L with battery disconnected (~60 Ω expected across two 120 Ω terminators)"
+      ],
+      "severity": "danger"
+    },
+    "U0100": {
+      "title": "Lost Communication with Engine Control Module (ECM/PCM)",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x01 Engine ECU timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x01 Engine ECU",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x01 Engine ECU unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x01 Engine ECU responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0101": {
+      "title": "Lost Communication with Transmission Control Module (TCM)",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x02 Transmission timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x02 Transmission",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x02 Transmission unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x02 Transmission responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0103": {
+      "title": "Lost Communication with Gear Shift Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from Selector Lever Module timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to Selector Lever Module",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "Selector Lever Module unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether Selector Lever Module responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0115": {
+      "title": "Lost Communication with ECM/PCM B",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from Secondary Engine Controller timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to Secondary Engine Controller",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "Secondary Engine Controller unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether Secondary Engine Controller responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0121": {
+      "title": "Lost Communication with ABS Brake Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x03 ABS / ESP timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x03 ABS / ESP",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x03 ABS / ESP unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x03 ABS / ESP responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0126": {
+      "title": "Lost Communication with Steering Angle Sensor Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from G85 Steering Angle Sensor timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to G85 Steering Angle Sensor",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "G85 Steering Angle Sensor unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether G85 Steering Angle Sensor responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0128": {
+      "title": "Lost Communication with Park Brake Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from EPB Module timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to EPB Module",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "EPB Module unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether EPB Module responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0131": {
+      "title": "Lost Communication with Power Steering Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x44 Steering Assist timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x44 Steering Assist",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x44 Steering Assist unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x44 Steering Assist responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0140": {
+      "title": "Lost Communication with Body Control Module (BCM)",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x09 Central Electrics timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x09 Central Electrics",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x09 Central Electrics unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x09 Central Electrics responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0146": {
+      "title": "Lost Communication with CAN Gateway",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x19 Diagnostic Gateway timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x19 Diagnostic Gateway",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x19 Diagnostic Gateway unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x19 Diagnostic Gateway responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0151": {
+      "title": "Lost Communication with Restraints (Airbag) Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x15 SRS Airbags timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x15 SRS Airbags",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x15 SRS Airbags unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x15 SRS Airbags responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0155": {
+      "title": "Lost Communication with Instrument Panel Cluster",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x17 Instrument Cluster timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x17 Instrument Cluster",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x17 Instrument Cluster unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x17 Instrument Cluster responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0159": {
+      "title": "Lost Communication with Parking Assist Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x10 Park Distance Control timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x10 Park Distance Control",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x10 Park Distance Control unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x10 Park Distance Control responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0164": {
+      "title": "Lost Communication with HVAC Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x08 Climate Control timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x08 Climate Control",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x08 Climate Control unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x08 Climate Control responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0166": {
+      "title": "Lost Communication with Auxiliary Heater Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x18 Auxiliary / Parking Heater timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x18 Auxiliary / Parking Heater",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x18 Auxiliary / Parking Heater unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x18 Auxiliary / Parking Heater responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0184": {
+      "title": "Lost Communication with Radio / Infotainment Unit",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x56 / 0x5F Head Unit timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x56 / 0x5F Head Unit",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x56 / 0x5F Head Unit unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x56 / 0x5F Head Unit responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0199": {
+      "title": "Lost Communication with Driver Door Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x42 Driver Door Module timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x42 Driver Door Module",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x42 Driver Door Module unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x42 Driver Door Module responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0200": {
+      "title": "Lost Communication with Passenger Door Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x52 Passenger Door Module timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x52 Passenger Door Module",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x52 Passenger Door Module unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x52 Passenger Door Module responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0212": {
+      "title": "Lost Communication with Steering Column Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x16 Steering Column Electronics timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x16 Steering Column Electronics",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x16 Steering Column Electronics unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x16 Steering Column Electronics responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0235": {
+      "title": "Lost Communication with Cruise / Front Radar Sensor",
+      "system": "CAN Network Communication",
+      "meaning": "Expected periodic CAN frames from 0x13 Adaptive Cruise Radar timed out.",
+      "causes": [
+        "Blown supply fuse or missing Terminal 15/30 feed to 0x13 Adaptive Cruise Radar",
+        "Damaged CAN-High / CAN-Low twisted pair or corroded hinge/underfloor splice",
+        "0x13 Adaptive Cruise Radar unplugged or powered down during work"
+      ],
+      "fixes": [
+        "Check whether 0x13 Adaptive Cruise Radar responds directly in a Full Auto-Scan",
+        "Verify fuse supply and ground to the missing module",
+        "If recorded intermittently after battery work, clear and re-scan"
+      ],
+      "severity": "warning"
+    },
+    "U0401": {
+      "title": "Invalid Data Received from ECM / PCM",
+      "system": "CAN Network Communication",
+      "meaning": "This module received an error flag inside a CAN frame sent by the Engine ECU (symptomatic knock-on code).",
+      "causes": [
+        "Active fault stored in 0x01 Engine ECU causing torque/speed signal substitution"
+      ],
+      "fixes": [
+        "Scan and resolve faults in 0x01 Engine Control Module first; U0401 clears once the engine fault is fixed"
+      ],
+      "severity": "info"
+    },
+    "U0415": {
+      "title": "Invalid Data Received from ABS Control Module",
+      "system": "CAN Network Communication",
+      "meaning": "ABS/ESP flagged wheel-speed or stability data as invalid on CAN.",
+      "causes": [
+        "Wheel speed sensor or steering angle fault in 0x03 ABS"
+      ],
+      "fixes": [
+        "Check 0x03 ABS Brakes for the root sensor fault"
+      ],
+      "severity": "info"
+    },
+    "U0428": {
+      "title": "Invalid Data Received from Steering Angle Sensor",
+      "system": "CAN Network Communication",
+      "meaning": "Steering angle sensor G85 broadcast an uncalibrated or implausible angle.",
+      "causes": [
+        "Battery was disconnected and G85 needs lock-to-lock initialization",
+        "Wheel alignment out"
+      ],
+      "fixes": [
+        "Start engine, turn steering full left, full right, and drive straight briefly to re-initialize G85"
+      ],
+      "severity": "info"
+    },
+    "U1011": {
+      "title": "Supply Voltage Too Low",
+      "system": "Power Supply",
+      "meaning": "Module supply voltage dropped below normal CAN operating window.",
+      "causes": [
+        "Low 12V battery or cranking voltage dip"
+      ],
+      "fixes": [
+        "Test resting and cranking battery voltage"
+      ],
+      "severity": "info"
+    },
+    "U1111": {
+      "title": "Function Limitation Due to Missing Message",
+      "system": "CAN Network Communication",
+      "meaning": "A feature in this module is disabled because a required CAN frame from another module is absent.",
+      "causes": [
+        "Mismatched long coding enabling an option whose hardware/module is not fitted",
+        "Unplugged sub-module"
+      ],
+      "fixes": [
+        "Check recent coding changes or Gateway installation list for non-existent equipment"
+      ],
+      "severity": "warning"
+    },
+    "U1113": {
+      "title": "Function Limitation Due to Fault Value Received",
+      "system": "CAN Network Communication",
+      "meaning": "Another ECU on the bus reported a fault and substituted a fallback value—this module is healthy and only reacting.",
+      "causes": [
+        "Upstream fault stored in Engine (0x01), ABS (0x03), BCM (0x09), or HVAC pressure sensor"
+      ],
+      "fixes": [
+        "Read faults in the other scanned modules—fixing the primary sensor fault clears U1113 automatically"
+      ],
+      "severity": "info"
+    },
+    "U1121": {
+      "title": "Databus Missing Message",
+      "system": "CAN Network Communication",
+      "meaning": "Expected CAN/LIN message was not received within timeout.",
+      "causes": [
+        "Incorrect coding bit enabled for absent equipment",
+        "Disconnected LIN slave (e.g. rain sensor, alternator, blower, alarm siren)"
+      ],
+      "fixes": [
+        "Cross-check coding changes or inspect LIN bus slave connectors"
+      ],
+      "severity": "warning"
+    },
+    "U1122": {
+      "title": "Databus Implausible Message",
+      "system": "CAN Network Communication",
+      "meaning": "Received bus frame contained an out-of-range or error-flagged signal.",
+      "causes": [
+        "Companion ECU has an active sensor fault"
+      ],
+      "fixes": [
+        "Resolve primary faults in companion modules first"
+      ],
+      "severity": "info"
+    },
+    "U1123": {
+      "title": "Databus Error Value Received",
+      "system": "CAN Network Communication",
+      "meaning": "Another controller transmitted a 'signal invalid' flag over CAN—this is a secondary knock-on code.",
+      "causes": [
+        "Fault stored in another module (commonly Engine, ABS, or Radar)"
+      ],
+      "fixes": [
+        "Fix the root fault in the originating module rather than replacing this module"
+      ],
+      "severity": "info"
+    },
+    "U1400": {
+      "title": "Function Restriction Due to Insufficient Voltage",
+      "system": "Power Supply",
+      "meaning": "Module disabled high-draw functions (e.g. heated screens, Start/Stop, HVAC) due to low battery voltage.",
+      "causes": [
+        "Discharged 12V battery",
+        "Short journeys with heavy electrical load"
+      ],
+      "fixes": [
+        "Charge or load-test 12V battery and verify alternator charging voltage"
+      ],
+      "severity": "info"
+    }
+  }
+}

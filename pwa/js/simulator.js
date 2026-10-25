@@ -2,6 +2,8 @@
 // Emulates a Vgate vLinker MC+ paired with a multi-module VAG ECU network.
 // Compatible with the WebBleTransport contract to enable seamless offline/virtual testing.
 
+import { encodeSaeDtcBytes } from './dtc_db.js';
+
 export const SIM_PROFILES = {
   transporter_t5: {
     id: 'transporter_t5',
@@ -472,11 +474,11 @@ export class SimulatedBleTransport {
           const st = (d.status || 0x2f).toString(16).padStart(2, '0').toUpperCase();
           payload += ` ${hi} ${lo} ${ftb} ${st}`;
         } else {
-          // UDS alphanumeric
-          const cleaned = d.code.replace('B', '8').replace('P', '0').replace('C', '4').replace('U', 'C').padEnd(6, '0').substring(0, 6);
-          const c1 = cleaned.substring(0, 2);
-          const c2 = cleaned.substring(2, 4);
-          const c3 = cleaned.substring(4, 6);
+          // UDS SAE J2012-DA 2-byte code + 1-byte FTB
+          const bytes = encodeSaeDtcBytes(d.code, d.ftb ?? null);
+          const c1 = bytes[0].toString(16).padStart(2, '0').toUpperCase();
+          const c2 = bytes[1].toString(16).padStart(2, '0').toUpperCase();
+          const c3 = bytes[2].toString(16).padStart(2, '0').toUpperCase();
           const st = (d.status || 0x2f).toString(16).padStart(2, '0').toUpperCase();
           payload += ` ${c1} ${c2} ${c3} ${st}`;
         }

@@ -170,7 +170,7 @@ class UDSClient:
     async def read_dtcs(self, status_mask: int = 0x09) -> List[dict]:
         """
         Read Diagnostic Trouble Codes via Service 0x19 (Sub-function 0x02: ReportDTCByStatusMask).
-        Returns list of parsed DTC dicts.
+        Returns list of parsed DTC dicts with formatted SAE/VAG code, failure type, and reference info.
         """
         cmd = f"{SID_READ_DTC_INFORMATION:02X}02{status_mask:02X}"
         logger.info("Querying DTCs via Service 0x19...")
@@ -183,15 +183,29 @@ class UDSClient:
         if not resp.startswith(expected_prefix):
             return dtcs
 
+        mod_addr = getattr(getattr(self.adapter, "current_module", None), "address", None)
+
         # Skip header: "59 02 <DTCStatusAvailabilityMask>" -> 6 hex chars
         data_hex = resp[6:]
         # Each DTC record is 4 bytes (8 hex chars): 3 bytes DTC code + 1 byte status
         for i in range(0, len(data_hex) - 7, 8):
             chunk = data_hex[i : i + 8]
             dtc_code = chunk[:6]
+            b0 = int(chunk[0:2], 16)
+            b1 = int(chunk[2:4], 16)
+            b2 = int(chunk[4:6], 16)
+            if b0 == 0 and b1 == 0 and b2 == 0:
+                continue
             dtc_status = int(chunk[6:8], 16)
+            decoded = decode_uds_dtc_bytes(b0, b1, b2, module_addr=mod_addr)
             dtcs.append({
                 "code": dtc_code,
+                "formatted_code": decoded["formatted_code"],
+                "base_code": decoded["base_code"],
+                "failure_type": decoded["failure_type"],
+                "title": decoded["title"],
+                "meaning": decoded["meaning"],
+                "is_known": decoded["is_known"],
                 "status_mask": f"0x{dtc_status:02X}",
                 "confirmed": bool(dtc_status & 0x08),
                 "pending": bool(dtc_status & 0x04),
@@ -222,3 +236,142 @@ class UDSClient:
                 nrc = int(clean[4:6], 16)
                 raise NegativeResponseError(service_id=sid_failed, nrc=nrc, raw_response=clean)
             raise UDSError(f"UDS Negative Response: {clean}")
+
+
+_UDS_FTB_LABELS = {
+    0x00: "",
+    0x01: "General Electrical Failure",
+    0x02: "General Signal Failure",
+    0x04: "System Internal Failure",
+    0x07: "Mechanical Failure",
+    0x08: "Bus Signal / Message Failure",
+    0x09: "Component Failure",
+    0x11: "Circuit Short to Ground",
+    0x12: "Circuit Short to Battery (+)",
+    0x13: "Circuit Open",
+    0x14: "Circuit Short to Ground or Open",
+    0x15: "Circuit Short to Battery or Open",
+    0x16: "Circuit Voltage Below Threshold",
+    0x17: "Circuit Voltage Above Threshold",
+    0x18: "Circuit Current Below Threshold",
+    0x19: "Circuit Current Above Threshold",
+    0x1A: "Circuit Resistance Below Threshold",
+    0x1B: "Circuit Resistance Above Threshold",
+    0x1C: "Circuit Voltage Out of Range",
+    0x1F: "Circuit Intermittent",
+    0x23: "Signal Stuck Low",
+    0x24: "Signal Stuck High",
+    0x29: "Signal Invalid",
+    0x2F: "Signal Erratic",
+    0x31: "No Signal",
+    0x49: "Internal Electronic Failure",
+    0x54: "Missing Calibration / Basic Setting",
+    0x62: "Signal Compare Failure",
+    0x64: "Signal Plausibility Failure",
+    0x71: "Actuator Stuck",
+    0x72: "Actuator Stuck Open",
+    0x73: "Actuator Stuck Closed",
+    0x81: "Invalid Serial Data Received",
+    0x86: "Signal Invalid on Bus",
+    0x87: "Missing Message",
+    0x96: "Component Internal Failure",
+}
+
+_VAG_SYMPTOMS = {
+    1: "Upper Limit Exceeded",
+    2: "Lower Limit Exceeded",
+    3: "Mechanical Failure",
+    4: "No Signal / Communication",
+    5: "Basic Setting Not Performed",
+    6: "Short Circuit to Plus (+)",
+    7: "Short Circuit to Ground (-)",
+    8: "Implausible Signal",
+    9: "Open Circuit or Short to Plus",
+    10: "Open Circuit or Short to Ground",
+    11: "Open Circuit",
+    12: "Electrical Fault in Circuit",
+    14: "Defective / Internal Fault",
+    32: "Resistance Too High",
+    33: "Resistance Too Low",
+}
+
+_DTC_JSON_CACHE: Optional[dict] = None
+
+
+def _get_dtc_dictionary() -> dict:
+    global _DTC_JSON_CACHE
+    if _DTC_JSON_CACHE is not None:
+        return _DTC_JSON_CACHE
+    import json
+    from pathlib import Path
+
+    json_path = Path(__file__).resolve().parents[2] / "pwa" / "data" / "dtcs.json"
+    if json_path.exists():
+        try:
+            raw = json.loads(json_path.read_text(encoding="utf-8"))
+            _DTC_JSON_CACHE = raw.get("codes", {})
+            return _DTC_JSON_CACHE
+        except Exception:
+            pass
+    _DTC_JSON_CACHE = {}
+    return _DTC_JSON_CACHE
+
+
+def decode_sae_j2012(b0: int, b1: int) -> str:
+    """Decode two ISO 15031-6 / SAE J2012 bytes into a 5-char code (e.g. 0x90, 0x4A -> 'B104A')."""
+    family = ("P", "C", "B", "U")[(b0 >> 6) & 0x03]
+    d1 = (b0 >> 4) & 0x03
+    d2 = b0 & 0x0F
+    d3 = (b1 >> 4) & 0x0F
+    d4 = b1 & 0x0F
+    return f"{family}{d1}{d2:X}{d3:X}{d4:X}"
+
+
+def encode_sae_dtc_hex(code_str: str, ftb_override: Optional[int] = None) -> str:
+    """Encode an SAE J2012 code string (e.g. 'B104A15' or 'P0299') into 6 UDS hex characters."""
+    import re
+
+    cleaned = code_str.strip().upper().replace("-", "").replace(" ", "")
+    m = re.match(r"^([PCBU])([0-3])([0-9A-F])([0-9A-F]{2})([0-9A-F]{2})?$", cleaned)
+    if not m:
+        raise ValueError(f"Invalid SAE J2012 DTC string: {code_str!r}")
+    family_idx = {"P": 0, "C": 1, "B": 2, "U": 3}[m.group(1)]
+    d1 = int(m.group(2), 10)
+    d2 = int(m.group(3), 16)
+    b0 = (family_idx << 6) | (d1 << 4) | d2
+    b1 = int(m.group(4), 16)
+    b2 = (ftb_override & 0xFF) if ftb_override is not None else (int(m.group(5), 16) if m.group(5) else 0x00)
+    return f"{b0:02X}{b1:02X}{b2:02X}"
+
+
+def decode_uds_dtc_bytes(b0: int, b1: int, b2: int, module_addr: Optional[int] = None) -> dict:
+    """Decode a 3-byte UDS DTC record with module context and reference dictionary lookup."""
+    db = _get_dtc_dictionary()
+    is_powertrain = module_addr in (None, 0x01, 0x02)
+    sae_base = decode_sae_j2012(b0, b1)
+    dec16 = (b0 << 8) | b1
+    vag5 = f"{dec16:05d}"
+
+    use_vag5 = False
+    if b0 < 0x40 and not is_powertrain and (vag5 in db or b0 < 0x10):
+        use_vag5 = True
+
+    if use_vag5:
+        base_code = vag5
+        formatted = vag5
+        ft_label = _VAG_SYMPTOMS.get(b2, _UDS_FTB_LABELS.get(b2, f"0x{b2:02X}" if b2 else ""))
+    else:
+        base_code = sae_base
+        formatted = f"{sae_base}-{b2:02X}" if b2 != 0 else sae_base
+        ft_label = _UDS_FTB_LABELS.get(b2, f"FTB 0x{b2:02X}" if b2 else "")
+
+    rec = db.get(base_code)
+    return {
+        "formatted_code": formatted,
+        "base_code": base_code,
+        "failure_type": ft_label,
+        "title": rec["title"] if rec else "Unlisted Fault Code",
+        "meaning": rec["meaning"] if rec else "",
+        "is_known": rec is not None,
+    }
+

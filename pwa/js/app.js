@@ -7,7 +7,7 @@ import { UdsClient, MODULE_ARBITRATION } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 import { MaintenanceManager } from './maintenance.js';
-import { lookupDtc } from './dtc_db.js';
+import { lookupDtc, ensureDtcDatabaseLoaded, getDtcDatabaseStats, registerCustomDtcs, clearCustomDtcs } from './dtc_db.js';
 import { SimulatedBleTransport, SIM_PROFILES } from './simulator.js';
 
 export function bytesToAscii(bytes) {
@@ -3314,6 +3314,48 @@ class VibesApp {
     });
   }
 
+  _escHtml(val) {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  updateDtcDbBadge() {
+    const badge = document.getElementById('dtc-db-count-badge');
+    const clearBtn = document.getElementById('btn-clear-custom-dtcs');
+    const stats = getDtcDatabaseStats();
+    if (badge) {
+      const customNote = stats.customCodes > 0 ? ` + ${stats.customCodes} Custom` : '';
+      badge.textContent = `📚 ${stats.totalCodes} Reference Codes${customNote} (Offline)`;
+    }
+    if (clearBtn) {
+      clearBtn.style.display = stats.customCodes > 0 ? 'inline-block' : 'none';
+    }
+  }
+
+  _refreshLastScanDescriptions() {
+    if (!this.lastDtcScanResults || !Array.isArray(this.lastDtcScanResults.modules)) return;
+    for (const mod of this.lastDtcScanResults.modules) {
+      if (!Array.isArray(mod.dtcs)) continue;
+      mod.dtcs = mod.dtcs.map(d => {
+        const refreshed = lookupDtc(d.code, null, null, { moduleAddress: mod.address });
+        return {
+          ...d,
+          title: refreshed.title,
+          system: refreshed.system,
+          meaning: refreshed.meaning,
+          causes: refreshed.causes,
+          fixes: refreshed.fixes,
+          isKnown: refreshed.isKnown,
+          source: refreshed.source
+        };
+      });
+    }
+    this.renderDtcsList(this.lastDtcScanResults);
+  }
+
   // --- Diagnostic Trouble Codes (DTC) Tab & Multi-Module Auto-Scan ---
   setupDtcsTab() {
     const scanBtn = document.getElementById('btn-scan-dtcs');
@@ -3321,6 +3363,11 @@ class VibesApp {
     const clearBtn = document.getElementById('btn-clear-dtcs');
     const exportBtn = document.getElementById('btn-export-dtcs');
     const searchInput = document.getElementById('dtc-search-input');
+    const importBtn = document.getElementById('btn-import-dtc-json');
+    const fileInput = document.getElementById('input-dtc-json-file');
+    const clearCustomBtn = document.getElementById('btn-clear-custom-dtcs');
+
+    ensureDtcDatabaseLoaded().then(() => this.updateDtcDbBadge());
 
     if (scanBtn) {
       scanBtn.addEventListener('click', () => this.runDtcAutoScan(false));
@@ -3340,6 +3387,33 @@ class VibesApp {
         this.renderDtcsList(this.lastDtcScanResults);
       });
     }
+    if (importBtn && fileInput) {
+      importBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const count = registerCustomDtcs(parsed, true);
+          this.updateDtcDbBadge();
+          this._refreshLastScanDescriptions();
+          this.showToast(`Loaded ${count} custom fault code entries into browser storage.`);
+        } catch (err) {
+          this.showToast('Invalid JSON file. Expected { "CODE": "Description" } or { "CODE": { "title": ... } }.', 'error');
+        } finally {
+          fileInput.value = '';
+        }
+      });
+    }
+    if (clearCustomBtn) {
+      clearCustomBtn.addEventListener('click', () => {
+        clearCustomDtcs(true);
+        this.updateDtcDbBadge();
+        this._refreshLastScanDescriptions();
+        this.showToast('Cleared locally imported custom fault codes.');
+      });
+    }
 
     // Render initial empty or cached state
     this.renderDtcsList(this.lastDtcScanResults);
@@ -3356,6 +3430,9 @@ class VibesApp {
     if (scanBtn) scanBtn.disabled = true;
     if (quickScanBtn) quickScanBtn.disabled = true;
     if (progressBox) progressBox.style.display = 'block';
+
+    await ensureDtcDatabaseLoaded();
+    this.updateDtcDbBadge();
 
     const isConnected = !!(this.bleTransport && this.bleTransport.isConnected);
 
@@ -3396,9 +3473,9 @@ class VibesApp {
           await new Promise(r => setTimeout(r, 140));
         }
 
-        const dtc01117 = lookupDtc('01117', 0x28, '008');
-        const dtc01598 = lookupDtc('01598', 0x29, '002');
-        const dtc00588 = lookupDtc('00588', 0x33, '033');
+        const dtc01117 = lookupDtc('01117', 0x28, '008', { protocol: 'KWP2000' });
+        const dtc01598 = lookupDtc('01598', 0x29, '002', { protocol: 'KWP2000' });
+        const dtc00588 = lookupDtc('00588', 0x33, '033', { protocol: 'KWP2000' });
 
         results = {
           modules: [
@@ -3411,25 +3488,15 @@ class VibesApp {
               protocol: 'KWP2000 / TP2.0',
               dtcs: [
                 {
-                  code: dtc01117.code,
-                  title: dtc01117.title,
-                  system: dtc01117.system,
-                  meaning: dtc01117.meaning,
-                  causes: dtc01117.causes,
-                  fixes: dtc01117.fixes,
-                  severity: dtc01117.severity,
+                  ...dtc01117,
+                  rawHex: '0x045D',
                   symptom: '008 - Implausible Signal',
                   isStatic: false,
                   statusMask: '0x08'
                 },
                 {
-                  code: dtc01598.code,
-                  title: dtc01598.title,
-                  system: dtc01598.system,
-                  meaning: dtc01598.meaning,
-                  causes: dtc01598.causes,
-                  fixes: dtc01598.fixes,
-                  severity: dtc01598.severity,
+                  ...dtc01598,
+                  rawHex: '0x063E',
                   symptom: '002 - Lower Limit Exceeded',
                   isStatic: true,
                   statusMask: '0x02'
@@ -3445,13 +3512,8 @@ class VibesApp {
               protocol: 'KWP2000 / TP2.0',
               dtcs: [
                 {
-                  code: dtc00588.code,
-                  title: dtc00588.title,
-                  system: dtc00588.system,
-                  meaning: dtc00588.meaning,
-                  causes: dtc00588.causes,
-                  fixes: dtc00588.fixes,
-                  severity: dtc00588.severity,
+                  ...dtc00588,
+                  rawHex: '0x024C',
                   symptom: '33-00 - Resistance Too Low',
                   isStatic: true,
                   statusMask: '0x21'
@@ -3657,28 +3719,49 @@ class VibesApp {
         `;
       } else {
         bodyHtml = '<div class="dtc-faults-wrapper" style="display:flex; flex-direction:column; gap:0.75rem;">';
-        mod.dtcs.forEach((dtc, idx) => {
+        mod.dtcs.forEach((dtc) => {
+          const isKnown = dtc.isKnown !== false;
+          const provBadge = dtc.source === 'custom'
+            ? `<span style="background:rgba(168,85,247,0.16); color:#c084fc; border:1px solid rgba(168,85,247,0.35); font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:10px;">🗂️ Custom Dictionary</span>`
+            : isKnown
+              ? `<span style="background:rgba(16,185,129,0.14); color:#34d399; border:1px solid rgba(16,185,129,0.3); font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:10px;">📘 Reference Guidance</span>`
+              : `<span style="background:rgba(148,163,184,0.16); color:#cbd5e1; border:1px solid rgba(148,163,184,0.35); font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:10px;">🔎 Unlisted — Byte Decode</span>`;
+
+          const saeNote = dtc.saeCode && dtc.saeCode !== dtc.code ? ` • SAE: <code>${this._escHtml(dtc.saeCode)}</code>` : '';
+          const vagNote = dtc.vagCode && dtc.vagCode !== dtc.code ? ` • VAG: <code>${this._escHtml(dtc.vagCode)}</code>` : '';
+          const rawNote = dtc.rawHex ? ` • Raw: <code>${this._escHtml(dtc.rawHex)}</code>` : '';
+          const searchCodeTerm = dtc.saeCode || dtc.baseCode || dtc.code;
+          const searchQuery = encodeURIComponent(`VAG ${searchCodeTerm} ${mod.partNumber && mod.partNumber !== 'Available' ? mod.partNumber : mod.name}`.trim());
+          const copySummary = [
+            `Module ${mod.address} (${mod.name}) — Part ${mod.partNumber || 'N/A'}`,
+            `Code: ${dtc.code}${dtc.saeCode && dtc.saeCode !== dtc.code ? ` / ${dtc.saeCode}` : ''}${dtc.vagCode && dtc.vagCode !== dtc.code ? ` (VAG ${dtc.vagCode})` : ''}${dtc.rawHex ? ` [${dtc.rawHex}]` : ''}`,
+            `Title: ${dtc.title || 'Unlisted Fault Code'}`,
+            dtc.symptom ? `Failure Subtype: ${dtc.symptom}` : null,
+            dtc.statusMask ? `Status: ${dtc.statusMask} (${dtc.isStatic ? 'Active/Static' : 'Intermittent'})` : null
+          ].filter(Boolean).join('\n');
+
           bodyHtml += `
             <div class="dtc-fault-card" style="border-left: 4px solid var(--danger); background: rgba(239, 68, 68, 0.04); border-radius: 8px; padding: 0.95rem; border: 1px solid var(--border-color); border-left-width: 4px; border-left-color: var(--danger);">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                 <div>
-                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--danger); letter-spacing:0.5px;">
-                      ${dtc.code}
+                      ${this._escHtml(dtc.code)}
                     </span>
                     <span style="font-weight:700; font-size:0.92rem; color:var(--text-main);">
-                      ${dtc.title || 'Diagnostic Trouble Code'}
+                      ${this._escHtml(dtc.title || 'Diagnostic Trouble Code')}
                     </span>
                   </div>
                   <div style="font-size:0.76rem; color:var(--text-muted); margin-top:3px;">
-                    System: <strong>${dtc.system || 'General'}</strong>
-                    ${dtc.statusMask ? ` • Status Mask: <code>${dtc.statusMask}</code>` : ''}
+                    System: <strong>${this._escHtml(dtc.system || 'General')}</strong>${saeNote}${vagNote}${rawNote}
+                    ${dtc.statusMask ? ` • Status: <code>${this._escHtml(dtc.statusMask)}</code>` : ''}
                   </div>
                 </div>
-                <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                <div style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
+                  ${provBadge}
                   ${dtc.symptom ? `
                     <span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.74rem; font-weight:600; padding:2px 8px; border-radius:10px;">
-                      ↳ ${dtc.symptom}
+                      ↳ ${this._escHtml(dtc.symptom)}
                     </span>
                   ` : ''}
                   <span style="${dtc.isStatic ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);' : 'background:rgba(100,116,139,0.15); color:#94a3b8; border:1px solid rgba(100,116,139,0.3);'} font-size:0.74rem; font-weight:600; padding:2px 8px; border-radius:10px;">
@@ -3689,19 +3772,30 @@ class VibesApp {
 
               <!-- Collapsible Knowledge Base Accordion Drawer -->
               <button class="dtc-drawer-toggle" style="width:100%; margin-top:0.65rem; padding:6px 12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:6px; color:var(--primary); font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s;">
-                <span>💡 What it means & suggested fix</span>
+                <span>💡 ${isKnown ? 'What it means & suggested checks' : 'Decoded byte details & lookup tools'}</span>
                 <span class="drawer-arrow" style="font-size:0.75rem; transition:transform 0.2s;">▾ Expand</span>
               </button>
 
               <div class="dtc-drawer-content" style="display:none; margin-top:0.65rem; background:rgba(0,0,0,0.22); border-radius:6px; padding:0.85rem; border:1px solid rgba(255,255,255,0.05);">
                 <div style="margin-bottom:0.75rem;">
                   <strong style="font-size:0.82rem; color:var(--primary); display:flex; align-items:center; gap:0.3rem;">
-                    <span>📖</span> <span>What This Means:</span>
+                    <span>📖</span> <span>${isKnown ? 'What This Means:' : 'Protocol Byte Decode:'}</span>
                   </strong>
                   <p style="font-size:0.82rem; color:var(--text-main); line-height:1.45; margin:4px 0 0 0;">
-                    ${dtc.meaning || 'Electronic control module detected operating parameters outside calibrated threshold.'}
+                    ${this._escHtml(dtc.meaning || 'Controller recorded a diagnostic trouble code.')}
                   </p>
                 </div>
+
+                ${dtc.symptomDetail ? `
+                  <div style="margin-bottom:0.75rem;">
+                    <strong style="font-size:0.82rem; color:#fbbf24; display:flex; align-items:center; gap:0.3rem;">
+                      <span>⚡</span> <span>Electrical / Mechanical Subtype (${this._escHtml(dtc.symptom || 'FTB')}):</span>
+                    </strong>
+                    <p style="font-size:0.8rem; color:var(--text-main); line-height:1.45; margin:4px 0 0 0;">
+                      ${this._escHtml(dtc.symptomDetail)}
+                    </p>
+                  </div>
+                ` : ''}
 
                 ${dtc.causes && dtc.causes.length > 0 ? `
                   <div style="margin-bottom:0.75rem;">
@@ -3709,24 +3803,33 @@ class VibesApp {
                       <span>🔍</span> <span>Common Root Causes:</span>
                     </strong>
                     <ul style="margin:4px 0 0 1.25rem; padding:0; font-size:0.8rem; color:var(--text-main); line-height:1.45;">
-                      ${dtc.causes.map(c => `<li>${c}</li>`).join('')}
+                      ${dtc.causes.map(c => `<li>${this._escHtml(c)}</li>`).join('')}
                     </ul>
                   </div>
                 ` : ''}
 
                 ${dtc.fixes && dtc.fixes.length > 0 ? `
-                  <div>
+                  <div style="margin-bottom:0.75rem;">
                     <strong style="font-size:0.82rem; color:var(--success); display:flex; align-items:center; gap:0.3rem;">
-                      <span>🛠️</span> <span>Suggested Action & Fixes:</span>
+                      <span>🛠️</span> <span>Suggested Checks & Fixes:</span>
                     </strong>
                     <ul style="margin:4px 0 0 1.25rem; padding:0; font-size:0.8rem; color:var(--text-main); line-height:1.45;">
-                      ${dtc.fixes.map(f => `<li>${f}</li>`).join('')}
+                      ${dtc.fixes.map(f => `<li>${this._escHtml(f)}</li>`).join('')}
                     </ul>
                   </div>
                 ` : ''}
 
-                <div style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.06); font-size:0.72rem; color:var(--text-muted); font-style:italic;">
-                  ⚠️ Workshop Advice: Always disconnect vehicle battery negative terminal before servicing SRS airbag or high-voltage circuits.
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-top:0.5rem; padding-top:0.6rem; border-top:1px solid rgba(255,255,255,0.06);">
+                  <button type="button" class="btn btn-secondary btn-copy-dtc" data-summary="${this._escHtml(copySummary)}" style="padding:4px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                    📋 Copy Fault Details
+                  </button>
+                  <a href="https://duckduckgo.com/?q=${searchQuery}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:0.3rem;">
+                    🌐 Web Search (${this._escHtml(searchCodeTerm)}) ↗
+                  </a>
+                </div>
+
+                <div style="margin-top:0.6rem; font-size:0.72rem; color:var(--text-muted); font-style:italic;">
+                  ⚠️ General reference guidance only — not a diagnosis of this specific vehicle. Disconnect battery negative before working near SRS airbag circuits.
                 </div>
               </div>
             </div>
@@ -3749,6 +3852,19 @@ class VibesApp {
         drawer.style.display = isHidden ? 'block' : 'none';
         if (arrow) arrow.textContent = isHidden ? '▴ Collapse' : '▾ Expand';
         btn.style.background = isHidden ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.08)';
+      });
+    });
+
+    // Wire up copy fault summary buttons
+    container.querySelectorAll('.btn-copy-dtc').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const summary = btn.getAttribute('data-summary') || '';
+        try {
+          await navigator.clipboard.writeText(summary);
+          this.showToast('Fault details copied to clipboard.');
+        } catch (_) {
+          this.showToast('Clipboard unavailable in this browser context.', 'warning');
+        }
       });
     });
 
