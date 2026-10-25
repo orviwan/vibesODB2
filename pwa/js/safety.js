@@ -117,6 +117,23 @@ export class SafetyPipeline {
       detail: `Strict size match (${baseBytes} bytes).`
     });
 
+    // Guardrail 3b: Non-Zero Coding Baseline (Adaptation-Only / Unparameterized Interlock)
+    // MY2017+ facelift modules (e.g. MQB BCM 5Q0937084C*/D*) return an all-zero 0x0600 block
+    // because configuration moved to UDS Adaptation channels; virgin replacement ECUs also read
+    // all zeros. Bit-toggling Long Coding against an all-zero baseline is never valid.
+    const cleanBaseHex = (baselineHex || '').replace(/\s+/g, '');
+    if (cleanBaseHex.length > 0 && /^0+$/.test(cleanBaseHex)) {
+      return fail(
+        'Non-Zero Coding Baseline',
+        'Adaptation-Only / All-Zero Coding Interlock: Module returned an all-zero Long Coding block (0x0600 = 00...00). On facelift VAG modules (such as MY2017+ MQB BCM 0x09), settings live in UDS Adaptation channels rather than Long Coding; writes to an all-zero coding block are refused.'
+      );
+    }
+    auditReport.checks.push({
+      name: 'Non-Zero Coding Baseline',
+      passed: true,
+      detail: 'Module reports active non-zero Long Coding.'
+    });
+
     // Guardrail 4: Mandatory Snapshot Table Record
     try {
       const backup = await saveBackup({

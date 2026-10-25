@@ -54,6 +54,7 @@ Before any coding write the app runs these checks and refuses the write if any f
 2. **Module blacklist.** ABS/ESP (`0x03`), airbag (`0x15`) and power steering (`0x44`) are never write targets.
 3. **Ignition on, engine off.** Engine speed is requested over the standard OBD broadcast; a non-zero or unreadable reply blocks the write.
 4. **Length check.** The new payload must be exactly as long as the one read from the module.
+   **All-zero coding is refused.** If the module's Long Coding reads back as all zeros, nothing is written and feature states are not shown. Many later modules (for example the central electrics unit on 2017-onward MQB cars) keep their settings in Adaptation channels, which this app does not read or write yet.
 5. **Snapshot.** The current coding is saved locally first.
 6. **Positive response and read-back.** After the adapter is re-addressed to the target module, the write must be acknowledged with `6E <DID>`, then the identifier is read back and compared. If the read-back differs, the saved baseline is written back once and the result is reported. A rejected write (negative response) changes nothing on the vehicle and is reported as failed.
 

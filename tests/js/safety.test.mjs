@@ -54,3 +54,20 @@ test('audit passes with engine off, matching lengths and a captured baseline', a
   assert.equal(r.passed, true, JSON.stringify(r));
   assert.deepEqual(r.errors, []);
 });
+
+test('audit refuses Long Coding writes when the live baseline is all zeros (Adaptation-only / unparameterized ECU)', async () => {
+  const t = new FakeTransport({ '01 0C': '41 0C 00 00' });
+  const p = new SafetyPipeline(t, null);
+  const zeroBaseline = Array(30).fill('00').join(' ');
+  const modified = ['04', ...Array(29).fill('00')].join(' ');
+  const r = await p.preWriteAudit({
+    ...BASE,
+    targetModule: '0x09',
+    baselineHex: zeroBaseline,
+    modifiedHex: modified,
+    baselineCaptured: true
+  });
+  assert.equal(r.passed, false);
+  assert.match(r.error, /all-zero|adaptation/i);
+});
+
