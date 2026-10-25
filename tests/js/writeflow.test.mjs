@@ -55,3 +55,24 @@ test('canRestoreBackup refuses snapshots from another VIN or module', () => {
   assert.equal(canRestoreBackup(b, 'WV1ZZZ7EZEH000001', '0x17').ok, false);
   assert.equal(canRestoreBackup(b, null, '0x09').ok, false, 'unknown live VIN must not restore');
 });
+
+test('write is refused without sending 2E when the ECU baseline is all zeros (MQB facelift Adaptation-only BCM)', async () => {
+  const { t, uds, safety } = setup({});
+  const zeroBaseline = new Uint8Array(30);
+  const modified = new Uint8Array(30);
+  modified[11] = 0x04;
+  const r = await executeCodingWrite({
+    udsClient: uds,
+    safetyPipeline: safety,
+    vin: 'WVWZZZAUZJP000001',
+    targetModule: '0x09',
+    did: '0600',
+    baselineBytes: zeroBaseline,
+    modifiedBytes: modified,
+    baselineCaptured: true
+  });
+  assert.equal(r.success, false);
+  assert.match(r.error, /all-zero|adaptation/i);
+  assert.ok(!t.sent.some(c => c.startsWith('2E ')), 'must never transmit 2E to an all-zero module');
+});
+

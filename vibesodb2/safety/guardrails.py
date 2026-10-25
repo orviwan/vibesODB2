@@ -44,6 +44,11 @@ class PayloadLengthMismatchError(SafetyViolationError):
     pass
 
 
+class AllZeroBaselineError(SafetyViolationError):
+    """Raised when attempting to write bit-toggled Long Coding to an all-zero (Adaptation-only or virgin) baseline."""
+    pass
+
+
 class WriteVerificationError(SafetyViolationError):
     """Raised when the coding read back after a write does not match what was written."""
 
@@ -111,6 +116,22 @@ class SafetyEngine:
             logger.critical(msg)
             raise PayloadLengthMismatchError(msg)
 
+    def validate_non_zero_baseline(self, original: bytes) -> None:
+        """
+        Guardrail 4b: Non-Zero Coding Baseline.
+        MY2017+ facelift VAG modules (such as MQB BCM 5Q0937084C*/D*) return an all-zero 0x0600
+        block because configuration moved to UDS Adaptation channels; virgin replacement ECUs also
+        read all zeros. Bit-toggling Long Coding against an all-zero baseline is refused.
+        """
+        if len(original) > 0 and all(b == 0 for b in original):
+            msg = (
+                "ALL-ZERO CODING INTERLOCK: Module returned an all-zero Long Coding block (00...00). "
+                "On facelift VAG modules (such as MY2017+ MQB BCM 0x09), settings live in UDS Adaptation "
+                "channels rather than Long Coding; writes to an all-zero coding block are refused."
+            )
+            logger.critical(msg)
+            raise AllZeroBaselineError(msg)
+
     def execute_prewrite_backup(
         self,
         vin: str,
@@ -150,11 +171,11 @@ class SafetyEngine:
         skip_engine_check: bool = False,
     ) -> CodingBackup:
         """
-        Executes the complete 5-point safety writing pipeline:
+        Executes the complete safety writing pipeline:
         1. Module blacklist check
         2. Engine-off verification
-        3. Mandatory SQLite backup snapshot
-        4. Strict length consistency check
+        3. Strict length consistency & non-zero baseline check
+        4. Mandatory SQLite backup snapshot
         5. Write execution with read-back verification (baseline restored once on mismatch)
         """
         # 1. Module blacklist
@@ -164,8 +185,9 @@ class SafetyEngine:
         if not skip_engine_check:
             await self.validate_engine_off(uds_client.adapter)
 
-        # 3. Length check
+        # 3. Length & non-zero baseline check
         self.validate_payload_length(original_bytes, modified_bytes)
+        self.validate_non_zero_baseline(original_bytes)
 
         # 4. Mandatory snapshot
         backup = self.execute_prewrite_backup(

@@ -259,9 +259,18 @@ class VibesApp {
   //   - ignition is OFF (ECU powered down or sleeping, EEPROM writes will fail or corrupt)
   //   - engine is running (ECU may be in diagnostic lockout, unstable operating conditions)
   //   - ignition state is unknown (no bus ping response yet — treat as unsafe)
+  get isAdaptationOnlyBaseline() {
+    return !!(
+      this.hasCapturedBaseline &&
+      this.baselineBytes &&
+      this.baselineBytes.length > 0 &&
+      this.baselineBytes.every(b => b === 0)
+    );
+  }
+
   get isWritable() {
     const connected = !!(this.bleTransport && this.bleTransport.isConnected);
-    return connected && this.ignitionState === 'on' && this.hasCapturedBaseline;
+    return connected && this.ignitionState === 'on' && this.hasCapturedBaseline && !this.isAdaptationOnlyBaseline;
   }
 
   get isWriteBlockedReason() {
@@ -278,7 +287,10 @@ class VibesApp {
       return 'Ignition state is unknown. Wait for the adapter to detect the vehicle bus, or press "Check Ignition".';
     }
     if (!this.hasCapturedBaseline) {
-      return 'No live coding has been read from this vehicle yet. Tap "Read Live Coding" first so changes are based on the real ECU state.';
+      return 'No live coding has been read from this vehicle yet. Tap "Read Vehicle Long Coding" first so changes are based on the real ECU state.';
+    }
+    if (this.isAdaptationOnlyBaseline) {
+      return 'This module returned an all-zero Long Coding block (0x0600 = 00...00). On facelift VAG modules (such as MY2017+ MQB BCM 0x09), settings live in UDS Adaptation channels rather than Long Coding—writes to 0x0600 are locked.';
     }
     return 'Cannot write: vehicle bus is not responding.';
   }
@@ -2375,6 +2387,11 @@ class VibesApp {
         this.renderBitSwitches();
         this.renderFeatureList();
 
+        if (this.isAdaptationOnlyBaseline) {
+          this.showToast(`⚠️ Module ${targetMod} returned ${liveCoding.length} bytes of zeros. Its settings are not stored in Long Coding, so feature states cannot be shown and writing is locked.`, 'warning', 8000);
+          return true;
+        }
+
         const msg = isAutoBaseline 
           ? `🛡️ Baseline Snapshot #${backup.id} captured (${liveCoding.length} bytes)! Features synchronized with vehicle.`
           : `✅ Vehicle Long Coding successfully read (${liveCoding.length} bytes)! Features updated.`;
@@ -2574,6 +2591,22 @@ class VibesApp {
       btnUnsupported.style.display = unsupportedCount > 0 ? 'inline-block' : 'none';
     }
     if (bytesLenEl) bytesLenEl.textContent = this.currentBytes.length;
+
+    // An all-zero Long Coding block does not mean every feature is off: on these modules the
+    // settings are held elsewhere (Adaptation channels), so bit positions here say nothing.
+    if (this.isAdaptationOnlyBaseline) {
+      if (countActiveEl) countActiveEl.textContent = '?';
+      if (countInactiveEl) countInactiveEl.textContent = '?';
+      const modAddr = this.currentSchema.module_address || '0x09';
+      container.innerHTML = `
+        <div id="coding-adaptation-only-notice" style="padding: 1rem 1.1rem; border-radius: 8px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); color: #fde68a; font-size: 0.85rem; line-height: 1.5;">
+          <h4 style="margin: 0 0 0.4rem 0; color: #fbbf24; font-size: 0.95rem;">⚠️ This module does not use Long Coding for these settings</h4>
+          <p style="margin: 0 0 0.5rem 0;">Module <strong>${modAddr}</strong> answered the Long Coding read with <strong>${this.currentBytes.length} bytes of zeros</strong>. That does not mean your features are switched off. Later modules (for example the central electrics unit on many 2017-onward MQB cars) keep comfort and lighting options in <strong>Adaptation channels</strong> instead, so the byte/bit positions in this schema don't apply.</p>
+          <p style="margin: 0 0 0.5rem 0;">vibesODB2 can't read or change Adaptation channels yet, so feature states are not shown and writing to this module is locked.</p>
+          <p style="margin: 0; color: #cbd5e1; font-size: 0.78rem;">You can check the raw bytes on the Byte Matrix tab. A replacement module that has never been set up can also read as all zeros.</p>
+        </div>`;
+      return;
+    }
 
     let displayFeatures = allFeatures;
     if (this.featureFilter === 'active') {
@@ -2818,6 +2851,10 @@ class VibesApp {
 
     if (applyBtn && rawInput) {
       applyBtn.addEventListener('click', () => {
+        if (!this.isWritable) {
+          this.showToast(this.isWriteBlockedReason, 'warning');
+          return;
+        }
         try {
           const modBytes = hexStringToBytes(rawInput.value);
           if (modBytes.length !== this.currentBytes.length) {

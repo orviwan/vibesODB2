@@ -14,6 +14,7 @@ from vibesodb2.safety.guardrails import (
     BlacklistedModuleError,
     EngineRunningInterlockError,
     PayloadLengthMismatchError,
+    AllZeroBaselineError,
     BLACKLISTED_MODULES,
 )
 
@@ -32,5 +33,6 @@ __all__ = [
     "BlacklistedModuleError",
     "EngineRunningInterlockError",
     "PayloadLengthMismatchError",
+    "AllZeroBaselineError",
     "BLACKLISTED_MODULES",
 ]

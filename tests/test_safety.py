@@ -192,3 +192,39 @@ async def test_readback_mismatch_restores_baseline_and_raises():
             assert len(writes) == 2, "one write plus one baseline restore"
             assert writes[-1].upper().endswith(orig.hex().upper())
         await transport.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_all_zero_baseline_is_refused_before_any_write():
+    """MY2017+ facelift MQB BCMs (e.g. 5Q0937084C*/D*) and virgin ECUs return an all-zero
+    0x0600 coding block because settings live in Adaptation channels; bit-toggling Long Coding
+    against an all-zero baseline must be refused before any 2E write frame leaves the adapter."""
+    from vibesodb2.safety.guardrails import AllZeroBaselineError
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        safety = SafetyEngine(storage=StorageManager(db_path=Path(tmpdir) / "zero.db"))
+        transport = MockTransport()
+        await transport.connect()
+        adapter = ELM327Adapter(transport)
+        await adapter.initialize()
+        await adapter.set_module_address(0x09)
+        uds = UDSClient(adapter)
+        async with uds:
+            zero_orig = bytes(30)
+            mod = bytearray(30)
+            mod[11] = 0x04
+
+            with pytest.raises(AllZeroBaselineError):
+                await safety.execute_safe_write(
+                    uds,
+                    0x09,
+                    DID_BCM_LONG_CODING,
+                    zero_orig,
+                    bytes(mod),
+                    vin="WVWZZZAUZJP000001",
+                    skip_engine_check=True,
+                )
+
+            assert _sent_writes(transport) == [], "must never send 2E when baseline is all zeros"
+        await transport.disconnect()
+
