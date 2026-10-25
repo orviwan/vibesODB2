@@ -53,3 +53,38 @@ async def test_python_simulator_and_uds_client_decode_transporter_t51_dtcs():
     assert "P0101" in formatted_ecm
 
     await transport.disconnect()
+
+
+class _RawReplyTransport:
+    def __init__(self, reply: str):
+        self.reply = reply
+
+    async def send_command(self, cmd: str, timeout: float = 3.0) -> str:
+        return self.reply
+
+
+@pytest.mark.asyncio
+async def test_python_elm327_strips_indexed_multiframe_aa_padding():
+    raw = "00F\r0: 59 02 FF 00 2A 18\r1: 28 00 2A 1A 28 00 2A\r2: 3C 28 AA AA AA AA AA"
+    adapter = ELM327Adapter(_RawReplyTransport(raw))
+    clean_hex = await adapter.send_uds_hex("190209")
+    assert clean_hex == "5902FF002A1828002A1A28002A3C28"
+
+
+def test_python_vag_odx_24bit_event_decoding_and_honest_unlisted():
+    glow = decode_uds_dtc_bytes(0x00, 0x3E, 0x2C, module_addr=0x01, odx_name="EV_ECM16TDI01104L906056HE")
+    assert glow["formatted_code"] == "P0671"
+    assert glow["vag_code"] == "15916"
+
+    dsg1 = decode_uds_dtc_bytes(0x00, 0x2A, 0x18, module_addr=0x02, odx_name="EV_TCMDQ200021")
+    assert dsg1["formatted_code"] == "P177B"
+    assert dsg1["vag_code"] == "10776"
+
+    dsg3 = decode_uds_dtc_bytes(0x00, 0x2A, 0x3C, module_addr=0x02, odx_name="EV_TCMDQ200021")
+    assert dsg3["formatted_code"] == "P1895"
+    assert dsg3["vag_code"] == "10812"
+
+    unlisted = decode_uds_dtc_bytes(0x00, 0x4E, 0x21, module_addr=0x09, odx_name="EV_BCMMQB")
+    assert unlisted["formatted_code"] == "VAG 20001"
+    assert unlisted["failure_type"] == ""
+

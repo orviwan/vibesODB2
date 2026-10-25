@@ -7,7 +7,7 @@ import { UdsClient, MODULE_ARBITRATION } from './uds.js';
 import { SafetyPipeline, BLACKLISTED_MODULES } from './safety.js';
 import { TelemetryEngine } from './telemetry.js';
 import { MaintenanceManager } from './maintenance.js';
-import { lookupDtc, ensureDtcDatabaseLoaded, getDtcDatabaseStats, registerCustomDtcs, clearCustomDtcs } from './dtc_db.js';
+import { lookupDtc, decodeUdsDtcBytes, ensureDtcDatabaseLoaded, getDtcDatabaseStats, registerCustomDtcs, clearCustomDtcs } from './dtc_db.js';
 import { SimulatedBleTransport, SIM_PROFILES } from './simulator.js';
 
 export function bytesToAscii(bytes) {
@@ -3340,9 +3340,19 @@ class VibesApp {
     for (const mod of this.lastDtcScanResults.modules) {
       if (!Array.isArray(mod.dtcs)) continue;
       mod.dtcs = mod.dtcs.map(d => {
-        const refreshed = lookupDtc(d.code, null, null, { moduleAddress: mod.address });
+        const refreshed = typeof d.uds24Dec === 'number'
+          ? decodeUdsDtcBytes(
+              (d.uds24Dec >> 16) & 0xFF,
+              (d.uds24Dec >> 8) & 0xFF,
+              d.uds24Dec & 0xFF,
+              null,
+              mod.address,
+              { odxName: d.odxName || mod.odxName || null }
+            )
+          : lookupDtc(d.code, null, null, { moduleAddress: mod.address });
         return {
           ...d,
+          code: refreshed.code || d.code,
           title: refreshed.title,
           system: refreshed.system,
           meaning: refreshed.meaning,
@@ -3692,8 +3702,9 @@ class VibesApp {
               </h4>
             </div>
             <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; font-family:var(--font-mono);">
-              Part No: <strong>${mod.partNumber || 'N/A'}</strong> • Component: <strong>${mod.component || 'VAG ECU'}</strong>
-              ${mod.coding ? ` • Coding: <code>${mod.coding}</code>` : ''} • Protocol: <span style="color:var(--text-main);">${mod.protocol || 'ISO 15765'}</span>
+              Part No: <strong>${this._escHtml(mod.partNumber || 'N/A')}</strong> • Component: <strong>${this._escHtml(mod.component || 'VAG ECU')}</strong>
+              ${mod.odxName ? ` • ODX: <code>${this._escHtml(mod.odxName)}</code>` : ''}
+              ${mod.coding ? ` • Coding: <code>${this._escHtml(mod.coding)}</code>` : ''} • Protocol: <span style="color:var(--text-main);">${this._escHtml(mod.protocol || 'ISO 15765')}</span>
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:0.5rem;">
@@ -3728,13 +3739,14 @@ class VibesApp {
               : `<span style="background:rgba(148,163,184,0.16); color:#cbd5e1; border:1px solid rgba(148,163,184,0.35); font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:10px;">🔎 Unlisted — Byte Decode</span>`;
 
           const saeNote = dtc.saeCode && dtc.saeCode !== dtc.code ? ` • SAE: <code>${this._escHtml(dtc.saeCode)}</code>` : '';
-          const vagNote = dtc.vagCode && dtc.vagCode !== dtc.code ? ` • VAG: <code>${this._escHtml(dtc.vagCode)}</code>` : '';
+          const vagNote = dtc.vagCode && dtc.vagCode !== dtc.code && !dtc.code.includes(dtc.vagCode) ? ` • VAG UDS/Dec: <code>${this._escHtml(dtc.vagCode)}</code>` : '';
           const rawNote = dtc.rawHex ? ` • Raw: <code>${this._escHtml(dtc.rawHex)}</code>` : '';
           const searchCodeTerm = dtc.saeCode || dtc.baseCode || dtc.code;
-          const searchQuery = encodeURIComponent(`VAG ${searchCodeTerm} ${mod.partNumber && mod.partNumber !== 'Available' ? mod.partNumber : mod.name}`.trim());
+          const searchContext = mod.partNumber && mod.partNumber !== 'Available' ? mod.partNumber : (mod.odxName || mod.name);
+          const searchQuery = encodeURIComponent(`VAG ${searchCodeTerm} ${searchContext}`.trim());
           const copySummary = [
-            `Module ${mod.address} (${mod.name}) — Part ${mod.partNumber || 'N/A'}`,
-            `Code: ${dtc.code}${dtc.saeCode && dtc.saeCode !== dtc.code ? ` / ${dtc.saeCode}` : ''}${dtc.vagCode && dtc.vagCode !== dtc.code ? ` (VAG ${dtc.vagCode})` : ''}${dtc.rawHex ? ` [${dtc.rawHex}]` : ''}`,
+            `Module ${mod.address} (${mod.name}) — Part ${mod.partNumber || 'N/A'}${mod.odxName ? ` | ODX ${mod.odxName}` : ''}`,
+            `Code: ${dtc.code}${dtc.saeCode && dtc.saeCode !== dtc.code ? ` / ${dtc.saeCode}` : ''}${dtc.vagCode && dtc.vagCode !== dtc.code && !dtc.code.includes(dtc.vagCode) ? ` (VAG ${dtc.vagCode})` : ''}${dtc.rawHex ? ` [${dtc.rawHex}]` : ''}`,
             `Title: ${dtc.title || 'Unlisted Fault Code'}`,
             dtc.symptom ? `Failure Subtype: ${dtc.symptom}` : null,
             dtc.statusMask ? `Status: ${dtc.statusMask} (${dtc.isStatic ? 'Active/Static' : 'Intermittent'})` : null
@@ -3962,6 +3974,7 @@ class VibesApp {
       const faultCount = mod.dtcs ? mod.dtcs.length : 0;
       report += `[ Address ${mod.address}: ${mod.name} ] (${faultCount} Fault${faultCount === 1 ? '' : 's'})\n`;
       report += `Part No: ${mod.partNumber || 'N/A'} | Component: ${mod.component || 'VAG ECU'}\n`;
+      if (mod.odxName) report += `ASAM/ODX: ${mod.odxName}\n`;
       if (mod.coding) report += `Coding: ${mod.coding}\n`;
       report += `Protocol: ${mod.protocol || 'ISO 15765'}\n`;
 
@@ -3969,7 +3982,9 @@ class VibesApp {
         report += `Status: ✅ No Faults Stored (Nominal)\n\n`;
       } else {
         mod.dtcs.forEach(dtc => {
-          report += `  - Code: ${dtc.code} - ${dtc.title}\n`;
+          const vagSuffix = dtc.vagCode && dtc.vagCode !== dtc.code && !dtc.code.includes(dtc.vagCode) ? ` (VAG ${dtc.vagCode})` : '';
+          report += `  - Code: ${dtc.code}${vagSuffix} - ${dtc.title}\n`;
+          if (dtc.rawHex && !dtc.isKnown) report += `    Raw UDS: ${dtc.rawHex}\n`;
           if (dtc.symptom) report += `    Symptom: ${dtc.symptom}\n`;
           report += `    Status: ${dtc.isStatic ? 'Static / Active' : 'Intermittent'}\n`;
           if (dtc.meaning) report += `    What It Means: ${dtc.meaning}\n`;

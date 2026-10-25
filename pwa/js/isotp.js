@@ -23,18 +23,57 @@ export class IsoTpAssembler {
 
     if (lines.length === 0) return new Uint8Array([]);
 
-    // Check for ELM327 "0: 62 F1 90 ... 1: 5A ..." multi-frame format
-    const isIndexedMultiFrame = lines.some(l => /^[0-9A-F]+:/i.test(l));
+    // Check for ELM327 "00F \r 0: 62 F1 90 ... 1: 5A ..." indexed multi-frame format
+    const isIndexedMultiFrame = lines.some(l => /(?:^|\s)[0-9A-F]+:/i.test(l));
     if (isIndexedMultiFrame) {
+      let declaredLength = null;
       const hexTokens = [];
-      for (const line of lines) {
-        const cleanedLine = line.replace(/[0-9A-F]+:\s*/gi, ' ');
-        const tokens = cleanedLine.split(/\s+/).filter(t => /^[0-9A-F]{2}$/i.test(t));
-        hexTokens.push(...tokens);
+
+      for (let idx = 0; idx < lines.length; idx++) {
+        let line = lines[idx];
+        // Check for standalone 2-3 hex-digit total byte length line preceding "0:" (e.g. "00F" or "021")
+        if (!line.includes(':')) {
+          const compact = line.replace(/\s+/g, '');
+          if (declaredLength === null && /^[0-9A-F]{2,3}$/i.test(compact)) {
+            declaredLength = parseInt(compact, 16);
+            continue;
+          }
+        } else if (declaredLength === null) {
+          // Also handle single-line "00F 0: 59 02 ..."
+          const inlineLen = line.match(/^([0-9A-F]{3})\s+(?=0:)/i);
+          if (inlineLen) {
+            declaredLength = parseInt(inlineLen[1], 16);
+            line = line.slice(inlineLen[0].length);
+          }
+        }
+
+        // Split if multiple "N:" segments appear on one line
+        const segments = line.split(/(?=(?:^|\s)[0-9A-F]+:)/i);
+        for (const seg of segments) {
+          const body = seg.trim().replace(/^[0-9A-F]+:\s*/i, '').trim();
+          if (!body) continue;
+          let tokens = body.split(/\s+/).filter(Boolean);
+          if (tokens.length === 1 && tokens[0].length > 2 && tokens[0].length % 2 === 0 && /^[0-9A-F]+$/i.test(tokens[0])) {
+            const hexStr = tokens[0];
+            tokens = [];
+            for (let k = 0; k < hexStr.length; k += 2) {
+              tokens.push(hexStr.substring(k, k + 2));
+            }
+          }
+          for (const t of tokens) {
+            if (/^[0-9A-F]{2}$/i.test(t)) {
+              hexTokens.push(t);
+            }
+          }
+        }
       }
+
       const bytes = hexTokens.map(t => parseInt(t, 16));
-      // If byte 0 is total length and byte 1 is positive/negative response SID
-      if (bytes.length > 2 && bytes[0] <= bytes.length - 1 && (bytes[1] >= 0x40 && bytes[1] <= 0x7F)) {
+      if (declaredLength !== null && declaredLength > 0 && bytes.length >= declaredLength) {
+        return new Uint8Array(bytes.slice(0, declaredLength));
+      }
+      // Fallback: if byte 0 is total length and byte 1 is positive/negative response SID
+      if (declaredLength === null && bytes.length > 2 && bytes[0] <= bytes.length - 1 && (bytes[1] >= 0x40 && bytes[1] <= 0x7F)) {
         return new Uint8Array(bytes.slice(1, 1 + bytes[0]));
       }
       return new Uint8Array(bytes);

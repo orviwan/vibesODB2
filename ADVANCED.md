@@ -75,12 +75,13 @@ vibesODB2 uses a modular, decoupled architecture separating hardware communicati
   * `0xF191`: ECU Hardware Number
   * `0xF189`: ECU Software Version Number
   * `0xF18C`: ECU Serial Number
+  * `0xF19E`: ASAM/ODX File Identifier (e.g. `EV_ECM16TDI...`, `EV_TCMDQ200...`)
   * `0x0600`: Central Electric (BCM) Long Coding Payload (24–30 Bytes)
 * **Write Data By Identifier (`0x2E`)**: Writes a modified long-coding payload. Success means a `0x6E <DID>` positive response **and** a matching read-back of the identifier; anything else is reported as a failed write.
 * **SecurityAccess (`0x27`)**: not performed. No verified seed/key algorithm is bundled, and sending a login PIN as raw key bytes is wrong and can lock the ECU. The client refuses unless a real key-derivation function is supplied.
 * **Response pending (`0x7F <SID> 0x78`)**: the final message that follows it is used; a lone `0x78` is surfaced as a retryable negative response rather than a hard failure.
 * **Diagnostic Auto-Scan** over the modules whose CAN IDs are marked `verified` in `MODULE_ARBITRATION` (`pwa/js/uds.js`):
-  * **UDS (`0x19 0x02 0x09`)**: Queries confirmed and pending DTC records (3-byte DTC + 1-byte status mask) and decodes SAE J2012 `P`/`C`/`B`/`U` codes plus ISO 14229-1 failure-type bytes (FTB), disambiguating 5-digit VAG body/chassis decimal codes (`highByte < 0x40` on non-powertrain modules).
+  * **UDS (`0x19 0x02 0x09`)**: Queries confirmed and pending DTC records (3-byte DTC + 1-byte status mask). Distinguishes VAG 24-bit ASAM/ODX manufacturer event numbers on `EV_*` controllers (`0xF19E`) from ISO 14229-1 SAE J2012 `P`/`C`/`B`/`U` + failure-type-byte records and 5-digit VAG body/chassis decimal codes, never fabricating false SAE/FTB labels for unlisted ODX events.
   * **Physical-header OBD-II (`0x03` / `0x07`)**: Queries confirmed and pending powertrain P-codes directly on physical ECU headers (`7E0` / `7E1`, never `7DF`) for engine (`0x01`) and transmission (`0x02`) modules, deduplicating against `0x19` results.
   * **KWP2000-style fallback (`0x18 0x00 0xFF 0x00`)**: attempted over ISO-TP only when `0x19` is rejected. This is experimental: VAG's KWP2000 generation uses the TP2.0 transport, which is **not implemented**, so pre-2008 vehicles are not supported. Parses 16-bit VAG 5-digit decimal codes (`DTC = (high << 8) | low`, masking intermittent bit `0x80` on the symptom byte and cross-referencing `16384`-offset powertrain codes to SAE P-codes).
   * **Failure Subtype & Symptom Decoding**: Decodes ISO 14229-1 FTB electrical/signal failure subtypes (e.g. `0x11` circuit short to ground, `0x15` circuit short to battery or open, `0x29` signal invalid) and VAG KWP symptom codes (`008` implausible signal, `002` lower limit exceeded).

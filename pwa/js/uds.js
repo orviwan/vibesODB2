@@ -70,6 +70,7 @@ export class UdsClient {
     this.assembler = new IsoTpAssembler(bleTransport);
     this.activeModule = '0x09';
     this.testerPresentInterval = null;
+    this.moduleOdxMap = {};
   }
 
   async setTargetModule(moduleHex, customTx = null, customRx = null) {
@@ -165,11 +166,11 @@ export class UdsClient {
     }
   }
 
-  async readDataById(didHex) {
+  async readDataById(didHex, timeoutMs = 3500) {
     const didNum = parseInt(didHex, 16);
     const high = (didNum >> 8) & 0xFF;
     const low = didNum & 0xFF;
-    const res = await this.sendUdsRequest(new Uint8Array([0x22, high, low]));
+    const res = await this.sendUdsRequest(new Uint8Array([0x22, high, low]), timeoutMs);
 
     // Positive response format: 0x62 <DID High> <DID Low> <Data...>
     if (res.length >= 3 && res[0] === 0x62 && res[1] === high && res[2] === low) {
@@ -200,7 +201,7 @@ export class UdsClient {
   }
 
   /**
-   * Reads identification data (Part Number, Component name) from target module.
+   * Reads identification data (Part Number, Component name, ASAM/ODX identifier) from target module.
    */
   async readModuleInfo(moduleHex = null) {
     if (moduleHex) {
@@ -211,6 +212,7 @@ export class UdsClient {
       name: MODULE_ARBITRATION[this.activeModule]?.name || `Module ${this.activeModule}`,
       partNumber: null,
       component: null,
+      odxName: null,
       coding: null,
       protocol: 'UDS'
     };
@@ -251,6 +253,17 @@ export class UdsClient {
       } catch (_) {}
     }
 
+    // ISO 14229-1 Annex C DID 0xF19E (ASAM/ODX File Identifier, e.g. "EV_ECM16TDI..." / "EV_TCMDQ200...")
+    if (info.partNumber || info.component) {
+      try {
+        const odxRes = await this.readDataById('F19E', 1000);
+        if (odxRes && odxRes.length > 0) {
+          info.odxName = bytesToAscii(odxRes);
+        }
+      } catch (_) {}
+      this.moduleOdxMap[this.activeModule] = info.odxName || null;
+    }
+
     // 2. Older KWP2000 identification fallback (if UDS returned nothing)
     if (!info.partNumber) {
       try {
@@ -282,6 +295,16 @@ export class UdsClient {
       const res = await this.sendUdsRequest(new Uint8Array([0x19, 0x02, 0x09]), 1500);
       if (res && res.length >= 3 && res[0] === 0x59) {
         udsResponded = true;
+        if (res.length >= 7 && !(this.activeModule in this.moduleOdxMap)) {
+          try {
+            const odxRes = await this.readDataById('F19E', 1000);
+            this.moduleOdxMap[this.activeModule] = (odxRes && odxRes.length > 0) ? bytesToAscii(odxRes) : null;
+          } catch (_) {
+            this.moduleOdxMap[this.activeModule] = null;
+          }
+        }
+        const odxName = this.moduleOdxMap[this.activeModule] || null;
+
         // DTC format: 3 bytes DTC code + 1 byte status
         for (let i = 3; i + 3 < res.length; i += 4) {
           const b0 = res[i];
@@ -289,8 +312,10 @@ export class UdsClient {
           const b2 = res[i + 2];
           const status = res[i + 3];
           if (b0 === 0 && b1 === 0 && b2 === 0) continue;
+          // Defense-in-depth: ignore raw CAN DLC padding filler bytes (0xAA / 0x55 / 0xFF)
+          if (b0 === b1 && b1 === b2 && b2 === status && (b0 === 0xAA || b0 === 0x55 || b0 === 0xFF)) continue;
 
-          const parsed = decodeUdsDtcBytes(b0, b1, b2, status, this.activeModule);
+          const parsed = decodeUdsDtcBytes(b0, b1, b2, status, this.activeModule, { odxName });
 
           dtcs.push({
             code: parsed.code,
@@ -300,6 +325,7 @@ export class UdsClient {
             rawHex: parsed.rawHex,
             uds24Dec: parsed.uds24Dec,
             ftbHex: parsed.ftbHex,
+            odxName: parsed.odxName || odxName,
             title: parsed.title,
             system: parsed.system,
             meaning: parsed.meaning,
@@ -481,6 +507,7 @@ export class UdsClient {
             name: modMeta.name,
             partNumber: modInfo?.partNumber || 'Available',
             component: modInfo?.component || 'VAG Electronic Control Unit',
+            odxName: modInfo?.odxName || this.moduleOdxMap[modHex] || null,
             coding: modInfo?.coding || null,
             protocol: modInfo?.protocol || 'ISO 15765-4',
             dtcs: modDtcs
