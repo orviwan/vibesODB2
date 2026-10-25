@@ -520,7 +520,7 @@
             <h3 style="font-size: 1.15rem; font-weight:700; margin:0;">Vehicle Diagnostic Hub & Auto-Scan</h3>
           </div>
           <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
-            Scan installed ECUs (Engine, ABS, Airbags, Central Electrics, Instruments, Gateway) with embedded mechanical fixes.
+            Scan installed ECUs across UDS, OBD-II, and KWP2000 with Failure Type Byte decoding and offline reference guidance. Reference notes are general guidance, not a diagnosis of a specific vehicle.
           </p>
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
@@ -552,7 +552,7 @@
 
       <!-- Stats Banner & Search Filter -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-        <div id="dtc-stats-banner" style="display:flex; gap:0.75rem; flex-wrap:wrap; font-size:0.8rem;">
+        <div id="dtc-stats-banner" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; font-size:0.8rem;">
           <div style="background:var(--bg-main); padding:4px 10px; border-radius:15px; border:1px solid var(--border-color);">
             📦 <strong id="dtc-stat-scanned">0</strong> Modules Scanned
           </div>
@@ -562,6 +562,16 @@
           <div style="background:var(--bg-main); padding:4px 10px; border-radius:15px; border:1px solid var(--border-color);">
             ✅ <strong id="dtc-stat-healthy" style="color:var(--success);">0</strong> Healthy Modules
           </div>
+          <div id="dtc-db-count-badge" style="background:rgba(59,130,246,0.1); color:#60a5fa; padding:4px 10px; border-radius:15px; border:1px solid rgba(59,130,246,0.28); font-size:0.76rem; font-weight:600;">
+            📚 Offline Dictionary Ready
+          </div>
+          <button id="btn-import-dtc-json" type="button" class="btn btn-secondary" style="padding:3px 9px; font-size:0.74rem; font-weight:600;" title="Load your own local JSON code dictionary into this browser (stored offline only)">
+            📂 Import Custom Codes
+          </button>
+          <button id="btn-clear-custom-dtcs" type="button" class="btn btn-secondary" style="display:none; padding:3px 9px; font-size:0.74rem; font-weight:600; color:#f87171;" title="Remove locally imported custom DTC entries">
+            ✕ Clear Custom
+          </button>
+          <input type="file" id="input-dtc-json-file" accept=".json,application/json" style="display:none;">
         </div>
         <div style="flex:1; min-width:240px; max-width:400px;">
           <input type="text" id="dtc-search-input" placeholder="🔍 Filter by code, module, symptom, or keyword..." 

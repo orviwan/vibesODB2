@@ -1,7 +1,7 @@
 // vibesODB2 Client-Side UDS (ISO 14229) & KWP2000 Diagnostic Client
 
 import { IsoTpAssembler } from './isotp.js';
-import { lookupDtc } from './dtc_db.js';
+import { lookupDtc, decodeSaeJ2012, decodeUdsDtcBytes, ensureDtcDatabaseLoaded } from './dtc_db.js';
 
 function bytesToAscii(bytes) {
   if (!bytes || bytes.length === 0) return '';
@@ -267,33 +267,39 @@ export class UdsClient {
   }
 
   /**
-   * Reads Diagnostic Trouble Codes from target module using dual UDS & KWP2000 protocols.
+   * Reads Diagnostic Trouble Codes from target module using UDS (0x19), OBD-II Mode 03/07 (on physical powertrain header), and KWP2000 (0x18).
    */
   async readModuleDTCs(moduleHex = null) {
+    await ensureDtcDatabaseLoaded();
     if (moduleHex) {
       await this.setTargetModule(moduleHex);
     }
     const dtcs = [];
+    let udsResponded = false;
 
-    // Protocol 1: Modern UDS Service 0x19 02 09 (or 0x19 02 FF)
+    // Protocol 1: Modern UDS Service 0x19 02 09 (reportDTCByStatusMask)
     try {
       const res = await this.sendUdsRequest(new Uint8Array([0x19, 0x02, 0x09]), 1500);
       if (res && res.length >= 3 && res[0] === 0x59) {
+        udsResponded = true;
         // DTC format: 3 bytes DTC code + 1 byte status
         for (let i = 3; i + 3 < res.length; i += 4) {
-          const d1 = res[i].toString(16).padStart(2, '0');
-          const d2 = res[i + 1].toString(16).padStart(2, '0');
-          const d3 = res[i + 2].toString(16).padStart(2, '0');
+          const b0 = res[i];
+          const b1 = res[i + 1];
+          const b2 = res[i + 2];
           const status = res[i + 3];
+          if (b0 === 0 && b1 === 0 && b2 === 0) continue;
 
-          // Check if this is a standard 16-bit VAG code or SAE P-code
-          const hex16 = (res[i] << 8) | res[i + 1];
-          const rawCode = `0x${d1}${d2}${d3}`.toUpperCase();
-          const parsed = lookupDtc(hex16 <= 0xFFFF ? hex16 : rawCode, status, res[i + 2]);
+          const parsed = decodeUdsDtcBytes(b0, b1, b2, status, this.activeModule);
 
           dtcs.push({
             code: parsed.code,
-            rawHex: rawCode,
+            baseCode: parsed.baseCode,
+            saeCode: parsed.saeCode,
+            vagCode: parsed.vagCode,
+            rawHex: parsed.rawHex,
+            uds24Dec: parsed.uds24Dec,
+            ftbHex: parsed.ftbHex,
             title: parsed.title,
             system: parsed.system,
             meaning: parsed.meaning,
@@ -306,13 +312,70 @@ export class UdsClient {
             isConfirmed: (status & 0x08) !== 0,
             isPending: (status & 0x04) !== 0,
             isStatic: (status & 0x01) !== 0,
+            isKnown: parsed.isKnown,
+            source: parsed.source,
             protocol: 'UDS'
           });
         }
-        return dtcs;
       }
-    } catch (udsErr) {
+    } catch (_) {
       // If UDS is rejected or unsupported, proceed to KWP2000
+    }
+
+    // Powertrain supplement: query SAE J1979 Mode 03 (confirmed) & Mode 07 (pending) on the
+    // already-selected physical module header (7E0/7E1 — never 7DF broadcast).
+    if (this.activeModule === '0x01' || this.activeModule === '0x02') {
+      for (const [modeSid, respSid, isPendingMode] of [[0x03, 0x43, false], [0x07, 0x47, true]]) {
+        try {
+          const obdRes = await this.sendUdsRequest(new Uint8Array([modeSid]), 1200);
+          if (obdRes && obdRes.length >= 2 && obdRes[0] === respSid) {
+            const hasCountByte = obdRes.length % 2 === 0;
+            const maxPairs = hasCountByte ? obdRes[1] : Math.floor((obdRes.length - 1) / 2);
+            const startIdx = hasCountByte ? 2 : 1;
+            let pairsRead = 0;
+            for (let j = startIdx; j + 1 < obdRes.length && pairsRead < maxPairs; j += 2) {
+              const hi = obdRes[j];
+              const lo = obdRes[j + 1];
+              pairsRead++;
+              if (hi === 0 && lo === 0) continue;
+              const sae = decodeSaeJ2012(hi, lo);
+              const alreadyListed = dtcs.some(d => d.code === sae || d.baseCode === sae || d.saeCode === sae);
+              if (!alreadyListed) {
+                const parsed = lookupDtc(sae, null, null, {
+                  protocol: 'OBD-II',
+                  moduleAddress: this.activeModule
+                });
+                dtcs.push({
+                  code: parsed.code,
+                  baseCode: parsed.baseCode,
+                  saeCode: parsed.saeCode,
+                  vagCode: parsed.vagCode,
+                  rawHex: `0x${hi.toString(16).padStart(2, '0')}${lo.toString(16).padStart(2, '0')}`.toUpperCase(),
+                  title: parsed.title,
+                  system: parsed.system,
+                  meaning: parsed.meaning,
+                  causes: parsed.causes,
+                  fixes: parsed.fixes,
+                  severity: parsed.severity,
+                  symptom: parsed.symptom,
+                  symptomDetail: parsed.symptomDetail,
+                  statusMask: isPendingMode ? 'Pending (Mode 07)' : 'Confirmed (Mode 03)',
+                  isConfirmed: !isPendingMode,
+                  isPending: isPendingMode,
+                  isStatic: !isPendingMode,
+                  isKnown: parsed.isKnown,
+                  source: parsed.source,
+                  protocol: isPendingMode ? 'OBD-II Mode 07' : 'OBD-II Mode 03'
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (udsResponded) {
+      return dtcs;
     }
 
     // Protocol 2: Older KWP2000 Service 0x18 00 FF 00 (Read DTCs by Status)
@@ -328,9 +391,15 @@ export class UdsClient {
           const decCode = (high << 8) | low;
 
           if (decCode > 0) {
-            const parsed = lookupDtc(decCode, null, symptom);
+            const parsed = lookupDtc(decCode, null, symptom, {
+              protocol: 'KWP2000',
+              moduleAddress: this.activeModule
+            });
             dtcs.push({
               code: parsed.code,
+              baseCode: parsed.baseCode,
+              saeCode: parsed.saeCode,
+              vagCode: parsed.vagCode,
               rawHex: `0x${high.toString(16).padStart(2, '0')}${low.toString(16).padStart(2, '0')}`.toUpperCase(),
               title: parsed.title,
               system: parsed.system,
@@ -343,14 +412,16 @@ export class UdsClient {
               statusMask: `0x${symptom.toString(16).padStart(2, '0').toUpperCase()}`,
               isConfirmed: true,
               isPending: false,
-              isStatic: (symptom & 0x80) !== 0 || !parsed.symptom?.includes('Intermittent'),
+              isStatic: !parsed.isIntermittent,
+              isKnown: parsed.isKnown,
+              source: parsed.source,
               protocol: 'KWP2000'
             });
           }
         }
         return dtcs;
       }
-    } catch (kwpErr) {}
+    } catch (_) {}
 
     return dtcs;
   }

@@ -207,10 +207,26 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
                 print(f"  adapter log: {log}")
             assert int(dtc_count_text) >= 3, f"Expected at least 3 DTCs in Transporter T5 profile, found {dtc_count_text}"
 
-            # Step E: Verify plain-English knowledge base drawer
+            # Step E: Verify plain-English knowledge base drawer and offline dictionary count
             has_drawer = await evaluate_js(ws, gen, "document.body.innerHTML.includes('Generator Terminal DF Load Signal')")
             print(f"✓ Plain-English Knowledge Base drawer rendered: {has_drawer}")
             assert has_drawer is True, "DTC knowledge base drawer for 01117 missing!"
+
+            badge_text = await evaluate_js(ws, gen, "document.getElementById('dtc-db-count-badge')?.textContent || ''")
+            print(f"✓ Offline DTC dictionary badge: {badge_text}")
+            assert "326" in badge_text or "Reference Codes" in badge_text, f"Unexpected DTC badge text: {badge_text}"
+
+            # Also verify UDS profile (Transporter T5.1) decodes SAE J2012 + FTB (B104A-15) end-to-end
+            await evaluate_js(ws, gen, "window.app.bleTransport.setProfile('transporter_t51'); window.app.lastDtcScanResults = null; document.getElementById('btn-quick-scan-dtcs')?.click()")
+            for _ in range(40):
+                await asyncio.sleep(0.3)
+                t51_done = await evaluate_js(ws, gen, "!!window.app.lastDtcScanResults && !document.getElementById('btn-quick-scan-dtcs')?.disabled")
+                if t51_done:
+                    break
+            has_b104a = await evaluate_js(ws, gen, "document.body.innerHTML.includes('B104A-15') && document.body.innerHTML.includes('Rain / Light Recognition Sensor')")
+            print(f"✓ UDS SAE+FTB B104A-15 decoded in browser: {has_b104a}")
+            assert has_b104a is True, "Expected B104A-15 Rain/Light sensor fault in Transporter T5.1 UDS scan!"
+
 
             # Step F: Switch to Feature Coding Tab
             print("✓ Switching to Feature Coding tab...")

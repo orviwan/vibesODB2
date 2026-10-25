@@ -297,10 +297,9 @@ class SimulatedELM327:
                     ftb = d.failure_type_byte or 0x00
                     payload += f"{dec_int:04X}{ftb:02X}{d.status_mask:02X}"
                 else:
-                    # Standard SAE/UDS code (e.g. B104A15 or P0299)
-                    # Use 3-byte representation
-                    raw_dtc = d.code.replace("P", "0").replace("C", "4").replace("B", "8").replace("U", "C")
-                    cleaned = raw_dtc.ljust(6, "0")[:6]
+                    # Standard SAE J2012-DA 2-byte code + 1-byte FTB (e.g. B104A15 -> 904A15)
+                    from vibesodb2.uds.client import encode_sae_dtc_hex
+                    cleaned = encode_sae_dtc_hex(d.code, d.failure_type_byte)
                     payload += f"{cleaned}{d.status_mask:02X}"
 
             return payload

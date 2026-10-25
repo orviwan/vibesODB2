@@ -66,3 +66,35 @@ test('setTargetModule refuses unverified modules unless explicit CAN IDs are sup
   await uds.setTargetModule(unverified, '7E0', '7E8');
   assert.ok(t.sent.includes('ATSH 7E0'));
 });
+
+test('readModuleDTCs on Engine (0x01) decodes SAE P-codes instead of bogus decimal integers and never uses 7DF', async () => {
+  const t = new FakeTransport({
+    '19 02 09': '59 02 CF 01 01 00 2F 20 15 00 28',
+    '03': '43 00',
+    '07': '47 00'
+  });
+  const uds = new UdsClient(t);
+  const dtcs = await uds.readModuleDTCs('0x01');
+
+  assert.ok(!t.sent.some(c => c.includes('7DF')), 'must not switch to 7DF functional broadcast header');
+  const codes = dtcs.map(d => d.code);
+  assert.ok(codes.includes('P0101'), `expected P0101, got ${JSON.stringify(codes)}`);
+  assert.ok(codes.includes('P2015'), `expected P2015, got ${JSON.stringify(codes)}`);
+});
+
+test('readModuleDTCs on Engine (0x01) surfaces OBD-II Mode 03/07 powertrain codes on physical header 7E0', async () => {
+  const t = new FakeTransport({
+    '19 02 09': '59 02 CF',
+    '03': '43 01 02 99',
+    '07': '47 01 04 01'
+  });
+  const uds = new UdsClient(t);
+  const dtcs = await uds.readModuleDTCs('0x01');
+
+  assert.ok(t.sent.includes('ATSH 7E0'));
+  assert.ok(!t.sent.some(c => c.includes('7DF')));
+  const codes = dtcs.map(d => d.code);
+  assert.ok(codes.includes('P0299'), `expected confirmed P0299 from Mode 03, got ${JSON.stringify(codes)}`);
+  assert.ok(codes.includes('P0401'), `expected pending P0401 from Mode 07, got ${JSON.stringify(codes)}`);
+});
+
