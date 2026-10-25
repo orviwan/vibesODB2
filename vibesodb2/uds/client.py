@@ -187,6 +187,14 @@ class UDSClient:
 
         # Skip header: "59 02 <DTCStatusAvailabilityMask>" -> 6 hex chars
         data_hex = resp[6:]
+        odx_name: Optional[str] = None
+        if len(data_hex) >= 8:
+            try:
+                odx_bytes = await self.read_data_by_id(0xF19E)
+                odx_name = odx_bytes.decode("ascii", errors="ignore").strip("\x00 ") or None
+            except Exception:
+                odx_name = None
+
         # Each DTC record is 4 bytes (8 hex chars): 3 bytes DTC code + 1 byte status
         for i in range(0, len(data_hex) - 7, 8):
             chunk = data_hex[i : i + 8]
@@ -194,14 +202,17 @@ class UDSClient:
             b0 = int(chunk[0:2], 16)
             b1 = int(chunk[2:4], 16)
             b2 = int(chunk[4:6], 16)
+            dtc_status = int(chunk[6:8], 16)
             if b0 == 0 and b1 == 0 and b2 == 0:
                 continue
-            dtc_status = int(chunk[6:8], 16)
-            decoded = decode_uds_dtc_bytes(b0, b1, b2, module_addr=mod_addr)
+            if b0 == b1 == b2 == dtc_status and b0 in (0xAA, 0x55, 0xFF):
+                continue
+            decoded = decode_uds_dtc_bytes(b0, b1, b2, module_addr=mod_addr, odx_name=odx_name)
             dtcs.append({
                 "code": dtc_code,
                 "formatted_code": decoded["formatted_code"],
                 "base_code": decoded["base_code"],
+                "vag_code": decoded.get("vag_code"),
                 "failure_type": decoded["failure_type"],
                 "title": decoded["title"],
                 "meaning": decoded["meaning"],
@@ -296,12 +307,13 @@ _VAG_SYMPTOMS = {
 }
 
 _DTC_JSON_CACHE: Optional[dict] = None
+_UDS_EVENTS_CACHE: Optional[dict] = None
 
 
-def _get_dtc_dictionary() -> dict:
-    global _DTC_JSON_CACHE
-    if _DTC_JSON_CACHE is not None:
-        return _DTC_JSON_CACHE
+def _get_dtc_dictionary() -> tuple[dict, dict]:
+    global _DTC_JSON_CACHE, _UDS_EVENTS_CACHE
+    if _DTC_JSON_CACHE is not None and _UDS_EVENTS_CACHE is not None:
+        return _DTC_JSON_CACHE, _UDS_EVENTS_CACHE
     import json
     from pathlib import Path
 
@@ -310,11 +322,16 @@ def _get_dtc_dictionary() -> dict:
         try:
             raw = json.loads(json_path.read_text(encoding="utf-8"))
             _DTC_JSON_CACHE = raw.get("codes", {})
-            return _DTC_JSON_CACHE
+            _UDS_EVENTS_CACHE = {
+                str(k).strip().upper(): str(v).strip().upper()
+                for k, v in raw.get("uds_events", {}).items()
+            }
+            return _DTC_JSON_CACHE, _UDS_EVENTS_CACHE
         except Exception:
             pass
     _DTC_JSON_CACHE = {}
-    return _DTC_JSON_CACHE
+    _UDS_EVENTS_CACHE = {}
+    return _DTC_JSON_CACHE, _UDS_EVENTS_CACHE
 
 
 def decode_sae_j2012(b0: int, b1: int) -> str:
@@ -344,13 +361,53 @@ def encode_sae_dtc_hex(code_str: str, ftb_override: Optional[int] = None) -> str
     return f"{b0:02X}{b1:02X}{b2:02X}"
 
 
-def decode_uds_dtc_bytes(b0: int, b1: int, b2: int, module_addr: Optional[int] = None) -> dict:
-    """Decode a 3-byte UDS DTC record with module context and reference dictionary lookup."""
-    db = _get_dtc_dictionary()
+def decode_uds_dtc_bytes(
+    b0: int,
+    b1: int,
+    b2: int,
+    module_addr: Optional[int] = None,
+    odx_name: Optional[str] = None,
+) -> dict:
+    """Decode a 3-byte UDS DTC record with module/ODX context and reference dictionary lookup."""
+    db, uds_events = _get_dtc_dictionary()
     is_powertrain = module_addr in (None, 0x01, 0x02)
+    is_vag_odx = bool(odx_name and odx_name.strip().upper().startswith("EV_"))
     sae_base = decode_sae_j2012(b0, b1)
     dec16 = (b0 << 8) | b1
     vag5 = f"{dec16:05d}"
+    dec24 = (b0 << 16) | (b1 << 8) | b2
+    mod_hex = f"0X{module_addr:02X}" if module_addr is not None else None
+
+    mapped_sae = (uds_events.get(f"{mod_hex}:{dec24}") if mod_hex else None) or uds_events.get(f"*:{dec24}")
+    is_vag24 = (
+        is_vag_odx
+        or (module_addr == 0x02 and b0 < 0x07)
+        or (b0 == 0x00 and b2 != 0x00 and b2 not in _UDS_FTB_LABELS)
+        or bool(mapped_sae and b0 == 0x00)
+    )
+
+    if is_vag24:
+        vag_str = str(dec24)
+        if mapped_sae:
+            rec = db.get(mapped_sae)
+            return {
+                "formatted_code": mapped_sae,
+                "base_code": mapped_sae,
+                "vag_code": vag_str,
+                "failure_type": "",
+                "title": rec["title"] if rec else f"VAG UDS Fault ({mapped_sae})",
+                "meaning": rec["meaning"] if rec else "",
+                "is_known": rec is not None,
+            }
+        return {
+            "formatted_code": f"VAG {vag_str}",
+            "base_code": vag_str,
+            "vag_code": vag_str,
+            "failure_type": "",
+            "title": f"Unlisted VAG UDS Fault Event ({vag_str})",
+            "meaning": "",
+            "is_known": False,
+        }
 
     use_vag5 = False
     if b0 < 0x40 and not is_powertrain and (vag5 in db or b0 < 0x10):
@@ -369,9 +426,11 @@ def decode_uds_dtc_bytes(b0: int, b1: int, b2: int, module_addr: Optional[int] =
     return {
         "formatted_code": formatted,
         "base_code": base_code,
+        "vag_code": vag5 if use_vag5 else (rec.get("vagCode") if rec else None),
         "failure_type": ft_label,
         "title": rec["title"] if rec else "Unlisted Fault Code",
         "meaning": rec["meaning"] if rec else "",
         "is_known": rec is not None,
     }
+
 

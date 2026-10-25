@@ -98,3 +98,57 @@ test('readModuleDTCs on Engine (0x01) surfaces OBD-II Mode 03/07 powertrain code
   assert.ok(codes.includes('P0401'), `expected pending P0401 from Mode 07, got ${JSON.stringify(codes)}`);
 });
 
+test('readModuleDTCs on VAG ODX Engine (0x01) decodes 24-bit event 15916 (00 3E 2C) as P0671 and deduplicates Mode 03', async () => {
+  // EV_ECM16TDI01104L906056HE in ASCII: 45 56 5F 45 43 4D 31 36 54 44 49
+  const t = new FakeTransport({
+    '22 F1 9E': '62 F1 9E 45 56 5F 45 43 4D 31 36 54 44 49',
+    '19 02 09': '59 02 FF 00 3E 2C 2F',
+    '03': '43 01 06 71',
+    '07': '47 00'
+  });
+  const uds = new UdsClient(t);
+  const dtcs = await uds.readModuleDTCs('0x01');
+
+  assert.equal(dtcs.length, 1, `expected single deduplicated P0671 fault, got ${JSON.stringify(dtcs.map(d => d.code))}`);
+  assert.equal(dtcs[0].saeCode, 'P0671');
+  assert.equal(dtcs[0].vagCode, '15916');
+  assert.ok(!dtcs[0].code.startsWith('P003E'), 'must never misdecode VAG UDS 15916 (00 3E 2C) as SAE P003E-2C');
+  assert.match(dtcs[0].title, /glow plug/i);
+});
+
+test('readModuleDTCs on VAG ODX DQ200 Transmission (0x02) decodes 10776/10778/10812 and strips 0xAA CAN padding', async () => {
+  // EV_TCMDQ200021 in ASCII: 45 56 5F 54 43 4D 44 51 32 30 30
+  const t = new FakeTransport({
+    '22 F1 9E': '62 F1 9E 45 56 5F 54 43 4D 44 51 32 30 30',
+    '19 02 09': '00F\r0: 59 02 FF 00 2A 18\r1: 28 00 2A 1A 28 00 2A\r2: 3C 28 AA AA AA AA AA',
+    '03': '43 00',
+    '07': '47 00'
+  });
+  const uds = new UdsClient(t);
+  const dtcs = await uds.readModuleDTCs('0x02');
+
+  assert.equal(dtcs.length, 3, `expected 3 real TCM faults without B2AAA-AA padding, got ${JSON.stringify(dtcs.map(d => d.code))}`);
+  const saeCodes = dtcs.map(d => d.saeCode);
+  assert.deepEqual(saeCodes, ['P177B', 'P177C', 'P1895']);
+  assert.ok(!dtcs.some(d => d.code.includes('B2AAA') || d.code.startsWith('P002A')));
+});
+
+test('unlisted VAG ODX 24-bit event codes report honestly as VAG decimal events without fabricating SAE or FTB labels', async () => {
+  // EV_BCMMQB in ASCII: 45 56 5F 42 43 4D 4D 51 42
+  // 0x00 0x4E 0x21 = decimal 20001 (unlisted)
+  const t = new FakeTransport({
+    '22 F1 9E': '62 F1 9E 45 56 5F 42 43 4D 4D 51 42',
+    '19 02 09': '59 02 FF 00 4E 21 28'
+  });
+  const uds = new UdsClient(t);
+  const dtcs = await uds.readModuleDTCs('0x09');
+
+  assert.equal(dtcs.length, 1);
+  assert.equal(dtcs[0].isKnown, false);
+  assert.equal(dtcs[0].code, 'VAG 20001');
+  assert.equal(dtcs[0].saeCode, null);
+  assert.equal(dtcs[0].symptom, null);
+  assert.deepEqual(dtcs[0].causes, []);
+  assert.deepEqual(dtcs[0].fixes, []);
+});
+

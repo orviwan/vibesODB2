@@ -167,8 +167,41 @@ class ELM327Adapter:
     async def send_uds_hex(self, hex_payload: str, timeout: float = 4.0) -> str:
         """
         Sends a raw UDS hex string over CAN and returns the normalized hex response.
+        Handles ELM327 indexed multi-frame output (e.g. '00F\\r0: 59 02 ...\\r1: ... AA AA')
+        and trims trailing CAN frame padding according to the 12-bit byte length header.
         """
         clean_input = hex_payload.upper().replace(" ", "")
         resp = await self.transport.send_command(clean_input, timeout=timeout)
-        clean_resp = resp.upper().replace(" ", "").replace("\r", "").replace("\n", "")
+        raw_upper = resp.upper().replace(">", "").strip()
+
+        lines = [ln.strip() for ln in re.split(r"[\r\n]+", raw_upper) if ln.strip()]
+        if any(re.search(r"(?:^|\s)[0-9A-F]+:", ln) for ln in lines):
+            declared_len: Optional[int] = None
+            hex_bytes: list[str] = []
+            for ln in lines:
+                if ":" not in ln:
+                    compact = ln.replace(" ", "")
+                    if declared_len is None and re.fullmatch(r"[0-9A-F]{2,3}", compact):
+                        declared_len = int(compact, 16)
+                        continue
+                elif declared_len is None:
+                    m_inline = re.match(r"^([0-9A-F]{3})\s+(?=0:)", ln)
+                    if m_inline:
+                        declared_len = int(m_inline.group(1), 16)
+                        ln = ln[m_inline.end() :]
+
+                for seg in re.split(r"(?=(?:^|\s)[0-9A-F]+:)", ln):
+                    body = re.sub(r"^[0-9A-F]+:\s*", "", seg.strip()).strip()
+                    if not body:
+                        continue
+                    compact_body = body.replace(" ", "")
+                    if len(compact_body) % 2 == 0 and re.fullmatch(r"[0-9A-F]+", compact_body):
+                        for k in range(0, len(compact_body), 2):
+                            hex_bytes.append(compact_body[k : k + 2])
+            if declared_len is not None and 0 < declared_len <= len(hex_bytes):
+                hex_bytes = hex_bytes[:declared_len]
+            return "".join(hex_bytes)
+
+        clean_resp = raw_upper.replace(" ", "").replace("\r", "").replace("\n", "")
         return clean_resp
+

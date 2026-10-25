@@ -253,6 +253,14 @@ export const DTC_KNOWLEDGE_BASE = {
 };
 
 const VAG_CROSS_REF = new Map();
+const UDS_EVENTS_MAP = new Map([
+  ['0X01:15916', 'P0671'],
+  ['0X02:10776', 'P177B'],
+  ['0X02:10778', 'P177C'],
+  ['0X02:10812', 'P1895'],
+  ['*:533541', 'U1121'],
+  ['*:534549', 'U1121']
+]);
 const CUSTOM_DTCS = new Map();
 const CUSTOM_STORAGE_KEY = 'vibesodb2_custom_dtcs';
 let _dbLoaded = false;
@@ -308,24 +316,32 @@ export async function ensureDtcDatabaseLoaded() {
     try {
       let json = null;
       const jsonUrl = new URL('../data/dtcs.json', import.meta.url);
-      if (typeof window !== 'undefined' && typeof fetch === 'function') {
-        const resp = await fetch(jsonUrl.href);
-        if (resp.ok) {
-          json = await resp.json();
-        }
-      } else if (typeof process !== 'undefined' && process.versions?.node) {
+      if (typeof process !== 'undefined' && process.versions?.node) {
         const [{ readFile }, { fileURLToPath }] = await Promise.all([
           import('node:fs/promises'),
           import('node:url')
         ]);
         const text = await readFile(fileURLToPath(jsonUrl), 'utf8');
         json = JSON.parse(text);
+      } else if (typeof fetch === 'function') {
+        const resp = await fetch(jsonUrl.href);
+        if (resp.ok) {
+          json = await resp.json();
+        }
+      }
+
+      if (json?.uds_events && typeof json.uds_events === 'object') {
+        for (const [ek, ev] of Object.entries(json.uds_events)) {
+          if (typeof ev === 'string') {
+            UDS_EVENTS_MAP.set(String(ek).trim().toUpperCase(), ev.trim().toUpperCase());
+          }
+        }
       }
 
       const codes = json?.codes || json;
       if (codes && typeof codes === 'object') {
         for (const [k, v] of Object.entries(codes)) {
-          if (k === '_meta' || !v || typeof v !== 'object') continue;
+          if (k === '_meta' || k === 'uds_events' || !v || typeof v !== 'object') continue;
           _indexEntry(k, v);
         }
         _dbLoaded = true;
@@ -527,13 +543,42 @@ function _lookupRecord(key) {
   return null;
 }
 
+function _lookupOdxEvent(modNorm, dec24) {
+  const decStr = String(dec24);
+  // 1. Check user custom overrides first ("0x02:10776", "UDS:10776", "VAG 10776")
+  const customKeys = [
+    modNorm ? `${modNorm.toUpperCase()}:${decStr}` : null,
+    `UDS:${decStr}`,
+    `VAG ${decStr}`
+  ].filter(Boolean);
+  for (const ck of customKeys) {
+    if (CUSTOM_DTCS.has(ck)) {
+      return { customRecord: CUSTOM_DTCS.get(ck), mappedSae: null };
+    }
+  }
+
+  // 2. Check bundled verified UDS ODX event map
+  if (modNorm) {
+    const scoped = UDS_EVENTS_MAP.get(`${modNorm.toUpperCase()}:${decStr}`);
+    if (scoped) return { customRecord: null, mappedSae: scoped };
+  }
+  const wildcard = UDS_EVENTS_MAP.get(`*:${decStr}`);
+  if (wildcard) return { customRecord: null, mappedSae: wildcard };
+  return null;
+}
+
 /**
- * Decodes a 3-byte UDS DTC (Service 0x19 02) with module context.
- * Distinguishes SAE J2012 P/C/B/U + FTB codes from VAG 5-digit decimal codes on body modules.
+ * Decodes a 3-byte UDS DTC (Service 0x19 02) with module and ASAM/ODX context.
+ * Distinguishes:
+ *   1) VAG 24-bit ASAM/ODX manufacturer event numbers (on EV_* ODX modules, TCM b0 < 0x07, or b0 == 0x00 non-FTB),
+ *   2) VAG 5-digit decimal codes on legacy/non-ODX body modules,
+ *   3) Standard SAE J2012 P/C/B/U + ISO 14229-1 FTB records.
  */
-export function decodeUdsDtcBytes(b0, b1, b2, statusByte = null, moduleAddress = null) {
+export function decodeUdsDtcBytes(b0, b1, b2, statusByte = null, moduleAddress = null, options = {}) {
   const modNorm = _normalizeModuleAddr(moduleAddress);
   const isPowertrain = modNorm === '0x01' || modNorm === '0x02' || !modNorm;
+  const odxName = options?.odxName ? String(options.odxName).trim() : null;
+  const isVagOdxModule = Boolean(odxName && /^EV_/i.test(odxName));
   const rawHex = `0x${b0.toString(16).padStart(2, '0')}${b1.toString(16).padStart(2, '0')}${b2.toString(16).padStart(2, '0')}`.toUpperCase();
   const b2Hex = b2.toString(16).padStart(2, '0').toUpperCase();
 
@@ -541,11 +586,93 @@ export function decodeUdsDtcBytes(b0, b1, b2, statusByte = null, moduleAddress =
   const dec16 = (b0 << 8) | b1;
   const vag5 = dec16.toString().padStart(5, '0');
   const dec24 = (b0 << 16) | (b1 << 8) | b2;
+  const odxHit = _lookupOdxEvent(modNorm, dec24);
 
-  // Determine whether these 3 bytes represent:
-  // 1) SAE C/B/U code + FTB (always when b0 >= 0x40),
-  // 2) Powertrain SAE P-code + FTB (on 0x01 ECM / 0x02 TCM),
-  // 3) VAG 5-digit decimal code + symptom/FTB on non-powertrain modules (0x09, 0x15, 0x03, etc.).
+  const isVag24Event =
+    isVagOdxModule ||
+    (modNorm === '0x02' && b0 < 0x07) ||
+    (b0 === 0x00 && b2 !== 0x00 && !(b2 in UDS_FTB_CODES)) ||
+    Boolean(odxHit && b0 === 0x00);
+
+  if (isVag24Event) {
+    const vagEventStr = String(dec24);
+    if (odxHit?.customRecord) {
+      const rec = odxHit.customRecord;
+      return {
+        code: `VAG ${vagEventStr}`,
+        baseCode: vagEventStr,
+        saeCode: null,
+        vagCode: vagEventStr,
+        rawHex,
+        uds24Dec: dec24,
+        ftbHex: null,
+        odxName,
+        title: rec.title,
+        system: rec.system || 'VAG ASAM/ODX Control Unit',
+        meaning: rec.meaning,
+        causes: rec.causes || [],
+        fixes: rec.fixes || [],
+        severity: rec.severity || 'warning',
+        symptom: null,
+        symptomDetail: null,
+        isIntermittent: false,
+        statusByte: statusByte !== null && statusByte !== undefined
+          ? (typeof statusByte === 'number' ? `0x${statusByte.toString(16).padStart(2, '0').toUpperCase()}` : String(statusByte))
+          : null,
+        isKnown: true,
+        source: 'custom'
+      };
+    }
+
+    if (odxHit?.mappedSae) {
+      const parsed = lookupDtc(odxHit.mappedSae, statusByte, null, {
+        protocol: 'UDS',
+        moduleAddress: modNorm,
+        vagAlias: vagEventStr
+      });
+      return {
+        ...parsed,
+        code: odxHit.mappedSae,
+        baseCode: odxHit.mappedSae,
+        saeCode: odxHit.mappedSae,
+        vagCode: vagEventStr,
+        symptom: null,
+        symptomDetail: null,
+        rawHex,
+        uds24Dec: dec24,
+        ftbHex: null,
+        odxName
+      };
+    }
+
+    // Honest unlisted VAG 24-bit ODX event — never fabricate a false SAE P00xx or FTB label (AGENTS.md Rule 10)
+    const datasetNote = odxName ? ` on dataset ${odxName}` : '';
+    return {
+      code: `VAG ${vagEventStr}`,
+      baseCode: vagEventStr,
+      saeCode: null,
+      vagCode: vagEventStr,
+      rawHex,
+      uds24Dec: dec24,
+      ftbHex: null,
+      odxName,
+      title: `Unlisted VAG UDS Fault Event (${vagEventStr})`,
+      system: 'VAG ASAM/ODX Control Unit',
+      meaning: `VAG 24-bit UDS manufacturer event ${vagEventStr} (${rawHex})${datasetNote} is not yet in the bundled vibesODB2 reference dictionary. VAG ASAM/ODX control units map 24-bit decimal event numbers to SAE codes via module-specific dataset tables; cross-reference event ${vagEventStr} with the module part number${odxName ? ' or ODX dataset' : ''}.`,
+      causes: [],
+      fixes: [],
+      severity: 'warning',
+      symptom: null,
+      symptomDetail: null,
+      isIntermittent: false,
+      statusByte: statusByte !== null && statusByte !== undefined
+        ? (typeof statusByte === 'number' ? `0x${statusByte.toString(16).padStart(2, '0').toUpperCase()}` : String(statusByte))
+        : null,
+      isKnown: false,
+      source: 'unlisted'
+    };
+  }
+
   let useVag5 = false;
   if (b0 < 0x40 && !isPowertrain) {
     if (_lookupRecord(vag5) || b0 < 0x10) {
@@ -563,7 +690,8 @@ export function decodeUdsDtcBytes(b0, b1, b2, statusByte = null, moduleAddress =
       ...parsed,
       rawHex,
       uds24Dec: dec24,
-      ftbHex: b2 !== 0 ? `0x${b2Hex}` : null
+      ftbHex: b2 !== 0 ? `0x${b2Hex}` : null,
+      odxName
     };
   }
 
@@ -582,7 +710,8 @@ export function decodeUdsDtcBytes(b0, b1, b2, statusByte = null, moduleAddress =
     baseCode: saeBase,
     rawHex,
     uds24Dec: dec24,
-    ftbHex: b2 !== 0 ? `0x${b2Hex}` : null
+    ftbHex: b2 !== 0 ? `0x${b2Hex}` : null,
+    odxName
   };
 }
 

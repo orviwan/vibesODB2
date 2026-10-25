@@ -3,7 +3,16 @@
     "project": "vibesODB2",
     "license": "MIT",
     "provenance": "Original fault-code reference prose authored for vibesODB2. General diagnostic guidance only; not a diagnosis of any specific vehicle.",
-    "count": 326
+    "count": 335,
+    "uds_event_count": 6
+  },
+  "uds_events": {
+    "0x01:15916": "P0671",
+    "0x02:10776": "P177B",
+    "0x02:10778": "P177C",
+    "0x02:10812": "P1895",
+    "*:533541": "U1121",
+    "*:534549": "U1121"
   },
   "codes": {
     "00003": {
@@ -3296,28 +3305,162 @@
       ],
       "severity": "danger"
     },
-    "P17BF": {
-      "title": "Hydraulic Pump Play Protection Active",
-      "system": "Transmission (DSG)",
-      "meaning": "DQ200 hydraulic pump ran continuously without reaching cut-out pressure, triggering thermal protection.",
+    "P175D": {
+      "title": "Clutch 1 Opens Unintentionally",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Odd-gear clutch K1 lost clamping position unexpectedly while engaged.",
       "causes": [
-        "Internal hydraulic leak at cracked accumulator seat",
-        "Low mechatronic hydraulic oil level"
+        "Sudden hydraulic pressure sag in mechatronic valve body",
+        "Faulty K1 pressure regulating solenoid"
       ],
       "fixes": [
-        "Inspect mechatronic for hydraulic oil leaks from breather and check pump run cycle"
+        "Check for companion hydraulic pressure codes and inspect mechatronic accumulator integrity"
+      ],
+      "severity": "danger"
+    },
+    "P175E": {
+      "title": "Clutch 2 Opens Unintentionally",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Even-gear clutch K2 disengaged unexpectedly under drive.",
+      "causes": [
+        "Sudden mechatronic hydraulic pressure drop",
+        "Sticking K2 pressure control valve"
+      ],
+      "fixes": [
+        "Inspect mechatronic hydraulic pressure readings and check for internal accumulator leaks"
+      ],
+      "severity": "danger"
+    },
+    "P176A": {
+      "title": "Gear Selector 1 Cannot Be Regulated",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Selector fork for 1st/3rd gear failed to reach its target Hall-sensor position.",
+      "causes": [
+        "Metal swarf on selector fork magnet",
+        "Low mechatronic hydraulic pressure",
+        "Worn synchro hub"
+      ],
+      "fixes": [
+        "Clean selector fork magnets if disassembling and verify hydraulic system pressure"
+      ],
+      "severity": "danger"
+    },
+    "P176B": {
+      "title": "Gear Selector 2 Cannot Be Regulated",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Selector fork for 2nd/4th gear did not reach commanded engagement position.",
+      "causes": [
+        "Debris on fork position magnet",
+        "Mechatronic shift solenoid or hydraulic pressure fault"
+      ],
+      "fixes": [
+        "Inspect selector travel readings and mechatronic hydraulic pressure"
+      ],
+      "severity": "danger"
+    },
+    "P176C": {
+      "title": "Gear Selector 3 Cannot Be Regulated",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Selector fork for 5th/7th or 6th/Reverse gear failed to engage cleanly (common early 7-speed rear bearing/fork issue).",
+      "causes": [
+        "Damaged selector fork roller bearing",
+        "Ferrous debris clinging to fork Hall magnet",
+        "Low hydraulic shift pressure"
+      ],
+      "fixes": [
+        "Check gear oil for metallic debris and inspect selector fork travel data"
+      ],
+      "severity": "danger"
+    },
+    "P177B": {
+      "title": "Clutch 1 Tolerance Limit Reached",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Dual-clutch control unit detected that odd-gear clutch K1 actuation travel has reached its outer wear or adaptation boundary.",
+      "causes": [
+        "Normal friction-lining wear on dry-clutch pack K1",
+        "Low mechatronic hydraulic pressure starving the K1 pushrod of full stroke (check if paired with P1895 / P189C / P17BF)",
+        "Incomplete clutch basic setting after mechanical work"
+      ],
+      "fixes": [
+        "Check whether hydraulic pressure-drop codes (such as P1895 or P189C) are also stored—address hydraulic pressure loss before condemning the clutch pack",
+        "Compare K1 adaptation engagement and upper end-stop positions in live transmission data",
+        "Inspect dry-clutch pack wear and release bearing travel if hydraulic pressure holds steady"
+      ],
+      "severity": "warning"
+    },
+    "P177C": {
+      "title": "Clutch 2 Tolerance Limit Reached",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Dual-clutch control unit detected that even-gear/reverse clutch K2 actuation travel has reached its adaptation or wear threshold.",
+      "causes": [
+        "Worn K2 friction disc or uneven diaphragm fingers on 7-speed dry-clutch pack",
+        "Dropping mechatronic hydraulic pressure limiting K2 actuator travel (often logged alongside P1895 / P177B)",
+        "Incorrect shim clearance after clutch replacement"
+      ],
+      "fixes": [
+        "If accompanied by hydraulic pressure codes (P1895 / P189C / P17BF), inspect the mechatronic pressure accumulator housing first",
+        "Evaluate K2 clutch travel margin and slip behavior on 2nd/4th/reverse engagement",
+        "Replace dual-clutch pack and set shim clearances if friction material is worn out"
+      ],
+      "severity": "warning"
+    },
+    "P177D": {
+      "title": "Dual-Clutch Excessive Torque / Slip Overload",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Measured clutch torque or slip temperature exceeded protective thresholds.",
+      "causes": [
+        "Repeated hill-holding on throttle or heavy towing overheating dry clutches",
+        "Glazed clutch linings",
+        "Low hydraulic clamping pressure"
+      ],
+      "fixes": [
+        "Allow transmission to cool and inspect clutch temperature history",
+        "Check mechatronic hydraulic pressure stability and clutch engagement smoothness"
+      ],
+      "severity": "warning"
+    },
+    "P17BF": {
+      "title": "Hydraulic Pump Play Protection Active",
+      "system": "DSG Mechatronics (0x02)",
+      "meaning": "Transmission control unit limited or shut down the electric hydraulic pump because it ran continuously trying to compensate for an internal pressure leak.",
+      "causes": [
+        "Internal hydraulic leak at the accumulator threads forcing non-stop pump duty",
+        "Worn pump motor brushes or blown 30A mechatronic supply fuse if dead"
+      ],
+      "fixes": [
+        "Treat as a symptom of internal pressure loss (commonly paired with P1895 or P189C)—inspect the accumulator housing and pump motor condition",
+        "Check mechatronic hydraulic oil level (typically ~1.0–1.1 L separate circuit on dry-clutch units)"
+      ],
+      "severity": "danger"
+    },
+    "P1895": {
+      "title": "Functional Restriction due to Pressure Drop",
+      "system": "DSG Mechatronics (0x02)",
+      "meaning": "Mechatronic hydraulic system pressure fell below the operating threshold needed to actuate clutches and gear forks reliably.",
+      "causes": [
+        "Micro-crack or thread fatigue around the screw-in hydraulic accumulator boss inside the 7-speed dry-clutch mechatronic housing",
+        "Leaking internal accumulator seal or pressure relief valve",
+        "Low mechatronic hydraulic oil level (separate from gear oil) or worn electric hydraulic pump"
+      ],
+      "fixes": [
+        "Inspect the mechatronic breather for hydraulic oil misting and check the aluminium accumulator mounting boss for hairline cracks",
+        "Verify mechatronic hydraulic pressure build-up rate and hold-down decay time—reinforced accumulator repair housings can restore pressure if caught before pump burnout",
+        "Check battery and charging voltage at the mechatronic supply connector"
       ],
       "severity": "danger"
     },
     "P189C": {
-      "title": "Function Restriction Due to Insufficient Pressure Build-Up",
-      "system": "Transmission (DSG)",
-      "meaning": "DSG mechatronic could not build sufficient hydraulic pressure to engage clutches cleanly.",
+      "title": "Functional Restriction due to Insufficient Pressure Build-Up",
+      "system": "DSG Mechatronics (0x02)",
+      "meaning": "Electric mechatronic pump could not raise hydraulic accumulator pressure to target within the permitted time window.",
       "causes": [
-        "Cracked accumulator mount or leaking internal seal in DQ200 mechatronic"
+        "Cracked accumulator seat bleeding pressure internally inside the valve body",
+        "Loosened accumulator canister",
+        "Weak mechatronic pump motor or low hydraulic fluid volume"
       ],
       "fixes": [
-        "Diagnose alongside P0841 / P17BF; pressure loss requires mechatronic hydraulic repair"
+        "Avoid extended driving if gear display flashes, as continuous pump operation can trigger thermal cutout (P17BF)",
+        "Remove mechatronic sump cover to inspect the pressure accumulator base for cracking or looseness"
       ],
       "severity": "danger"
     },
@@ -3982,15 +4125,14 @@
     },
     "P2711": {
       "title": "Unexpected Mechanical Gear Disengagement",
-      "system": "Transmission (DSG)",
-      "meaning": "Gear selector fork slipped out of engagement or failed to engage cleanly.",
+      "system": "DSG Transmission (0x02)",
+      "meaning": "Input-to-output shaft speed ratio jumped out of sync while a gear was engaged.",
       "causes": [
-        "Excessive clutch pack clearance",
-        "Selector fork magnet contaminated with metallic swarf",
-        "Mechatronic solenoid wear"
+        "Selector fork popped out of gear due to worn synchro or bearing play",
+        "Contaminated fork position magnet"
       ],
       "fixes": [
-        "Inspect DSG fluid condition and run clutch/gearbox basic setting only if mechanical health is confirmed"
+        "Inspect transmission oil condition and check individual selector fork positions"
       ],
       "severity": "danger"
     },

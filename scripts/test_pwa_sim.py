@@ -92,21 +92,33 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
     print(f"✓ Local PWA server running at http://127.0.0.1:{http_port}")
 
     # 2. Launch headless Chrome
-    chrome_proc = subprocess.Popen([
-        CHROME_BIN,
-        "--headless=new",
-        f"--remote-debugging-port={cdp_port}",
-        "--no-sandbox",
-        "--disable-gpu",
-        "--window-size=1280,900"
-    ])
+    chrome_env = {
+        **os.environ,
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=/dev/null",
+        "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/dev/null",
+    }
+    chrome_proc = subprocess.Popen(
+        [
+            CHROME_BIN,
+            "--headless=new",
+            f"--remote-debugging-port={cdp_port}",
+            "--no-sandbox",
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--window-size=1280,900",
+        ],
+        env=chrome_env,
+    )
 
     CONSOLE_ERRORS.clear()
 
     try:
-        # Query CDP WebSocket URL with retry loop
+        # Query CDP WebSocket URL with retry loop (allow up to 30s on cold CI runners)
         ws_url = None
-        for attempt in range(20):
+        deadline = time.monotonic() + 30.0
+        while time.monotonic() < deadline:
             await asyncio.sleep(0.5)
             try:
                 req = urllib.request.urlopen(f"http://127.0.0.1:{cdp_port}/json", timeout=2)
@@ -119,7 +131,7 @@ async def run_pwa_sim_test(http_port: int = 8145, cdp_port: int = 9256):
                 continue
 
         if not ws_url:
-            raise RuntimeError(f"Headless Chrome failed to bind to CDP port {cdp_port} within 10 seconds.")
+            raise RuntimeError(f"Headless Chrome failed to bind to CDP port {cdp_port} within 30 seconds.")
 
         async with websockets.connect(ws_url) as ws:
             def id_gen():
